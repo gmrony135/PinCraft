@@ -50,7 +50,7 @@ export default function Landing({ go, state }) {
       {/* Hero */}
       <section className="animate-fade-up pt-9">
         <span className="chip bg-pin-50 text-pin-600">
-          <span className="text-[13px] leading-none">✨</span> Crafted Pins, Daily Traffic
+          <span className="text-[13px] leading-none">✨</span> AI-powered · 1-click setup
         </span>
 
         <h1 className="mt-4 text-[33px] font-extrabold leading-[1.12] tracking-[-0.035em] text-neutral-900">
@@ -80,6 +80,21 @@ export default function Landing({ go, state }) {
             <Check size={13} className="text-emerald-500" /> Free plan forever
           </span>
         </div>
+      </section>
+
+      {/* Official logo lockup */}
+      <section className="mt-7 flex flex-col items-center rounded-4xl bg-gradient-to-b from-neutral-50 to-white p-5 ring-1 ring-neutral-100">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/brand/pincraft-logo-full-1024.png"
+          alt="PinCraft logo — pin and pencil"
+          width={168}
+          height={168}
+          className="h-[168px] w-[168px] rounded-3xl object-contain shadow-card"
+        />
+        <p className="mt-3 text-[12px] font-semibold tracking-tight text-neutral-400">
+          Crafted Pins, Daily Traffic
+        </p>
       </section>
 
       {/* Hero visual card */}

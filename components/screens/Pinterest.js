@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { BackHeader, Spinner, PinIcon } from "../ui";
+import { BackHeader, Spinner, AppIcon } from "../ui";
 import { Check, Unlink, ShieldCheck, ExternalLink } from "lucide-react";
 
 export default function Pinterest({ go, state, actions, toast }) {
@@ -29,9 +29,7 @@ export default function Pinterest({ go, state, actions, toast }) {
       />
 
       <div className="card mb-5 flex flex-col items-center p-6 text-center">
-        <span className="grid h-16 w-16 place-items-center rounded-3xl bg-pin-50">
-          <PinIcon size={38} />
-        </span>
+        <AppIcon size={64} radius={20} />
         <h2 className="mt-3.5 text-[18px] font-extrabold text-neutral-900">
           {state.pinterestConnected
             ? "Pinterest is connected"

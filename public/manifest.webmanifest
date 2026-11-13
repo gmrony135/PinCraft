@@ -1,0 +1,13 @@
+{
+  "name": "PinCraft — Crafted Pins, Daily Traffic",
+  "short_name": "PinCraft",
+  "description": "Pinterest + Blog Automation in 1 Click",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#e60023",
+  "icons": [
+    { "src": "/brand/pincraft-icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/brand/pincraft-icon.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}

@@ -2,11 +2,11 @@
 
 // PinCraft design system components (mobile-app first)
 
-export function Logo({ size = "md", showCraft = true, onClick }) {
+export function Logo({ size = "md", showCraft = true, onClick, variant = "color" }) {
   const dims = {
-    sm: { pin: 26, text: "text-lg", gap: "gap-2" },
-    md: { pin: 32, text: "text-[22px]", gap: "gap-2.5" },
-    lg: { pin: 40, text: "text-[28px]", gap: "gap-3" },
+    sm: { mark: 26, text: "text-lg", gap: "gap-2" },
+    md: { mark: 32, text: "text-[22px]", gap: "gap-2.5" },
+    lg: { mark: 44, text: "text-[28px]", gap: "gap-3" },
   }[size];
 
   return (
@@ -15,53 +15,63 @@ export function Logo({ size = "md", showCraft = true, onClick }) {
       className={`inline-flex items-center ${dims.gap} ${onClick ? "tap" : "cursor-default"}`}
       aria-label="PinCraft home"
     >
-      <span className="relative inline-flex items-center justify-center">
-        <PinIcon size={dims.pin} />
-        {showCraft && (
-          <span className="absolute -bottom-1 -right-2.5 rotate-[-18deg]">
-            <PencilIcon size={dims.pin * 0.52} />
-          </span>
-        )}
-      </span>
-      <span className={`font-extrabold tracking-tight text-neutral-900 ${dims.text}`}>
-        Pin<span className="text-pin-600">Craft</span>
+      <BrandMark size={dims.mark} variant={variant} />
+      <span
+        className={`font-extrabold tracking-tight ${
+          variant === "white" ? "text-white" : "text-neutral-900"
+        } ${dims.text}`}
+      >
+        Pin<span className={variant === "white" ? "text-white" : "text-pin-600"}>Craft</span>
       </span>
     </button>
   );
 }
 
-export function PinIcon({ size = 32, className = "" }) {
+/** Official PinCraft brand mark (pin + pencil). */
+export function BrandMark({ size = 32, variant = "color", className = "" }) {
+  const src =
+    variant === "white"
+      ? "/brand/pincraft-mark-white.png"
+      : "/brand/pincraft-mark-red.png";
   return (
-    <svg
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={src}
+      alt="PinCraft logo"
       width={size}
       height={size}
-      viewBox="0 0 24 24"
-      className={className}
-      aria-hidden="true"
-    >
-      <circle cx="11" cy="10" r="7.4" fill="#e60023" />
-      <circle cx="11" cy="10" r="3.1" fill="#fff" />
-      <path
-        d="M11 17.2 L9.3 23.2 L12.7 23.2 Z"
-        fill="#e60023"
-      />
-      <circle cx="8.6" cy="7.6" r="1.7" fill="#fff" opacity=".75" />
-    </svg>
+      className={`shrink-0 object-contain ${className}`}
+      style={{ width: size, height: size }}
+    />
   );
+}
+
+/** Red rounded app icon (used on coloured surfaces). */
+export function AppIcon({ size = 56, radius = 18, className = "" }) {
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src="/brand/pincraft-icon.png"
+      alt="PinCraft app icon"
+      width={size}
+      height={size}
+      className={`shrink-0 ${className}`}
+      style={{ width: size, height: size, borderRadius: radius }}
+    />
+  );
+}
+
+// Legacy inline SVG helpers kept for compatibility (PinIcon used in Pinterest screen)
+export function PinIcon({ size = 32, className = "" }) {
+  return <BrandMark size={size} className={className} />;
 }
 
 export function PencilIcon({ size = 18, className = "" }) {
   return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      className={className}
-      aria-hidden="true"
-    >
+    <svg width={size} height={size} viewBox="0 0 24 24" className={className} aria-hidden="true">
       <path
         d="M4 20 L4.8 16.2 L16.6 4.4 A2.2 2.2 0 0 1 19.7 7.5 L7.9 19.3 Z"
-        fill="#111"
+        fill="#E60023"
         stroke="#fff"
         strokeWidth="1.6"
         strokeLinejoin="round"

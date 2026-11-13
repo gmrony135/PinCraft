@@ -11,8 +11,15 @@ export const metadata = {
     title: "PinCraft",
   },
   icons: {
-    icon: "/icon.svg",
+    icon: [
+      { url: "/brand/favicon-32.png", sizes: "32x32", type: "image/png" },
+      { url: "/brand/favicon-16.png", sizes: "16x16", type: "image/png" },
+      { url: "/brand/pincraft-icon-192.png", sizes: "192x192", type: "image/png" },
+    ],
+    apple: [{ url: "/brand/apple-touch-icon.png", sizes: "180x180" }],
+    shortcut: "/brand/favicon-32.png",
   },
+  manifest: "/manifest.webmanifest",
 };
 
 export const viewport = {

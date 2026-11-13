@@ -74,6 +74,22 @@ Every push to `main` auto-deploys to production (tested and verified).
 
 ---
 
+## 🏷 Brand assets
+
+Official logo (pin + pencil, red) lives in `public/brand/`:
+
+| File | Use |
+|---|---|
+| `pincraft-logo-original.jpeg` | original uploaded artwork (1600×1600) |
+| `pincraft-logo-full-1024.png` | approved lockup (circle + wordmark) — used on the landing page |
+| `pincraft-mark.png` | square mark tile |
+| `pincraft-mark-red.png` | transparent red mark (light backgrounds) |
+| `pincraft-mark-white.png` | transparent white mark (dark/red backgrounds) |
+| `pincraft-icon.png` / `-192` | app icon / PWA |
+| `favicon-16/32.png`, `apple-touch-icon.png` | browser + iOS icons |
+
+The UI logo component is `Logo` / `BrandMark` / `AppIcon` in `components/ui.js`.
+
 ## 🎨 Design
 
 - Clean white background, Pinterest red `#e60023`, black text
