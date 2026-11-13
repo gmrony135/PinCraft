@@ -54,11 +54,11 @@ async function run() {
     // Unconfigured endpoints must never authenticate a forged profile/token.
     const configResponse = await context.request.get(`${BASE}/api/auth/config`);
     const config = await configResponse.json();
-    check("Google config is truthful: unconfigured, no public client ID or nonce", configResponse.status() === 200 && config.configured === false && config.clientId === null && config.nonce === null);
+    check("Google config is truthful: unconfigured, no Firebase web config or nonce", configResponse.status() === 200 && config.configured === false && config.firebase === null && config.nonce === null);
     check("Auth configuration is not cached", /no-store/.test(configResponse.headers()["cache-control"] || ""));
     const session = await context.request.get(`${BASE}/api/auth/session`);
     check("Guest session endpoint contains no invented account", session.status() === 200 && (await session.json()).user === null);
-    const forged = await context.request.get(`${BASE}/api/auth/session`, { headers: { Cookie: "pincraft.session.v1=forged-profile-token" } });
+    const forged = await context.request.get(`${BASE}/api/auth/session`, { headers: { Cookie: "pincraft.session.v2=forged-profile-token" } });
     check("Forged session cookies do not authenticate", (await forged.json()).user === null);
     const fakeLogin = await context.request.post(`${BASE}/api/auth/google`, { headers: { origin: ORIGIN }, data: { credential: "forged.google.token", name: "A Fake Creator" } });
     check("Unconfigured Google login fails closed and never sets a session", fakeLogin.status() === 503 && !/pincraft\.session/.test(fakeLogin.headers()["set-cookie"] || ""));
@@ -67,7 +67,7 @@ async function run() {
     const noOrigin = await context.request.post(`${BASE}/api/auth/logout`);
     check("Logout requires a same-origin request", noOrigin.status() === 403);
     const logout = await context.request.post(`${BASE}/api/auth/logout`, { headers: { origin: ORIGIN } });
-    check("Same-origin logout clears HttpOnly session cookies", logout.status() === 200 && /pincraft\.session\.v1=/.test(logout.headers()["set-cookie"] || "") && /HttpOnly/i.test(logout.headers()["set-cookie"] || ""));
+    check("Same-origin logout clears HttpOnly session cookies", logout.status() === 200 && /pincraft\.session\.v2=/.test(logout.headers()["set-cookie"] || "") && /HttpOnly/i.test(logout.headers()["set-cookie"] || ""));
 
     await load(page, "/");
     check("Homepage shows the requested small welcome popup", await page.getByTestId("notification").getByText(WELCOME, { exact: true }).isVisible());
@@ -88,7 +88,7 @@ async function run() {
     check("Login discloses pending setup before the Google button is clicked", await dialog.getByText("Google Login needs setup", { exact: true }).isVisible());
     check("Login locks background scrolling and traps both Tab directions", await page.evaluate(() => document.body.style.overflow === "hidden") && await focusContained(page, dialog));
     await dialog.getByRole("button", { name: "Continue with Google", exact: true }).click();
-    check("Unconfigured Google button explains the limitation instead of faking login", await dialog.getByRole("status").filter({ hasText: /does not simulate a Google account/ }).isVisible() && await page.getByTestId("google-setup-notice").evaluate((node) => document.activeElement === node));
+    check("Unconfigured Google button explains the limitation instead of faking login", await dialog.getByRole("status").filter({ hasText: /No Google account is simulated/ }).isVisible() && await page.getByTestId("google-setup-notice").evaluate((node) => document.activeElement === node));
     await photo(page, "final-login-desktop.png");
     await page.keyboard.press("Escape");
     check("Escape closes Login and restores Navbar focus/scroll", await page.getByRole("dialog").count() === 0 && await page.getByRole("banner").getByRole("button", { name: "Login with Google", exact: true }).evaluate((node) => document.activeElement === node) && await page.evaluate(() => document.body.style.overflow !== "hidden"));

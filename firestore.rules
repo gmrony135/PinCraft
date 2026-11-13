@@ -1,0 +1,11 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // All PinCraft reads/writes go through authenticated, owner-scoped server
+    // APIs. The Admin SDK uses IAM. Even a signed-in browser cannot read OAuth
+    // envelopes, another user's content, or mutate schedules directly.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

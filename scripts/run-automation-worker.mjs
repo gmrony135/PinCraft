@@ -6,5 +6,5 @@ else {
   const database = getDatabase();
   try { console.log(JSON.stringify(await runWorker(database))); }
   catch { console.error("Worker failed safely. Inspect the private server job log; no credentials were logged."); process.exitCode = 1; }
-  finally { await database.end(); }
+  finally { await database.terminate(); }
 }

@@ -7,17 +7,22 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "db:migrate": "node --conditions=react-server scripts/migrate-automation.mjs",
     "automation:worker": "node --conditions=react-server scripts/run-automation-worker.mjs",
     "test:automation": "node --conditions=react-server scripts/check-automation.mjs",
-    "test:automation:ui": "node --conditions=react-server scripts/check-automation-api-ui.mjs"
+    "test:automation:ui": "node --conditions=react-server scripts/check-automation-api-ui.mjs",
+    "build:functions": "node scripts/build-functions.mjs",
+    "firebase:emulators": "firebase emulators:start --only auth,firestore --project demo-pincraft-local",
+    "test:auth": "node --conditions=react-server scripts/check-auth.js",
+    "test:firebase": "node --conditions=react-server scripts/check-automation.mjs",
+    "test:firebase:setup": "node scripts/create-firebase-test-env.mjs"
   },
   "dependencies": {
+    "firebase": "^13.3.0",
+    "firebase-admin": "^14.5.1",
     "ipaddr.js": "^2.5.0",
     "jose": "^6.2.17",
     "lucide-react": "^1.72.0",
     "next": "^15.5.29",
-    "pg": "^8.23.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "server-only": "^0.0.1",
@@ -25,6 +30,8 @@
   },
   "devDependencies": {
     "autoprefixer": "^10.4.20",
+    "esbuild": "^0.28.2",
+    "firebase-tools": "^15.36.0",
     "playwright": "^1.65.0",
     "postcss": "^8.4.47",
     "tailwindcss": "^3.4.13"
@@ -32,6 +39,10 @@
   "overrides": {
     "next": {
       "postcss": "^8.5.23"
-    }
+    },
+    "@grpc/grpc-js": "1.14.7"
+  },
+  "engines": {
+    "node": ">=24.12.0"
   }
 }

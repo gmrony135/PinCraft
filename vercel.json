@@ -1,21 +1,5 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nextjs",
-  "schedules": {
-    "full-auto-worker": {
-      "schedule": "*/30 * * * *",
-      "timezone": "UTC",
-      "jitter": 15,
-      "path": "/api/internal/automation/tick",
-      "requestMethod": "POST"
-    }
-  },
-  "headers": [
-    {
-      "source": "/(.*)",
-      "headers": [
-        { "key": "X-Content-Type-Options", "value": "nosniff" }
-      ]
-    }
-  ]
+  "headers": [{"source":"/(.*)","headers":[{"key":"X-Content-Type-Options","value":"nosniff"}]}]
 }

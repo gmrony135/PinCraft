@@ -1,5 +1,6 @@
 import { ImageResponse } from "next/og";
 import { getDatabase } from "@/lib/automation/db.mjs";
+import { getJob } from "@/lib/automation/repository.mjs";
 import { validImageSignature, validJobId } from "@/lib/automation/images.mjs";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -8,7 +9,8 @@ export async function GET(request, { params }) {
   const { id } = await params;
   if (!validJobId(id) || !validImageSignature(id, new URL(request.url).searchParams.get("sig") || "")) return new Response("Image not found", { status: 404 });
   try {
-    const job = (await getDatabase().query("SELECT topic,content->>'title' AS title FROM pincraft_auto_jobs WHERE id=$1 AND content IS NOT NULL", [id])).rows[0];
+    const saved = await getJob(getDatabase(), id);
+    const job = saved?.kind === "generated" && saved.content ? { topic: saved.topic, title: saved.content.title } : null;
     if (!job?.title) return new Response("Image not found", { status: 404 });
     const dark = parseInt(id.slice(0, 2), 16) % 2 === 1;
     const background = dark ? "#111111" : "#fff8f6";

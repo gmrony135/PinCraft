@@ -6,6 +6,8 @@ import CopyButton from "../CopyButton";
 import ResultSection from "./ResultSection";
 import { generatePinPack, wordCount } from "@/lib/generator";
 import { saveToLibrary } from "@/lib/library";
+import { saveCloudDraft } from "@/lib/cloud-library";
+import { useAuth } from "../providers/AppProvider";
 import { copyText } from "@/lib/clipboard";
 import {
   Sparkles,
@@ -32,9 +34,16 @@ const EXAMPLES = [
 ];
 
 export default function PinGenerator() {
+  const { user, authLoading } = useAuth();
+  const [saving, setSaving] = useState(false);
+  const saveRequest = useRef(null);
+  const identity = useRef(null);
+  identity.current = user?.id || "device";
   const [topic, setTopic] = useState("");
   const [loading, setLoading] = useState(false);
   const [pack, setPack] = useState(null);
+  const currentContent = useRef(null);
+  currentContent.current = pack?.id;
   const [error, setError] = useState("");
   const [saved, setSaved] = useState(false);
   const [toast, setToast] = useState("");
@@ -81,15 +90,21 @@ export default function PinGenerator() {
     }, 100);
   }
 
-  function handleSave() {
-    if (!pack) return;
+  useEffect(() => { setSaved(false); saveRequest.current = null; }, [user?.id, pack?.id]);
+  async function handleSave() {
+    if (!pack || saving || authLoading) return;
+    const owner = identity.current, contentId = pack.id;
+    setSaving(true);
     try {
-      saveToLibrary({ type: "pin", ...pack });
+      if (user) {
+        if (!saveRequest.current) saveRequest.current = crypto.randomUUID();
+        await saveCloudDraft("pin", pack, saveRequest.current);
+      } else saveToLibrary({ type: "pin", ...pack });
+      if (identity.current !== owner || currentContent.current !== contentId) return;
       setSaved(true);
-      flash("Saved to My Library on this device 📚");
-    } catch (issue) {
-      flash(issue.message);
-    }
+      flash(user ? "Saved privately to your Firebase Cloud Library." : "Saved to My Library on this device 📚");
+    } catch (issue) { if (identity.current === owner && currentContent.current === contentId) flash(issue.message); }
+    finally { setSaving(false); }
   }
 
   const articleHref = pack
@@ -428,7 +443,7 @@ export default function PinGenerator() {
                       <button
                         type="button"
                         onClick={handleSave}
-                        disabled={saved}
+                        disabled={saved || saving || authLoading}
                         className={`w-full whitespace-normal px-4 text-[14px] sm:flex-1 ${
                           saved ? "btn-outline border-emerald-200 text-emerald-600" : "btn-dark"
                         }`}

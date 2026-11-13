@@ -1,0 +1,9 @@
+{
+  "name":"pincraft-firebase-automation",
+  "version":"1.0.0",
+  "private":true,
+  "type":"module",
+  "main":"runtime/index.mjs",
+  "engines":{"node":"22"},
+  "dependencies":{"firebase-admin":"14.5.1","firebase-functions":"7.4.0","ipaddr.js":"^2.5.0","undici":"^7.30.2"}
+}

@@ -71,7 +71,7 @@ export default function MyLibrary() {
       </div>
 
       <CloudLibrary />
-      <div className="mb-3 mt-8"><h2 className="text-[19px] font-extrabold tracking-tight">Device saves & examples</h2><p className="mt-1 text-[11.5px] leading-relaxed text-neutral-500">Manual tool saves stay in this browser. Example collections below are never uploaded or counted as cloud results.</p></div>
+      <div className="mb-3 mt-8"><h2 className="text-[19px] font-extrabold tracking-tight">Device saves & examples</h2><p className="mt-1 text-[11.5px] leading-relaxed text-neutral-500">Guest saves and demo previews stay in this browser. Examples below are never uploaded or counted as cloud results.</p></div>
 
       <section aria-label="Your saved collections" className="mt-7 overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-sm">
         <div className="flex flex-col justify-between gap-4 border-b border-neutral-100 p-4 sm:px-6 sm:py-4 md:flex-row md:items-center">
@@ -93,7 +93,7 @@ export default function MyLibrary() {
           </>}
         </div>)}
       </section>
-      <div className="mt-5 flex flex-wrap items-center justify-between gap-3 text-[11px] text-neutral-500"><p className="flex items-center gap-1.5"><Monitor aria-hidden="true" size={13} /> Manual tool saves stay on this device. Full Auto results appear in Cloud Library above.</p><Link href={tab === "pins" ? "/pin-generator" : "/article-writer"} prefetch={false} className="inline-flex min-h-11 items-center gap-1.5 font-bold text-brand-700">{tab === "pins" ? "Generate a new pin" : "Write a new article"}<ArrowRight aria-hidden="true" size={13} /></Link></div>
+      <div className="mt-5 flex flex-wrap items-center justify-between gap-3 text-[11px] text-neutral-500"><p className="flex items-center gap-1.5"><Monitor aria-hidden="true" size={13} /> Guest saves stay on this device. Signed-in drafts and Full Auto results appear in Cloud Library above.</p><Link href={tab === "pins" ? "/pin-generator" : "/article-writer"} prefetch={false} className="inline-flex min-h-11 items-center gap-1.5 font-bold text-brand-700">{tab === "pins" ? "Generate a new pin" : "Write a new article"}<ArrowRight aria-hidden="true" size={13} /></Link></div>
       {reader && <ArticleReader key={reader.id} article={reader} onClose={() => setReader(null)} />}
     </div>
   );

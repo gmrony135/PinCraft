@@ -3,14 +3,14 @@ import { getDatabase } from '@/lib/automation/db.mjs';
 import { AutomationError } from '@/lib/automation/errors.mjs';
 import { validJobId } from '@/lib/automation/images.mjs';
 import { verifyRemotePublication } from '@/lib/automation/providers.mjs';
-import { reserveVerification,reviewJob } from '@/lib/automation/repository.mjs';
+import { getJob,reserveVerification,reviewJob } from '@/lib/automation/repository.mjs';
 import { getAccessToken } from '@/lib/automation/oauth-tokens.mjs';
 export const runtime='nodejs';export const dynamic='force-dynamic';export const maxDuration=90;
 export async function POST(request){
   try{
     const user=await sessionUser(request,true),body=await readBody(request);
     if(!validJobId(body.jobId))throw new AutomationError('invalid_job','Choose a valid job to review.');
-    const db=getDatabase();const job=(await db.query("SELECT * FROM pincraft_auto_jobs WHERE id=$1 AND user_id=$2 AND state IN ('attention','failed')",[body.jobId,user.id])).rows[0];
+    const db=getDatabase();const saved=await getJob(db,body.jobId,user.id);const job=saved&&['attention','failed'].includes(saved.state)?saved:null;
     if(!job)throw new AutomationError('job_not_found','This review job was not found.',{status:404});
     let outcome;
     if(body.action==='abandon'&&body.checkedRemote===true)outcome={cancel:true};

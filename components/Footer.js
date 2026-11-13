@@ -22,7 +22,7 @@ export default function Footer() {
               Your Pinterest content workspace. Create pin ideas, write SEO
               articles, and keep your publishing plan together.
             </p>
-            <p className="mt-2 max-w-sm text-[11px] leading-relaxed text-neutral-500">UI preview · Device-local saves. Google Login and live publishing require configuration.</p>
+            <p className="mt-2 max-w-sm text-[11px] leading-relaxed text-neutral-500">Guest saves are device-only. Signed-in drafts use private Firestore. Live publishing requires provider consent and server setup.</p>
             <p className="mt-4 inline-flex items-center gap-2 rounded-full bg-neutral-50 px-3 py-1.5 text-[11.5px] font-bold text-neutral-500">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
               Built for beginners · Free to start

@@ -1,91 +1,48 @@
-// Offline cryptographic/auth guard tests. These are NOT a live Google OAuth test.
-const fs = require("node:fs");
-const path = require("node:path");
-const { pathToFileURL } = require("node:url");
-const { randomBytes } = require("node:crypto");
-const results = [];
-function check(name, pass) { results.push({ name, pass: Boolean(pass) }); console.log(`${pass ? "PASS" : "FAIL"}  ${name}`); }
-async function rejects(action) { try { await action(); return false; } catch { return true; } }
-
-async function run() {
-  const jose = await import("jose");
-  // Strip only Next's server-only build marker for the standalone Node test.
-  const source = fs.readFileSync(path.join(__dirname, "../lib/auth-server.js"), "utf8").replace('import "server-only";', "").replace('from "jose"', `from ${JSON.stringify(pathToFileURL(require.resolve("jose")).href)}`);
-  const auth = await import(`data:text/javascript;base64,${Buffer.from(source).toString("base64")}`);
-  const original = { clientId: process.env.GOOGLE_CLIENT_ID, secret: process.env.AUTH_SESSION_SECRET, url: process.env.APP_URL };
-  try {
-    delete process.env.GOOGLE_CLIENT_ID; delete process.env.AUTH_SESSION_SECRET; delete process.env.APP_URL;
-    check("Missing OAuth configuration fails closed", !auth.authSettings().configured);
-    process.env.GOOGLE_CLIENT_ID = "unit-test.apps.googleusercontent.com";
-    process.env.AUTH_SESSION_SECRET = "too-short";
-    check("Short session secrets are not accepted", !auth.authSettings().configured);
-    process.env.AUTH_SESSION_SECRET = randomBytes(48).toString("base64url");
-    check("Valid Web Client ID + strong secret enable the auth foundation", auth.authSettings().configured);
-    const config = auth.authSettings();
-    process.env.GOOGLE_CLIENT_ID = "not-a-google-web-client";
-    check("Malformed Google client IDs stay unconfigured", !auth.authSettings().configured);
-
-    const firstNonce = auth.createNonce();
-    const secondNonce = auth.createNonce();
-    check("Nonces are random 256-bit hexadecimal values", /^[a-f0-9]{64}$/.test(firstNonce) && firstNonce !== secondNonce);
-    check("Only the exact nonce matches", auth.matchingNonce(firstNonce, firstNonce) && !auth.matchingNonce(firstNonce, secondNonce));
-    check("Missing, non-string and multibyte nonce inputs are rejected safely", !auth.matchingNonce(null, firstNonce) && !auth.matchingNonce(7, firstNonce) && !auth.matchingNonce("é".repeat(64), firstNonce));
-
-    const http = new Request("http://localhost:3000/api/auth/google", { method: "POST", headers: { origin: "http://localhost:3000" } });
-    const secure = new Request("https://pincraftly.vercel.app/api/auth/google", { method: "POST", headers: { origin: "https://pincraftly.vercel.app" } });
-    check("Sessions use HttpOnly, SameSite=Lax and one-week lifetime", auth.cookieOptions(http).httpOnly && auth.cookieOptions(http).sameSite === "lax" && auth.cookieOptions(http).maxAge === 604800 && auth.cookieOptions(http).path === "/");
-    check("HTTPS sessions are Secure; localhost HTTP remains testable", auth.cookieOptions(secure).secure && !auth.cookieOptions(http).secure);
-    check("Forwarded HTTPS also receives Secure cookies", auth.cookieOptions(new Request("http://localhost/api", { headers: { "x-forwarded-proto": "https" } })).secure);
-    check("Same-origin Google sign-in requests are accepted", auth.sameOrigin(http) && auth.sameOrigin(secure));
-    check("Next's internal 0.0.0.0 URL correctly honors the actual Host", auth.sameOrigin(new Request("http://0.0.0.0:3000/api", { headers: { host: "127.0.0.1:3000", origin: "http://127.0.0.1:3000" } })));
-    check("Trusted HTTPS reverse-proxy host/origin is supported", auth.sameOrigin(new Request("http://0.0.0.0:3000/api", { headers: { "x-forwarded-host": "preview.example.test", "x-forwarded-proto": "https", origin: "https://preview.example.test" } })));
-    check("Reverse proxy support still rejects a foreign origin", !auth.sameOrigin(new Request("http://0.0.0.0:3000/api", { headers: { "x-forwarded-host": "preview.example.test", "x-forwarded-proto": "https", origin: "https://attacker.invalid" } })));
-    check("Foreign or missing origins are rejected", !auth.sameOrigin(new Request("https://pincraftly.vercel.app/api/auth/google", { headers: { origin: "https://attacker.invalid" } })) && !auth.sameOrigin(new Request("https://pincraftly.vercel.app/api/auth/google")));
-    process.env.APP_URL = "https://pincraftly.vercel.app";
-    check("Explicit canonical origin is supported behind a proxy", auth.sameOrigin(new Request("http://internal.local/api", { headers: { origin: "https://pincraftly.vercel.app" } })));
-    process.env.APP_URL = "not-a-url";
-    check("Malformed canonical origins do not bypass CSRF checks", !auth.sameOrigin(new Request("http://internal.local/api", { headers: { origin: "https://attacker.invalid" } })));
-
-    const payload = { sub: "offline-test-subject", name: "Test Creator", email: "creator@example.test", email_verified: true, nonce: firstNonce };
-    const profile = auth.publicProfile(payload);
-    check("Public profile returns only ID/name, never a Gmail/email address", Object.keys(profile).sort().join("|") === "id|name" && profile.name === "Test Creator");
-    check("Unverified email claims cannot create an account", await rejects(() => auth.publicProfile({ ...payload, email_verified: false })));
-    check("Incomplete identity claims are rejected", await rejects(() => auth.publicProfile({ ...payload, sub: null })));
-    check("Blank display names use Creator without saving an email prefix", auth.publicProfile({ ...payload, name: "   " }).name === "Creator");
-
-    const { privateKey, publicKey } = await jose.generateKeyPair("RS256");
-    async function identity(claims = payload, options = {}) {
-      return new jose.SignJWT(claims).setProtectedHeader({ alg: "RS256" }).setIssuer(options.issuer || "https://accounts.google.com").setAudience(options.audience || config.clientId).setIssuedAt(options.issuedAt ?? Math.floor(Date.now() / 1000)).setExpirationTime(options.expires || "5m").sign(privateKey);
-    }
-    const credential = await identity();
-    const verified = await auth.verifyGoogleCredential(credential, firstNonce, config, publicKey);
-    check("RS256 signatures, issuer, audience and nonce are verified together", verified.id === payload.sub && verified.name === payload.name);
-    check("Wrong audience is rejected", await rejects(async () => auth.verifyGoogleCredential(await identity(payload, { audience: "another.apps.googleusercontent.com" }), firstNonce, config, publicKey)));
-    check("Wrong issuer is rejected", await rejects(async () => auth.verifyGoogleCredential(await identity(payload, { issuer: "https://attacker.invalid" }), firstNonce, config, publicKey)));
-    check("Expired identity tokens are rejected", await rejects(async () => auth.verifyGoogleCredential(await identity(payload, { expires: "-1m" }), firstNonce, config, publicKey)));
-    check("Stale identity tokens are rejected even before expiry", await rejects(async () => auth.verifyGoogleCredential(await identity(payload, { issuedAt: Math.floor(Date.now() / 1000) - 1200 }), firstNonce, config, publicKey)));
-    check("Wrong OAuth nonce is rejected", await rejects(() => auth.verifyGoogleCredential(credential, secondNonce, config, publicKey)));
-    check("Unsigned or client-invented credentials are rejected", await rejects(() => auth.verifyGoogleCredential("not.a.google-token", firstNonce, config, publicKey)));
-    check("Credential verification is disabled without real configuration", await rejects(() => auth.verifyGoogleCredential(credential, firstNonce, { configured: false }, publicKey)));
-    check("Oversized credentials are rejected", await rejects(() => auth.verifyGoogleCredential("x".repeat(12001), firstNonce, config, publicKey)));
-
-    const session = await auth.createSession({ ...profile, email: payload.email }, config);
-    check("Signed session claims never persist an email/Gmail address", !Object.hasOwn(jose.decodeJwt(session), "email"));
-    check("Server-signed sessions round-trip to the verified profile", JSON.stringify(await auth.readSession(session, config)) === JSON.stringify(profile));
-    const parts = session.split(".");
-    parts[1] = Buffer.from(JSON.stringify({ sub: "spoof", name: "Forged account" })).toString("base64url");
-    check("Changing a signed session never changes the authenticated user", await auth.readSession(parts.join("."), config) === null);
-    check("A different signing secret cannot read the session", await auth.readSession(session, { ...config, secret: randomBytes(40).toString("hex") }) === null);
-    check("Missing or oversized sessions are treated as guests", await auth.readSession(null, config) === null && await auth.readSession("x".repeat(5001), config) === null);
-    check("Session creation is impossible while OAuth is unconfigured", await rejects(() => auth.createSession(profile, { configured: false })));
-  } finally {
-    for (const [name, value] of [["GOOGLE_CLIENT_ID", original.clientId], ["AUTH_SESSION_SECRET", original.secret], ["APP_URL", original.url]]) {
-      if (value === undefined) delete process.env[name]; else process.env[name] = value;
-    }
-  }
-  fs.mkdirSync(path.join(__dirname, "../.shots"), { recursive: true });
-  fs.writeFileSync(path.join(__dirname, "../.shots/auth-verification.json"), JSON.stringify({ testMode: "offline keys only; not live Google OAuth", results }, null, 2));
-  console.log(`\n${results.filter((result) => result.pass).length}/${results.length} auth guard checks passed`);
-  if (results.some((result) => !result.pass)) process.exitCode = 1;
+// Firebase Auth emulator + real app session cryptography. No genuine Google
+// consent. Only explicit synthetic demo-project identities are created.
+const fs=require('node:fs');
+const path=require('node:path');
+const results=[];
+async function test(name,task){try{await task();results.push({name,pass:true});console.log('PASS '+name);}catch(error){results.push({name,pass:false,error:error.message});console.error('FAIL '+name+': '+error.message);}}
+async function run(){
+ const assert=(await import('node:assert/strict')).default;
+ const fixtures=await import('./automation-fixtures.mjs');fixtures.isolatedFirebase();
+ const auth=await import('../lib/auth-server.js'),admin=await import('../lib/firebase/admin.mjs');
+ const {decodeJwt,SignJWT}=await import('jose');
+ const config=auth.authSettings(),identity=await fixtures.firebaseIdentity('auth-'+Date.now()),verified=await auth.verifyFirebaseCredential(identity.idToken),session=await auth.createSession(verified),base=decodeJwt(session);
+ const sign=fields=>new SignJWT({...base,...fields}).setProtectedHeader({alg:'HS256',typ:'JWT'}).sign(new TextEncoder().encode(config.secret));
+ await test('Firebase web config + Admin identity + strong session secret are required together',()=>assert(config.configured));
+ await test('Missing Firebase project cannot fall back to an old Google Web Client ID',()=>{const old=process.env.FIREBASE_PROJECT_ID;try{delete process.env.FIREBASE_PROJECT_ID;assert(!auth.authSettings().configured);}finally{process.env.FIREBASE_PROJECT_ID=old;}});
+ await test('Short session-signing secrets are rejected',()=>{const old=process.env.AUTH_SESSION_SECRET;try{process.env.AUTH_SESSION_SECRET='short';assert(!auth.authSettings().configured);}finally{process.env.AUTH_SESSION_SECRET=old;}});
+ await test('Public Firebase config is allow-listed and contains no Admin credential or private key',()=>{assert.deepEqual(Object.keys(admin.publicFirebaseConfig()).sort(),['apiKey','appId','authDomain','projectId']);});
+ await test('Cross-project Firebase Auth domains are rejected',()=>{const old=process.env.FIREBASE_AUTH_DOMAIN;try{process.env.FIREBASE_AUTH_DOMAIN='another-project.firebaseapp.com';assert(!auth.authSettings().configured);}finally{process.env.FIREBASE_AUTH_DOMAIN=old;}});
+ await test('Emulator mode is impossible under Vercel production',()=>{const old=process.env.VERCEL_ENV;try{process.env.VERCEL_ENV='production';assert(!admin.firebaseEmulatorsAllowed());assert(!auth.authSettings().configured);}finally{process.env.VERCEL_ENV=old;}});
+ await test('Emulator hosts cannot point at an arbitrary remote server',()=>{const old=process.env.FIREBASE_AUTH_EMULATOR_HOST;try{process.env.FIREBASE_AUTH_EMULATOR_HOST='attacker.example.com:9099';assert(!admin.firebaseAdminConfigured());}finally{process.env.FIREBASE_AUTH_EMULATOR_HOST=old;}});
+ await test('Sign-in CSRF nonces are random 256-bit values',()=>{const a=auth.createNonce(),b=auth.createNonce();assert(/^[a-f0-9]{64}$/.test(a));assert.notEqual(a,b);assert(auth.matchingNonce(a,a));assert(!auth.matchingNonce(a,b));});
+ await test('Missing, oversized and multibyte nonces cannot pass comparison',()=>{for(const n of [null,7,'é'.repeat(64),'x'.repeat(500)])assert(!auth.matchingNonce(n,auth.createNonce()));});
+ const http=new Request('http://localhost:3000/api/auth/google',{headers:{origin:'http://localhost:3000'}}),https=new Request('https://pincraftly.vercel.app/api/auth/google',{headers:{origin:'https://pincraftly.vercel.app'}});
+ await test('App sessions are HttpOnly, SameSite=Lax and limited to one week',()=>{const c=auth.cookieOptions(http);assert(c.httpOnly);assert.equal(c.sameSite,'lax');assert.equal(c.path,'/');assert.equal(c.maxAge,604800);});
+ await test('HTTPS and trusted forwarded HTTPS use Secure cookies',()=>{assert(auth.cookieOptions(https).secure);assert(!auth.cookieOptions(http).secure);assert(auth.cookieOptions(new Request('http://internal/api',{headers:{'x-forwarded-proto':'https'}})).secure);});
+ await test('Same-origin sign-in accepts normal and proxied site authorities',()=>{assert(auth.sameOrigin(http));assert(auth.sameOrigin(https));assert(auth.sameOrigin(new Request('http://0.0.0.0:3000/api',{headers:{host:'localhost:3000',origin:'http://localhost:3000'}})));});
+ await test('Foreign or missing origins do not authorize an authentication mutation',()=>{assert(!auth.sameOrigin(new Request('https://pincraftly.vercel.app/api')));assert(!auth.sameOrigin(new Request('https://pincraftly.vercel.app/api',{headers:{origin:'https://attacker.invalid'}})));});
+ await test('Real Firebase Auth emulator issues an accepted Google-provider ID token',()=>{assert.equal(verified.id,identity.id);assert(Number.isFinite(verified.authTime));});
+ await test('Firebase ID-token verification rejects a forged or oversized credential',async()=>{for(const value of ['not.a.token','x'.repeat(15001)])await assert.rejects(()=>auth.verifyFirebaseCredential(value));});
+ await test('Verification cannot run with incomplete server configuration',async()=>assert.rejects(()=>auth.verifyFirebaseCredential(identity.idToken,{configured:false})));
+ await test('Public profile includes only Firebase UID + display name, never email',()=>assert.deepEqual(Object.keys(auth.publicProfile({uid:'test',name:'Creator name',email:'not-saved@example.test',email_verified:true,firebase:{sign_in_provider:'google.com'}})).sort(),['id','name']));
+ await test('Unverified-email and non-Google Firebase identities are rejected',()=>{for(const change of [{email_verified:false},{firebase:{sign_in_provider:'password'}},{firebase:{sign_in_provider:'anonymous'}}])assert.throws(()=>auth.publicProfile({uid:'test',email_verified:true,firebase:{sign_in_provider:'google.com'},...change}));});
+ await test('Missing UID cannot authenticate; blank name uses Creator, not email prefix',()=>{assert.throws(()=>auth.publicProfile({email_verified:true,firebase:{sign_in_provider:'google.com'}}));assert.equal(auth.publicProfile({uid:'test',name:' ',email:'privateprefix@example.test',email_verified:true,firebase:{sign_in_provider:'google.com'}}).name,'Creator');});
+ await test('Signed app cookie omits email, Firebase ID token and provider OAuth tokens',()=>{assert(!Object.hasOwn(base,'email'));assert(!Object.hasOwn(base,'idToken'));assert(!Object.hasOwn(base,'refreshToken'));assert.equal(base.sub,identity.id);assert.equal(base.identity,'firebase');});
+ await test('Session round-trip rechecks the managed Firebase user and returns only ID/name',async()=>assert.deepEqual(await auth.readSession(session),{id:verified.id,name:verified.name}));
+ await test('Tampering with a signed cookie cannot change the authenticated UID',async()=>{const parts=session.split('.');parts[1]=Buffer.from(JSON.stringify({...base,sub:'someone-else'})).toString('base64url');assert.equal(await auth.readSession(parts.join('.')),null);});
+ await test('A different signing secret cannot authenticate the same cookie',async()=>assert.equal(await auth.readSession(session,{...config,secret:'different-secret'.repeat(4)}),null));
+ await test('Another Firebase project, old login issuer or wrong audience is rejected',async()=>{for(const fields of [{project:'another-project'},{iss:'pincraft'},{aud:'pincraft-session'},{identity:'local-profile'}])assert.equal(await auth.readSession(await sign(fields)),null);});
+ await test('Expired or malformed session claims cannot grant access',async()=>{for(const fields of [{exp:1},{auth_time:null},{sub:''},{name:''}])assert.equal(await auth.readSession(await sign(fields)),null);});
+ await test('Missing and oversized cookies are treated as guests',async()=>{assert.equal(await auth.readSession(null),null);assert.equal(await auth.readSession('x'.repeat(5001)),null);});
+ await test('Session creation rejects unverified UID-only caller data',async()=>assert.rejects(()=>auth.createSession({id:identity.id,name:'Not enough'})));
+ await test('Disabling a Firebase user immediately invalidates an existing app cookie',async()=>{await admin.firebaseAuth().updateUser(identity.id,{disabled:true});assert.equal(await auth.readSession(session),null);await admin.firebaseAuth().updateUser(identity.id,{disabled:false});});
+ await test('Firebase refresh-token revocation invalidates the earlier app session',async()=>{await new Promise(r=>setTimeout(r,1100));await admin.firebaseAuth().revokeRefreshTokens(identity.id);assert.equal(await auth.readSession(session),null);});
+ await test('Deleting a Firebase identity invalidates its previously signed app cookie',async()=>{const second=await fixtures.firebaseIdentity('deleted-'+Date.now()),user=await auth.verifyFirebaseCredential(second.idToken),token=await auth.createSession(user);await admin.firebaseAuth().deleteUser(second.id);assert.equal(await auth.readSession(token),null);});
+ await test('Browser Firebase sign-in is lazy, Google-only and uses in-memory persistence',()=>{const source=fs.readFileSync(path.join(__dirname,'../lib/firebase/client.js'),'utf8');assert(source.includes('inMemoryPersistence'));assert(source.includes('signInWithPopup'));assert(!source.includes('signInWithEmailAndPassword'));assert(!source.includes('localStorage'));});
+ fs.mkdirSync(path.join(__dirname,'../.shots'),{recursive:true});fs.writeFileSync(path.join(__dirname,'../.shots/auth-verification.json'),JSON.stringify({mode:'Real local Firebase Auth emulator + app session signatures. Explicit synthetic Google-provider accounts; no genuine Google consent.',results},null,2));console.log(`\n${results.filter(r=>r.pass).length}/${results.length} Firebase auth checks passed`);if(results.some(r=>!r.pass))process.exitCode=1;
 }
-run().catch((error) => { console.error(error); process.exitCode = 1; });
+run().catch(error=>{console.error(error);process.exitCode=1;});

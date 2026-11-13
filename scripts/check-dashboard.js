@@ -54,7 +54,7 @@ async function run(){fs.mkdirSync(OUT,{recursive:true});const browser=await chro
   await page.setViewportSize({width:1440,height:1000});await page.screenshot({path:path.join(OUT,'automation-dashboard-desktop.png'),fullPage:true});
   await page.setViewportSize({width:390,height:844});await page.screenshot({path:path.join(OUT,'automation-dashboard-mobile.png'),fullPage:true});
   check('Zero public Dashboard browser runtime/console errors',errors.length===0);
-  fs.writeFileSync(path.join(OUT,'dashboard-verification.json'),JSON.stringify({base:BASE,scope:'Guest safety only; configured backend is tested separately with isolated PostgreSQL and provider doubles.',results,errors},null,2));
+  fs.writeFileSync(path.join(OUT,'dashboard-verification.json'),JSON.stringify({base:BASE,scope:'Guest safety only; configured backend is tested separately with isolated Firebase Auth/Firestore emulators and provider doubles.',results,errors},null,2));
   console.log(`\n${results.filter(x=>x.pass).length}/${results.length} dashboard checks passed`);if(results.some(x=>!x.pass))process.exitCode=1;
 }finally{await browser.close();}}
 run().catch(e=>{console.error(e);process.exitCode=1;});

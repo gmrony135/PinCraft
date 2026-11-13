@@ -41,6 +41,7 @@ export default function AppProvider({ children }) {
   const [loginOpen, setLoginOpen] = useState(false);
   const timer = useRef(null);
   const channel = useRef(null);
+  const authSequence = useRef(0);
   const closeNotice = useCallback(() => { clearTimeout(timer.current); setNotice(null); }, []);
   const showNotice = useCallback((next) => {
     clearTimeout(timer.current);
@@ -49,11 +50,12 @@ export default function AppProvider({ children }) {
   }, []);
 
   const refresh = useCallback(async () => {
+    const requestId = ++authSequence.current;
     try {
       const response = await fetch("/api/auth/session", { credentials: "same-origin", cache: "no-store" });
-      if (response.ok) { const data = await response.json(); setUser(data.user || null); }
+      if (response.ok) { const data = await response.json(); if (requestId === authSequence.current) setUser(data.user || null); }
     } catch { /* Keep the guest tools usable if the session endpoint is offline. */ }
-    finally { setAuthLoading(false); }
+    finally { if (requestId === authSequence.current) setAuthLoading(false); }
   }, []);
 
   useEffect(() => {
@@ -73,20 +75,24 @@ export default function AppProvider({ children }) {
   const showSuccess = useCallback((message) => { closeNotice(); setSuccess(message); }, [closeNotice]);
   const openLogin = useCallback(() => { closeNotice(); setSuccess(null); setLoginOpen(true); }, [closeNotice]);
   const closeLogin = useCallback(() => setLoginOpen(false), []);
-  const signIn = useCallback(async (credential) => {
-    const response = await fetch("/api/auth/google", { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ credential }) });
+  const signIn = useCallback(async (idToken, nonce) => {
+    const response = await fetch("/api/auth/google", { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ idToken, nonce }) });
     const result = await response.json();
     if (!response.ok || !result.user?.id) throw new Error(result.error || "Google sign-in could not be completed.");
+    authSequence.current++;
     setUser(result.user);
+    setAuthLoading(false);
     setLoginOpen(false);
     channel.current?.postMessage("refresh");
-    showNotice({ title: `Welcome, ${result.user.name}!`, description: "You are signed in. Full Auto results use your private Cloud Library when server setup is ready. Manual tool saves stay on this device." });
+    showNotice({ title: `Welcome, ${result.user.name}!`, description: "You are signed in with Firebase. Your Pin and Article saves use your private Cloud Library; guest saves remain on this device." });
   }, [showNotice]);
   const signOut = useCallback(async () => {
     try {
       const response = await fetch("/api/auth/logout", { method: "POST", credentials: "same-origin" });
       if (!response.ok) throw new Error("Sign out failed.");
+      authSequence.current++;
       setUser(null);
+      setAuthLoading(false);
       channel.current?.postMessage("refresh");
       showNotice({ title: "You are signed out", description: "Your device-saved pins and articles have not been deleted." });
       return true;

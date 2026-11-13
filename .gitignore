@@ -45,3 +45,10 @@ Thumbs.db
 .config/
 .nvm/
 .sudo_as_admin_successful
+
+# Firebase local state, generated worker and private service accounts
+.firebase/
+functions/runtime/
+**/service-account*.json
+**/*-firebase-adminsdk-*.json
+**/firebase-admin*.json

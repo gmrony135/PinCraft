@@ -1,6 +1,6 @@
 # Final Step — Login UI + connected workflow + polish
 
-> Historical UI-first release record. The browser-only automation/dashboard scope below has been superseded by [real Full Auto Mode](full-auto-mode.md). Old counts describe that release, not live provider authorization.
+> Historical UI-first release record. Google Identity Services/session details below are superseded by Firebase Authentication; use the current [Firebase setup reference](full-auto-mode.md), not these old configuration names. The browser-only automation/dashboard scope below has been superseded by [real Full Auto Mode](full-auto-mode.md). Old counts describe that release, not live provider authorization.
 
 ## Delivered scope
 

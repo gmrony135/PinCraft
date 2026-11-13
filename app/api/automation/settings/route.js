@@ -2,7 +2,7 @@ import { apiError,automationResponse,json,preferencesInput,readBody,requireInfra
 import { getDatabase } from '@/lib/automation/db.mjs';
 import { AutomationError } from '@/lib/automation/errors.mjs';
 import { aiInput,verifyAI } from '@/lib/automation/providers.mjs';
-import { removeAI,reserveVerification,saveAI,saveDestinations,setMode,updatePreferences } from '@/lib/automation/repository.mjs';
+import { getSettings,removeAI,reserveVerification,saveAI,saveDestinations,setMode,updatePreferences } from '@/lib/automation/repository.mjs';
 import { verifyDestination } from '@/lib/automation/oauth-resources.mjs';
 import { requireOAuthConfig } from '@/lib/automation/oauth-config.mjs';
 import { encryptCredentials } from '@/lib/automation/vault.mjs';
@@ -13,7 +13,7 @@ export async function POST(request){
     const user=await sessionUser(request,true),body=await readBody(request),db=getDatabase();
     if(body.action==='mode'){
       if(typeof body.enabled!=='boolean')throw new AutomationError('invalid_mode','Choose ON or OFF.');
-      if(body.enabled){if(body.consent!==true)throw new AutomationError('consent_required','Confirm real scheduled publishing before enabling Auto Mode.');await requireInfrastructure();requireOAuthConfig('pinterest');const s=(await db.query('SELECT posting_mode FROM pincraft_auto_settings WHERE user_id=$1',[user.id])).rows[0];if(s?.posting_mode==='generated')requireOAuthConfig('blogger');}
+      if(body.enabled){if(body.consent!==true)throw new AutomationError('consent_required','Confirm real scheduled publishing before enabling Auto Mode.');await requireInfrastructure();requireOAuthConfig('pinterest');const s=await getSettings(db,user.id);if(s?.posting_mode==='generated')requireOAuthConfig('blogger');}
       await setMode(db,user.id,body.enabled);
     }else if(body.action==='preferences'){
       const p=preferencesInput(body);if(p.topicSource==='google_trends'){await reserveVerification(db,user.id);await fetchTrends(p.trendRegion);}await updatePreferences(db,user.id,p);

@@ -1,87 +1,82 @@
-# PinCraft — password-free offline auto posting
+# PinCraft — Firebase private Library & offline publishing
 
-**Website:** https://pincraftly.vercel.app · **Repository:** https://github.com/gmrony135/PinCraft
+Next.js frontend + **Firebase Authentication, Cloud Firestore and a native scheduled Cloud Function**. Google login establishes a Firebase UID; Pinterest/Blogger require their own password-free publishing consent. No browser timer is responsible for posting.
 
-Next.js app with persistent, per-user Pinterest + Blogger OAuth publishing, a cloud Pin queue, optional AI-generated Pin + Article pipelines, and a protected server worker. No account password collection or application-global posting token.
+## Operating status: production Firebase setup required
 
-## Production status: SETUP REQUIRED
+The Firebase implementation is tested locally, **not connected to a real production Firebase project yet**. No project/web config, Admin authorization, Firebase Functions/Scheduler deployment, genuine provider consent or live external publication is claimed. No paid Firebase plan, API or resource has been activated.
 
-The implementation is deployed separately from configuration. **Production PostgreSQL, Google sign-in/session configuration, encryption/worker secrets, provider OAuth app credentials/approval and genuine owner consent have not been supplied. No real Pinterest/Blogger connection or live publication is claimed.** No paid service or upgrade was provisioned.
+Without real setup, the UI stays **Setup required / Not Connected**. An environment declaration alone cannot make it Running: the account also needs its actual saved connections/destinations, an enabled schedule, due work and a fresh healthy server heartbeat.
 
-Running status requires ready infrastructure, the account's own saved authorizations/destinations, an enabled server schedule and a fresh worker heartbeat. A browser-local switch or fixture cannot make production Connected/Running/Published.
+## What changed
 
-## Condition 1 workflow
+- **Firebase Authentication:** Google popup on Google's own page, verified server-side with Firebase Admin. The UID—not a caller-supplied owner or localStorage profile—determines ownership. A seven-day signed HttpOnly app cookie contains UID/display name, not email or provider tokens. Disabled, deleted and revoked Firebase identities fail the managed-user session check.
+- **Private Firestore:** owner-specific Pins, complete Articles, schedules, due times, posting states, OAuth envelopes, checkpoints, counters and logs. Browser Firestore reads/writes are denied, including credential reads by their own owner. Only owner-checked server APIs and authorized Admin/IAM access the database.
+- **Manual saves:** when signed in, Save in Pin Generator / Article Writer writes a private Firestore draft. Failed cloud saves never silently fall back to localStorage. Guest saves remain separately labeled device-only tools. Saving a draft never queues or publishes it.
+- **Offline scheduler:** `pincraftAutoPost` uses Firebase Functions v2 `onSchedule`, UTC `*/30 * * * *`, region `asia-south1`, Node 22. It reads due Firestore work and uses that owner's saved provider authorization while their browser/phone is off. Old Vercel schedules and active PostgreSQL dependencies are removed.
+- **Images:** public HTTPS image links; **Firebase Storage is not required**. Generated mode can serve a signed 1000×1500 PNG from saved Firestore content.
 
-1. Sign in with verified Google Identity Services.
-2. Dashboard → Settings → **Connect Pinterest** / **Connect Blogger**. Login/Allow happens on the providers' own pages, never a PinCraft Gmail/password form.
-3. Load and select your owned public Pinterest board and, for generated articles, your owner/admin Blogger blog.
-4. Save a schedule, e.g. **5 Pins/day, 120 minutes apart**, and queue original Pins with public HTTPS images. Or choose automatically generated Pin + Blogger Article mode and verify your OpenAI/Gemini API key.
-5. Confirm real scheduled publishing and enable Full Auto once. Close the browser: a protected **30-minute** server dispatch claims due database work.
-6. Provider-confirmed publication saves the real Pinterest ID/link; confirmed retryable failures wait **1 hour**, up to three automatic attempts. Uncertain external results pause for review rather than risk duplicates.
-7. Dashboard shows **Connected / Not Connected**, **Next Post Time**, **Total Published**, **Failed Posts**, actual logs and published links. Pause or Disconnect stops future work; a request already sent may finish.
+The Cloud Library separates Pins from Articles and private cloud records from device examples. Dashboard shows waiting work, confirmed published links, Next Post Time, Total Published, Failed Posts, connection status and Disconnect.
 
-Configurable bounds: 1–10 Pins/day, 30–1440 minutes between new posts in 30-minute steps. Default is 10/day, 120 minutes, editable Asia/Dhaka daily-reset timezone. Limits are ceilings, not promised delivery. Hosting jitter (up to 15 minutes), API outages/quotas and revoked/expired consent can delay or stop work. No traffic/income guarantee.
+## Password-free publishing workflow
 
-### What is persisted
+1. Sign in with Google through Firebase Authentication.
+2. Dashboard → **Connect Pinterest**; Allow is on `https://www.pinterest.com/oauth/`. Connect Blogger separately on Google's consent page for generated articles.
+3. Choose your own authorized public Pinterest board and, for generated mode, a live Blogger blog with administrator permission. Destination save rechecks ownership and leaves posting paused.
+4. Choose a schedule, for example **5 Pins/day, 120 minutes apart**. Queue a Pin with title, description, public HTTPS image and destination URL; or select generated Pin + Blogger Article mode and verify an optional OpenAI/Gemini API key with explicit usage consent.
+5. Confirm publishing consent and enable Full Auto once. Firebase checks due work every **30 minutes**, independently of the browser. Polling/provider delays can make a due post later; this is not an exact-minute guarantee.
+6. A confirmed retryable failure waits **1 hour**, at most three automatic attempts. An ambiguous remote result or database failure after acceptance requires owner review—no blind duplicate repost.
+7. Inspect the actual Pin URL, logs and metrics. Pause or Disconnect stops later steps; a request already sent may still finish.
 
-- PostgreSQL: owner-isolated schedules, queue/content, checkpoints, actual publication IDs/URLs, retry/error logs and worker heartbeat.
-- Pinterest: per-user, per-provider AES-256-GCM encrypted **access + refresh tokens**, with expiry metadata and background rotation.
-- Blogger: encrypted **refresh token only**. Its access token exists only transiently in server memory, including during callback and refresh.
-- Optional AI key: encrypted separately, never stored in browser storage or returned by APIs.
-- Sign-in stores only stable Google user ID and display name in the signed session, not a Gmail/email address. Google email verification is transient.
-- No account passwords or manually pasted Pinterest/Blogger publishing tokens. Legacy manual/WordPress password-based adapters are removed and migration v2 clears their old encrypted bundle.
+Bounds: 1–10 Pins/day, 30–1440-minute spacing in 30-minute steps, editable IANA daily-reset timezone. Default: 10/day, 120 minutes, Asia/Dhaka. No catch-up bursts or traffic/income guarantee.
 
-### Disconnect limitation, disclosed rather than faked
+## Credential and queue safety
 
-Google revocation is requested after local Blogger token deletion; only a confirmed response is labeled revoked. Pinterest's documented revoke endpoint currently supports system-user tokens, not personal authorization-code grants. Pinterest Disconnect therefore deletes local tokens/stops posting and links to **Pinterest Settings → Security and logins → Apps** for the owner to remove provider consent. Local deletion is never mislabeled as successful remote revocation.
+Pinterest persists per-UID encrypted **access token + refresh token**, expiry metadata and atomic rotation. Blogger persists **refresh token only**; its access token stays transient in server memory. Optional AI keys are encrypted separately. No Gmail/password collection or manually pasted Pinterest/Blogger publishing tokens.
 
-## Safety and existing tools
+OAuth uses ten-minute single-use state bound to owner/provider/HttpOnly browser nonce, PKCE for Blogger, fixed HTTPS callbacks, purpose-bound AES-256-GCM, 90-second refresh leases and revision/token-version guards. Firestore transactions protect per-owner eight-minute job leases, quota and queue idempotency. External calls are outside transactions. No exactly-once guarantee is invented across Firestore and external providers.
 
-- Session-owner + provider + HttpOnly browser nonce + ten-minute, single-use state; Google PKCE S256; fixed registered HTTPS callback URLs.
-- Same-origin bounded JSON mutations, private/no-store responses, account-isolated reads and pagination. OAuth codes/tokens are not written to application logs or client storage.
-- Versioned token refresh leases prevent rotation races and resurrection after Disconnect/new authorization.
-- Per-account row locks, one active job, eight-minute leases, quota by actual completion/local day, saved target snapshots and cadence with no catch-up bursts.
-- Network-ambiguous publication or DB failure after remote acceptance stops for explicit inspection. There is no false exactly-once guarantee spanning two providers and PostgreSQL.
-- Public HTTPS image validation, pinned all-public DNS, no redirects/private-network SSRF, bounded PNG/JPEG/WebP bytes. Generated mode renders/preflights actual signed **1000×1500 PNGs** after saving the article pack.
-- Generated mode retains 20 editable topic defaults or fresh **Google Trends RSS** titles, not mislabeled Pinterest trend measurements. Structured 500–850-word articles, escaped HTML and respectful original religious reflections; no invented scripture/quotations.
+Public images are validated before queueing/posting: HTTPS, public pinned DNS, no redirects/private-network access, bounded PNG/JPEG/WebP bytes. Twenty editable topics remain, including Sad Quotes, Love Quotes, Motivation, Good Morning and Islamic Quotes. Google Trends RSS is explicitly distinguished from rotation and Pinterest measurements.
 
-`/library` separates private cloud Pins/Articles from device saves and labeled examples; queued Pins never masquerade as generated articles. `/pin-generator` and `/article-writer` remain browser-local manual tools with explicitly labeled demo publication. `/adsterra-income` remains a labeled sample report/snippet editor. None proves live automation or earnings.
+**Disconnect is honest:** Blogger revocation is marked confirmed only after Google's successful response. Pinterest personal OAuth currently needs the user to remove the app in Pinterest settings; local token deletion is never mislabeled as successful provider-side revocation.
 
-## Operator setup
+## Live connection is the next authorized step
 
-See **[the full OAuth, migration, scheduler, disconnect and verification reference](docs/full-auto-mode.md)**. `.env.example` lists non-secret variable names only. Never commit secrets or paste them into chat.
+See **[Firebase setup, deployment, IAM, billing and verification](docs/full-auto-mode.md)**. `.env.example` contains variable names only. The agent handles Git and deployment once the owner supplies project details, secure server authorization and any required explicit billing approval. Never put an Admin private key, provider secret or password into chat/Git.
 
-Register the exact app callbacks:
+Register the exact provider callbacks:
 
 ```text
 https://pincraftly.vercel.app/api/integrations/pinterest/callback
 https://pincraftly.vercel.app/api/integrations/blogger/callback
 ```
 
-After securely supplying authorized infrastructure/app configuration, the operator/agent applies both migrations, deploys with the worker secret, verifies an actual scheduled heartbeat, and the owner grants consent/selects destinations. One genuine publication and offline follow-up remain the final operating checks. Code cannot invent a provider app approval or account's Allow decision.
+Scheduled Functions/Cloud Scheduler require a billing-enabled Firebase project and can incur charges. No upgrade/provisioning/deployment is authorized merely by adding the code. Firestore rules/indexes and production IAM must be deployed and checked; the emulator cannot prove production IAM, composite-index readiness or a genuine scheduled invocation.
 
-## Development and tests
+## Development & verification
 
-Node 20.18+, Next 15.5.29, React 18.3.1, PostgreSQL/pg, jose, undici and ipaddr.js. English UI; white surfaces, Pinterest red **#E60023**, black text, rounded responsive controls.
+Website/tooling: **Node ≥24.12**, Next 15.5.29, React 18.3.1, Firebase JS/Admin SDK. Scheduled Functions deliberately use **Node 22** with their own lockfile. Local Firestore emulator requires Java 21. English UI: white, Pinterest red **#E60023**, black text, rounded mobile-friendly controls.
 
 ```bash
 npm ci
 npm run dev -- --hostname 0.0.0.0
-# Stop dev first; dev/build share .next.
+# Stop dev before build: they share .next.
 npm run build
 npm run start -- --hostname 0.0.0.0
 
-# With an authorized database environment supplied securely:
-npm run db:migrate          # v1 then v2, idempotent, no sample successes
-npm run automation:worker   # ONE invocation, not a permanent daemon
-npm run test:automation
+# Install the Functions package and build its shared worker bundle:
+npm ci --prefix functions
+npm run build:functions
+
+# Local-only guarded demo emulators and test environment, described in docs:
+npm run firebase:emulators
+npm run test:firebase
+npm run test:auth
 npm run test:automation:ui
 ```
 
-Production uses the static Vercel **Schedules Beta** POST entry in `vercel.json` (`*/30 * * * *`), not browser execution or legacy daily-only Hobby Cron. Alternative hosts need their own reliable server scheduler. Preview publishing is blocked by default.
+Exact current Firebase results and verification boundaries are in **[docs/automation-verification.json](docs/automation-verification.json)**. The configured suite uses real local Auth/Firestore emulators, actual Next APIs and Chromium. Synthetic Google-provider identities and explicit OAuth/AI/posting response doubles are **not genuine consent or live posts**. It also invokes the same native scheduled-function bundle with Chromium fully closed, not a deployed Scheduler job. HTTPS image fetches, PNG rendering and Google Trends reads are actual.
 
-**Verification: 427/427 local checks passed**, production build passed, 0 known dependency vulnerabilities, zero browser runtime/console errors. Exact qualified results are in [docs/automation-verification.json](docs/automation-verification.json). Backend tests use real isolated PostgreSQL and explicit provider doubles; configured browser tests exercise actual start/callback routes, schedules, queue, images, Library, Disconnect and a worker run with Chromium fully closed. Sessions, provider authorization/publication responses and test content are **fixtures, not real account consent or public posts**. Public HTTPS PNG, signed PNG rendering and Google Trends RSS are actually exercised.
+Historical SQL results/schema are archived under `docs/legacy-postgresql/`; they are **not Firebase verification**. There is no active SQL migration or automatic import/mapping of old Google IDs or provider grants to Firebase UIDs. Fresh provider consent is required.
 
-Fixtures refuse non-loopback/non-`_test` databases. The HTTP double is an explicit local test-process preload, never imported or activated by production application/API input. Retained public/manual/auth suites cover setup honesty, session/CSRF guards, responsive navigation/dialogs and regression safety. Reports are saved in ignored `.shots/`; selected non-secret release evidence is in `docs/`.
-
-The existing post-commit hook automatically pushes changes to GitHub `main`; the agent handles and verifies deployment. No manual user Git/deployment steps are required.
+The post-commit auto-push hook is preserved; the agent commits/pushes and verifies deployment. No manual user Git steps are required.

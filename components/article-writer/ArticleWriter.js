@@ -7,7 +7,8 @@ import CopyButton from "../CopyButton";
 import ArticleView from "./ArticleView";
 import { generateArticle, countWords } from "@/lib/article";
 import { getLibrary, saveToLibrary } from "@/lib/library";
-import { useFeedback } from "../providers/AppProvider";
+import { saveCloudDraft } from "@/lib/cloud-library";
+import { useAuth, useFeedback } from "../providers/AppProvider";
 import {
   Sparkles,
   FileText,
@@ -36,14 +37,22 @@ const EXAMPLES = [
 export default function ArticleWriter() {
   const params = useSearchParams();
   const { showSuccess } = useFeedback();
+  const { user, authLoading } = useAuth();
+  const [saving, setSaving] = useState(false);
+  const saveRequest = useRef(null);
+  const identity = useRef(null);
+  identity.current = user?.id || "device";
   const [title, setTitle] = useState("");
   const [loading, setLoading] = useState(false);
   const [article, setArticle] = useState(null);
+  const currentContent = useRef(null);
+  currentContent.current = article?.id;
   const [error, setError] = useState("");
   const [saved, setSaved] = useState(false);
   const [published, setPublished] = useState(false);
   const [toast, setToast] = useState("");
-  const [libraryDrop, setLibraryDrop] = useState(null); // latest saved pin from generator
+  const [libraryDrop, setLibraryDrop] = useState(null); // owner-tagged Pin suggestion
+  const sourcePin = libraryDrop?.owner === identity.current ? libraryDrop : null;
   const resultRef = useRef(null);
   const toastTimer = useRef(null);
   useEffect(() => () => clearTimeout(toastTimer.current), []);
@@ -56,12 +65,6 @@ export default function ArticleWriter() {
     if (!t && topic) setTitle(topic.slice(0, 200));
   }, [params]);
 
-  // Offer the most recent library pin as a source for the title
-  useEffect(() => {
-    const lib = getLibrary();
-    const pin = lib.find((x) => x.type === "pin");
-    if (pin) setLibraryDrop({ topic: pin.topic, title: pin.titles?.[0] });
-  }, []);
 
   const titleWords = useMemo(() => countWords(title), [title]);
 
@@ -100,13 +103,36 @@ export default function ArticleWriter() {
     );
   }
 
-  function handleSave() {
-    if (!article) return;
+  useEffect(() => { setSaved(false); saveRequest.current = null; }, [user?.id, article?.id]);
+  useEffect(() => {
+    setLibraryDrop(null);
+    if (authLoading) return;
+    if (!user) {
+      const pin = getLibrary().find(item => item.type === "pin");
+      if (pin) setLibraryDrop({ owner: "device", topic: pin.topic, title: pin.titles?.[0] });
+      return;
+    }
+    let active = true;
+    fetch("/api/library", { credentials: "same-origin", cache: "no-store" }).then(r => r.ok ? r.json() : null).then(data => {
+      const pin = data?.items?.find(item => item.kind !== "article_draft" && item.content?.title);
+      if (active && pin) setLibraryDrop({ owner: user.id, topic: pin.topic, title: pin.content.title });
+    }).catch(() => {});
+    return () => { active = false; };
+  }, [authLoading, user?.id]);
+  async function handleSave() {
+    if (!article || saving || authLoading) return;
+    const owner = identity.current, contentId = article.id;
+    setSaving(true);
     try {
-      saveToLibrary({ type: "article", ...article });
+      if (user) {
+        if (!saveRequest.current) saveRequest.current = crypto.randomUUID();
+        await saveCloudDraft("article", article, saveRequest.current);
+      } else saveToLibrary({ type: "article", ...article });
+      if (identity.current !== owner || currentContent.current !== contentId) return;
       setSaved(true);
-      flash("Saved to My Library on this device 📚");
-    } catch (issue) { flash(issue.message); }
+      flash(user ? "Saved privately to your Firebase Cloud Library." : "Saved to My Library on this device 📚");
+    } catch (issue) { if (identity.current === owner && currentContent.current === contentId) flash(issue.message); }
+    finally { setSaving(false); }
   }
 
   function handlePublish() {
@@ -220,8 +246,8 @@ export default function ArticleWriter() {
               <button
                 type="button"
                 onClick={() => {
-                  if (libraryDrop?.title) {
-                    setTitle(libraryDrop.title);
+                  if (sourcePin?.title) {
+                    setTitle(sourcePin.title);
                     setError("");
                     flash("Title pulled from your saved pin");
                   } else {
@@ -233,9 +259,9 @@ export default function ArticleWriter() {
                 <Link2 size={15} /> Use Title From Pin Generator
               </button>
 
-              {libraryDrop?.title ? (
+              {sourcePin?.title ? (
                 <p className="mt-1.5 truncate px-1 text-[11px] text-neutral-400">
-                  Latest saved pin: “{libraryDrop.title}”
+                  Latest saved pin: “{sourcePin.title}”
                 </p>
               ) : (
                 <p className="mt-1.5 px-1 text-[11px] text-neutral-400">
@@ -366,7 +392,7 @@ export default function ArticleWriter() {
                     <button
                       type="button"
                       onClick={handleSave}
-                      disabled={saved}
+                      disabled={saved || saving || authLoading}
                       className={`w-full sm:flex-1 ${
                         saved ? "btn-outline border-emerald-200 text-emerald-600" : "btn-dark"
                       }`}

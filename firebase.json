@@ -1,0 +1,5 @@
+{
+  "functions": [{"source":"functions","codebase":"pincraft-automation","runtime":"nodejs22","predeploy":["npm --prefix \"$PROJECT_DIR\" run build:functions"],"ignore":["node_modules",".git","*.log",".env*","!.env.example"]}],
+  "firestore": {"rules":"firestore.rules","indexes":"firestore.indexes.json"},
+  "emulators": {"auth":{"host":"127.0.0.1","port":9099},"firestore":{"host":"127.0.0.1","port":8080},"ui":{"enabled":false},"singleProjectMode":true}
+}
