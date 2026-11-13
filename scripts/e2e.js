@@ -53,7 +53,7 @@ async function run() {
   await page.getByPlaceholder("you@example.com").fill("rony@example.com");
   await page.getByPlaceholder("Create a password").fill("secret123");
   await page.getByRole("button", { name: /^Yes/ }).click();
-  await page.locator("select").selectOption("sad");
+  await page.locator("select").selectOption("quotes");
   await page.screenshot({ path: `${shots}/04-signup-filled.png`, fullPage: true });
   await page.getByRole("button", { name: /Create Free Account/i }).click();
   await page.waitForTimeout(700);
@@ -63,7 +63,7 @@ async function run() {
   await page.screenshot({ path: `${shots}/05-dashboard.png`, fullPage: true });
 
   // Category select
-  await page.getByRole("button", { name: /Motivation/ }).first().click();
+  await page.getByRole("button", { name: /Quotes/ }).first().click();
   await page.waitForTimeout(400);
   ok("Category selected toast", await page.getByText("Category updated").isVisible());
 

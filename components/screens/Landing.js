@@ -132,11 +132,11 @@ export default function Landing({ go, state }) {
       {/* Categories */}
       <section className="mt-9">
         <div className="mb-3 flex items-end justify-between">
-          <h2 className="text-[17px] font-bold tracking-tight">Popular categories</h2>
-          <span className="text-xs font-semibold text-neutral-400">6 niches</span>
+          <h2 className="text-[17px] font-bold tracking-tight">Popular niches</h2>
+          <span className="text-xs font-semibold text-neutral-400">9 niches</span>
         </div>
         <div className="grid grid-cols-3 gap-2.5">
-          {CATEGORIES.slice(0, 3).map((c, i) => (
+          {CATEGORIES.map((c, i) => (
             <button
               key={c.id}
               onClick={() => go("signup")}
@@ -144,7 +144,7 @@ export default function Landing({ go, state }) {
               className={`tap animate-fade-up flex min-h-[92px] flex-col items-start justify-between rounded-2xl bg-gradient-to-b ${c.tint} p-3 text-left shadow-card`}
             >
               <span className="text-[22px] leading-none tracking-normal">{c.emoji}</span>
-              <p className="mt-2 text-[12.5px] font-bold leading-tight text-neutral-800">
+              <p className="mt-2 text-[11.5px] font-bold leading-tight text-neutral-800">
                 {c.name}
               </p>
             </button>
