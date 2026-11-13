@@ -9,9 +9,9 @@ const OUT = path.resolve(__dirname, "../.shots");
 const LIBRARY = "pincraft.library.v1";
 const results = [];
 const errors = [];
-const ROUTES = ["/", "/pin-generator", "/article-writer", "/dashboard", "/library", "/adsterra-income", "/about", "/contact", "/login"];
-const NAV = ROUTES.slice(0, 6);
-const WELCOME = "Welcome to PinCraft - Your Automation Machine is Ready!";
+const ROUTES = ["/", "/pin-generator", "/article-writer", "/dashboard", "/library", "/adsterra-income", "/ai-studio", "/about", "/contact", "/login"];
+const NAV = ROUTES.slice(0, 7);
+const WELCOME = "Welcome to PinCraft — your creative workspace";
 
 function check(name, pass) { results.push({ name, pass: Boolean(pass) }); console.log(`${pass ? "PASS" : "FAIL"}  ${name}`); }
 function watch(page, label) {
@@ -28,7 +28,7 @@ async function photo(page, filename, fullPage = false) { await page.screenshot({
 async function json(page, key) { return page.evaluate((key) => JSON.parse(localStorage.getItem(key) || "null"), key); }
 async function saved(page) { return (await json(page, LIBRARY)) || []; }
 async function login(page) {
-  await page.getByRole("banner").getByRole("button", { name: "Login with Google", exact: true }).click();
+  await page.getByRole("banner").getByRole("button", { name: "Sign in or create account", exact: true }).click();
   await page.getByTestId("google-setup-notice").waitFor();
   return page.getByRole("dialog");
 }
@@ -71,13 +71,13 @@ async function run() {
 
     await load(page, "/");
     check("Homepage shows the requested small welcome popup", await page.getByTestId("notification").getByText(WELCOME, { exact: true }).isVisible());
-    check("Welcome popup discloses Google Login/live posting setup", await page.getByTestId("notification").getByText(/Google Login and live posting still need/).isVisible());
+    check("Welcome popup discloses verified sign-in/publishing requirements", await page.getByTestId("notification").getByText(/Live AI requires verified sign-in and server setup/).isVisible());
     await photo(page, "final-home-desktop.png");
     await page.getByRole("button", { name: "Dismiss notification", exact: true }).click();
     check("Welcome popup can be dismissed", await page.getByTestId("notification").count() === 0);
     await page.reload({ waitUntil: "networkidle" });
     check("Welcome is not repeated on every visit in the same session", await page.getByTestId("notification").count() === 0);
-    check("Navbar has all six working product routes", await page.getByRole("navigation", { name: "Main navigation", exact: true }).locator("ul a").count() === 6);
+    check("Navbar has all seven working product routes", await page.getByRole("navigation", { name: "Main navigation", exact: true }).locator("ul a").count() === 7);
     const links = await page.locator('a[href^="/"]').evaluateAll((nodes) => [...new Set(nodes.map((node) => node.getAttribute("href").split(/[?#]/)[0]))]);
     let allLinks = true;
     for (const href of links) { if (!(await context.request.get(`${BASE}${href}`)).ok()) allLinks = false; }
@@ -85,22 +85,22 @@ async function run() {
 
     let dialog = await login(page);
     check("Navbar Login opens a real accessible popup", await dialog.getByRole("heading", { name: "Welcome to PinCraft", exact: true }).isVisible() && await dialog.getByRole("button", { name: "Continue with Google", exact: true }).isVisible());
-    check("Login discloses pending setup before the Google button is clicked", await dialog.getByText("Google Login needs setup", { exact: true }).isVisible());
+    check("Login discloses pending setup before the Google button is clicked", await dialog.getByText("Firebase sign-in needs setup", { exact: true }).isVisible());
     check("Login locks background scrolling and traps both Tab directions", await page.evaluate(() => document.body.style.overflow === "hidden") && await focusContained(page, dialog));
     await dialog.getByRole("button", { name: "Continue with Google", exact: true }).click();
-    check("Unconfigured Google button explains the limitation instead of faking login", await dialog.getByRole("status").filter({ hasText: /No Google account is simulated/ }).isVisible() && await page.getByTestId("google-setup-notice").evaluate((node) => document.activeElement === node));
+    check("Unconfigured Google button explains the limitation instead of faking login", await dialog.getByRole("status").filter({ hasText: /No account or session is simulated/ }).isVisible() && await page.getByTestId("google-setup-notice").evaluate((node) => document.activeElement === node));
     await photo(page, "final-login-desktop.png");
     await page.keyboard.press("Escape");
-    check("Escape closes Login and restores Navbar focus/scroll", await page.getByRole("dialog").count() === 0 && await page.getByRole("banner").getByRole("button", { name: "Login with Google", exact: true }).evaluate((node) => document.activeElement === node) && await page.evaluate(() => document.body.style.overflow !== "hidden"));
+    check("Escape closes Login and restores Navbar focus/scroll", await page.getByRole("dialog").count() === 0 && await page.getByRole("banner").getByRole("button", { name: "Sign in or create account", exact: true }).evaluate((node) => document.activeElement === node) && await page.evaluate(() => document.body.style.overflow !== "hidden"));
     await login(page); await page.mouse.click(3, 3);
     check("Login backdrop click also closes the popup", await page.getByRole("dialog").count() === 0);
     await login(page);
     await page.getByRole("dialog").getByRole("link", { name: "View setup requirements", exact: true }).click();
     await page.waitForURL(`${BASE}/login#setup`);
-    check("Setup link opens the implemented Login/setup page", await page.getByRole("heading", { name: "Google Login setup requirements", exact: true }).isVisible());
+    check("Setup link opens the implemented Login/setup page", await page.getByRole("heading", { name: "Firebase sign-in setup requirements", exact: true }).isVisible());
     await page.evaluate(() => { localStorage.setItem("pincraft.user.v1", JSON.stringify({ name: "Forged User", email: "fake@example.test" })); localStorage.setItem("pincraft.session.v1", JSON.stringify({ user: { name: "Forged User" } })); });
     await page.reload({ waitUntil: "networkidle" });
-    check("LocalStorage identities cannot spoof the signed-in Navbar", await page.getByRole("banner").getByRole("button", { name: "Login with Google", exact: true }).isVisible() && await page.getByRole("button", { name: /Account: Forged User/ }).count() === 0);
+    check("LocalStorage identities cannot spoof the signed-in Navbar", await page.getByRole("banner").getByRole("button", { name: "Sign in or create account", exact: true }).isVisible() && await page.getByRole("button", { name: /Account: Forged User/ }).count() === 0);
 
     // Complete the homepage -> pin -> article -> demo publish -> library workflow.
     await load(page, "/");
@@ -147,7 +147,7 @@ async function run() {
     const autoSwitch = page.getByRole("switch", { name: "Full Auto Mode", exact: true });
     await autoSwitch.click();
     dialog = page.getByRole("dialog"); await dialog.waitFor();
-    check("Guest cannot enable server automation without verified sign-in", await dialog.getByText("Google Login needs setup", { exact: true }).isVisible());
+    check("Guest cannot enable server automation without verified sign-in", await dialog.getByText("Firebase sign-in needs setup", { exact: true }).isVisible());
     await photo(page, "final-automation-desktop.png");
     await dialog.getByRole("button", { name: "Close login popup", exact: true }).click();
     check("No browser-only ON setting or fake success is saved", await json(page, "pincraft.automation.v1") === null && await autoSwitch.getAttribute("aria-checked") === "false");
@@ -168,9 +168,9 @@ async function run() {
     await photo(mobile, "final-home-mobile.png");
     await mobile.getByRole("button", { name: "Dismiss notification", exact: true }).tap();
     await mobile.getByRole("button", { name: "Open menu", exact: true }).tap();
-    check("Mobile navigation opens all six product links and locks scroll", await mobile.locator("#mobile-navigation a").count() === 6 && await mobile.evaluate(() => document.body.style.overflow === "hidden"));
+    check("Mobile navigation opens all seven product links and locks scroll", await mobile.locator("#mobile-navigation a").count() === 7 && await mobile.evaluate(() => document.body.style.overflow === "hidden"));
     await photo(mobile, "final-menu-mobile.png");
-    await mobile.locator("#mobile-navigation").getByRole("button", { name: "Login with Google", exact: true }).tap();
+    await mobile.locator("#mobile-navigation").getByRole("button", { name: "Sign in or create account", exact: true }).tap();
     await mobile.getByTestId("google-setup-notice").waitFor();
     check("Mobile-menu Login closes the menu and keeps the modal scroll-locked", await mobile.locator("#mobile-navigation").count() === 0 && await mobile.evaluate(() => document.body.style.overflow === "hidden"));
     check("Mobile Login fits without horizontal overflow", await fits(mobile.getByRole("dialog"), mobile) && await mobile.getByRole("dialog").evaluate((node) => node.scrollWidth <= node.clientWidth + 1));
@@ -194,7 +194,7 @@ async function run() {
         if (!response.ok()) allOK = false;
         if (!await noOverflow(mobile)) { routesFit = false; console.log(`OVERFLOW: ${width}px ${route}`); }
       }
-      check(`${width}px: all nine public routes return 200 without horizontal overflow`, allOK && routesFit);
+      check(`${width}px: all ${ROUTES.length} public routes return 200 without horizontal overflow`, allOK && routesFit);
       dialog = await login(mobile);
       check(`${width}px: Google popup fits, scrolls vertically and never clips horizontally`, await fits(dialog, mobile) && await dialog.evaluate((node) => node.scrollWidth <= node.clientWidth + 1));
       await dialog.getByRole("button", { name: "Close login popup", exact: true }).click();
@@ -254,8 +254,8 @@ async function run() {
     check("UI fixture only: My Library is active and marked available", await ui.getByRole("navigation", { name: "Main navigation", exact: true }).getByRole("link", { name: "My Library", exact: true }).getAttribute("aria-current") === "page");
     await ui.getByRole("button", { name: "Account: UI Test Creator", exact: true }).click();
     await ui.getByRole("button", { name: "Sign out", exact: true }).click();
-    await ui.getByRole("banner").getByRole("button", { name: "Login with Google", exact: true }).waitFor();
-    check("UI fixture only: Sign out returns the Navbar to guest state", await ui.getByRole("banner").getByRole("button", { name: "Login with Google", exact: true }).isVisible());
+    await ui.getByRole("banner").getByRole("button", { name: "Sign in or create account", exact: true }).waitFor();
+    check("UI fixture only: Sign out returns the Navbar to guest state", await ui.getByRole("banner").getByRole("button", { name: "Sign in or create account", exact: true }).isVisible());
 
     check("Zero browser console errors / uncaught exceptions", errors.length === 0);
     fs.writeFileSync(path.join(OUT, "final-verification.json"), JSON.stringify({ base: BASE, date: new Date().toISOString(), googleOAuth: "not configured; no live account login tested", generationMs, results, errors }, null, 2));

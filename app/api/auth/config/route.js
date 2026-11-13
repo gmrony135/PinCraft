@@ -3,6 +3,6 @@ import {authSettings,cookieOptions,createNonce,NONCE_COOKIE} from '@/lib/auth-se
 export const runtime='nodejs';export const dynamic='force-dynamic';
 export async function GET(request){
  const config=authSettings(),nonce=config.configured?createNonce():null;
- const response=NextResponse.json({configured:config.configured,provider:'firebase',firebase:config.configured?config.firebase:null,clientId:null,nonce},{headers:{'Cache-Control':'no-store, private',Vary:'Cookie'}});
+ const response=NextResponse.json({configured:config.configured,provider:'firebase',providers:['password','google.com'],firebase:config.configured?config.firebase:null,setup:config.setup,clientId:null,nonce},{headers:{'Cache-Control':'no-store, private',Vary:'Cookie'}});
  if(nonce)response.cookies.set(NONCE_COOKIE,nonce,cookieOptions(request,600));return response;
 }

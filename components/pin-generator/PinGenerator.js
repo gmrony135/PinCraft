@@ -9,6 +9,9 @@ import { saveToLibrary } from "@/lib/library";
 import { saveCloudDraft } from "@/lib/cloud-library";
 import { useAuth } from "../providers/AppProvider";
 import { copyText } from "@/lib/clipboard";
+import { generateWithAI } from "@/lib/ai-client";
+import GenerationMode, { GenerationReceipt, useGenerationMode } from "../ai/GenerationMode";
+import ImageGenerator from "../ai/ImageGenerator";
 import {
   Sparkles,
   Wand2,
@@ -34,7 +37,10 @@ const EXAMPLES = [
 ];
 
 export default function PinGenerator() {
-  const { user, authLoading } = useAuth();
+  const { user, authLoading, openLogin } = useAuth();
+  const { mode, setMode, status: aiStatus } = useGenerationMode(user);
+  const generationRequest = useRef({ sequence: 0, controller: null });
+  const [language, setLanguage] = useState('en');
   const [saving, setSaving] = useState(false);
   const saveRequest = useRef(null);
   const identity = useRef(null);
@@ -50,6 +56,11 @@ export default function PinGenerator() {
   const resultsRef = useRef(null);
   const toastTimer = useRef(null);
   useEffect(() => () => clearTimeout(toastTimer.current), []);
+  useEffect(() => {
+    generationRequest.current.sequence++; generationRequest.current.controller?.abort();
+    setLoading(false); setError(''); setPack(previous => previous?.generation ? null : previous);
+    return () => { generationRequest.current.sequence++; generationRequest.current.controller?.abort(); };
+  }, [user?.id]);
 
   const descWords = useMemo(
     () => (pack ? wordCount(pack.description) : 0),
@@ -73,21 +84,25 @@ export default function PinGenerator() {
       setError("Topic is too short. Try at least 3 characters.");
       return;
     }
-    setError("");
-    setSaved(false);
-    setLoading(true);
-
-    // Yield once for responsive input/loading feedback. Generation runs locally.
-    await new Promise((resolve) => requestAnimationFrame(resolve));
-
-    const generated = generatePinPack(value);
-    setPack(generated);
-    setLoading(false);
-    flash("Viral pin pack generated ✅");
-
-    setTimeout(() => {
-      resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 100);
+    if (loading || authLoading) return;
+    if (mode === 'ai' && !user) { setError('Sign in with a verified account to use live AI, or choose Offline template.'); openLogin(); return; }
+    const owner = identity.current, sequence = ++generationRequest.current.sequence;
+    generationRequest.current.controller = new AbortController();
+    setError(''); setSaved(false); setPack(null); setLoading(true);
+    try {
+      let generated;
+      if (mode === 'ai') {
+        const result = await generateWithAI('pin', { topic: value, language }, { signal: generationRequest.current.controller.signal });
+        generated = { ...result.result, generation: result.generation };
+      } else {
+        await new Promise(resolve => requestAnimationFrame(resolve));
+        generated = generatePinPack(value);
+      }
+      if (sequence !== generationRequest.current.sequence || identity.current !== owner) return;
+      setPack(generated); flash(mode === 'ai' ? 'AI Pin pack generated' : 'Offline pin template generated');
+      setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+    } catch (issue) { if (issue.name !== 'AbortError' && sequence === generationRequest.current.sequence && identity.current === owner) setError(issue.message); }
+    finally { if (sequence === generationRequest.current.sequence) setLoading(false); }
   }
 
   useEffect(() => { setSaved(false); saveRequest.current = null; }, [user?.id, pack?.id]);
@@ -141,7 +156,7 @@ export default function PinGenerator() {
           </nav>
 
           <span className="eyebrow">
-            <Sparkles size={13} /> Free tool · local generation
+            <Sparkles size={13} /> Offline templates + live AI
           </span>
 
           <h1 className="h1 mt-4 text-neutral-900">Viral Pin Generator</h1>
@@ -161,6 +176,8 @@ export default function PinGenerator() {
               onSubmit={handleGenerate}
               className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm sm:p-6"
             >
+              <GenerationMode mode={mode} setMode={setMode} status={aiStatus} disabled={loading || authLoading} />
+              {mode === 'ai' && <label className="mb-4 flex items-center justify-between gap-3 text-[12px] font-bold text-neutral-600">AI output language<select aria-label="AI output language" value={language} onChange={event => setLanguage(event.target.value)} disabled={loading} className="min-h-11 rounded-lg border border-neutral-300 bg-white px-3 text-[13px]"><option value="en">English</option><option value="bn">বাংলা</option></select></label>}
               <label
                 htmlFor="topic"
                 className="mb-2 block text-[13px] font-bold uppercase tracking-[0.08em] text-neutral-500"
@@ -228,7 +245,7 @@ export default function PinGenerator() {
 
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || authLoading}
                 className="btn-primary mt-5 w-full"
               >
                 {loading ? (
@@ -242,7 +259,7 @@ export default function PinGenerator() {
                 )}
               </button>
               <p className="mt-2.5 text-center text-[11.5px] text-neutral-400">
-                Instant results · 5 titles + description + 10 hashtags + image idea
+                {mode === 'ai' ? 'Live requests use provider quota · Automatic Gemini/Groq fallback' : 'Instant offline templates · 5 titles + description + 10 hashtags + image idea'}
               </p>
             </form>
 
@@ -268,6 +285,8 @@ export default function PinGenerator() {
             {/* ---------------------------- results ---------------------------- */}
             {pack && !loading && (
               <div ref={resultsRef} className="animate-fade-up mt-6 scroll-mt-20">
+                <GenerationReceipt generation={pack.generation} />
+                {pack.keywords?.length > 0 && <div className="mb-3 rounded-xl border border-neutral-200 bg-white p-3.5"><p className="text-[11px] font-bold text-neutral-600">SEO keyword suggestions · not measured search data</p><div className="mt-2 flex flex-wrap gap-1.5">{pack.keywords.map(keyword => <span key={keyword} className="rounded-full bg-neutral-100 px-2.5 py-1 text-[11px] text-neutral-600">{keyword}</span>)}</div></div>}
                 {/* result header */}
                 <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
@@ -413,6 +432,7 @@ export default function PinGenerator() {
                           {pack.imageIdea.prompt}
                         </p>
                       </div>
+                      <ImageGenerator initialPrompt={pack.imageIdea.prompt.slice(0, 1700)} useCase="pin" />
                     </div>
                   </ResultSection>
 

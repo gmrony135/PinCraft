@@ -32,7 +32,7 @@ async function run(){fs.mkdirSync(OUT,{recursive:true});const browser=await chro
   check('Requested status metrics are visible',await page.getByText('Next Post Time',{exact:true}).isVisible()&&await page.getByText('Total Published',{exact:true}).isVisible()&&await page.getByText('Failed Posts',{exact:true}).isVisible());
   check('No sample activity or success log entries',await page.getByText('No activity yet',{exact:true}).isVisible()&&await page.getByText('Your first pipeline starts here',{exact:true}).isVisible());
   const toggle=page.getByRole('switch',{name:'Full Auto Mode',exact:true});await toggle.click();const dialog=page.getByRole('dialog');await dialog.waitFor();
-  check('Guest switch opens sign-in rather than enabling locally',await toggle.getAttribute('aria-checked')==='false'&&await dialog.getByText('Google Login needs setup',{exact:true}).isVisible());
+  check('Guest switch opens sign-in rather than enabling locally',await toggle.getAttribute('aria-checked')==='false'&&await dialog.getByText('Firebase sign-in needs setup',{exact:true}).isVisible());
   await dialog.getByRole('button',{name:'Close login popup',exact:true}).click();
   check('No local-only automation preference was written',await page.evaluate(()=>localStorage.getItem('pincraft.automation.v1'))===null);
   await page.evaluate(()=>localStorage.setItem('pincraft.automation.v1',JSON.stringify({enabled:true,pinsPerDay:20,postTime:'Night'})));await page.reload({waitUntil:'networkidle'});

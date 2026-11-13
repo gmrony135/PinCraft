@@ -12,5 +12,10 @@
     "firebase-functions": "7.4.0",
     "ipaddr.js": "^2.5.0",
     "undici": "^7.30.2"
+  },
+  "overrides": {
+    "uuid": "11.1.1",
+    "@grpc/grpc-js": "1.14.7",
+    "@firebase/database-compat": "2.1.7"
   }
 }

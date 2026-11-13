@@ -1,0 +1,1880 @@
+{
+  "verifiedAt": "2026-11-13T20:41:12.656676+00:00",
+  "scope": "Email/Password and Google Firebase identity, server-only AI Studio/manual generation/fallback, existing private Library/OAuth/worker regressions. Local passing checks do not prove production Firebase connection or external publication.",
+  "sourceBase": "5bb9b6051ddbec5c0cf4604f741b6d6c8e62151f",
+  "sourceStateAtVerification": "Expanded account/AI working tree based on sourceBase; to be committed with this report. No synthetic configuration is included in deployment.",
+  "summary": {
+    "passed": 407,
+    "total": 407,
+    "allLocalChecksPassed": true,
+    "browserErrors": []
+  },
+  "runtimes": {
+    "websiteAndTooling": "24.22.3",
+    "nativeFunctions": "22.23.5",
+    "next": "15.5.29",
+    "firebaseAdmin": "13.10.0",
+    "functionsDatabaseCompat": "2.1.7",
+    "sharp": "0.35.5",
+    "requireEsmDisabled": true
+  },
+  "builds": {
+    "websiteProduction": "passed after clean npm ci under Node 24 with experimental require(esm) disabled",
+    "sharedFunctionsBundle": "passed after clean Node 22 npm ci --engine-strict; same production worker/OAuth source, no secrets embedded",
+    "patchedCli": "Firebase CLI 15.36.0 bootstraps Auth/Firestore emulators with Glob 14.0.2 and OpenTelemetry Core 2.10.0; restricted tracing/archiver checks pass"
+  },
+  "dependencyAudits": {
+    "websiteAndTooling": {
+      "info": 0,
+      "low": 0,
+      "moderate": 0,
+      "high": 0,
+      "critical": 0,
+      "total": 0
+    },
+    "websiteRuntimeOnly": {
+      "info": 0,
+      "low": 0,
+      "moderate": 0,
+      "high": 0,
+      "critical": 0,
+      "total": 0
+    },
+    "nativeFunctions": {
+      "info": 0,
+      "low": 0,
+      "moderate": 0,
+      "high": 0,
+      "critical": 0,
+      "total": 0
+    }
+  },
+  "credentialScan": {
+    "suppliedPrivateAiValuesInVersionableFiles": 0,
+    "suppliedPrivateAiValuesInBrowserBuild": 0,
+    "envImportExcludedFromGit": true,
+    "envImportPermissions": "0600",
+    "adminCredentialInImport": false,
+    "actualValuesIncludedInThisReport": false
+  },
+  "liveProviderProbes": {
+    "initialDirectAdapterRun": {
+      "checkedAt": "2026-11-13T20:23:51.702Z",
+      "mode": "Three small real provider inference requests using supplied credentials. Direct adapter smoke only: no production Firebase session/Firestore, deployed rules, genuine Google consent or live publication is proven. Uses existing quota; no paid plan, upgrade or purchase was performed.",
+      "results": [
+        {
+          "provider": "gemini",
+          "task": "pin",
+          "passed": true,
+          "model": "gemini-3.1-flash-lite",
+          "attempts": 1,
+          "titles": 5,
+          "hashtags": 10
+        },
+        {
+          "provider": "groq",
+          "task": "article",
+          "passed": false,
+          "code": "ai_unavailable",
+          "upstream": null
+        },
+        {
+          "provider": "cloudflare",
+          "task": "featured-image",
+          "passed": true,
+          "model": "@cf/black-forest-labs/flux-2-klein-4b",
+          "attempts": 1,
+          "width": 1200,
+          "height": 630,
+          "bytes": 68164
+        }
+      ]
+    },
+    "groqFollowUp": {
+      "checkedAt": "2026-11-13T20:24:44.328Z",
+      "provider": "groq",
+      "task": "article",
+      "finishReason": "stop",
+      "tokens": {
+        "queue_time": 0.117480249,
+        "prompt_tokens": 429,
+        "prompt_time": 0.021287453,
+        "completion_tokens": 1108,
+        "completion_time": 2.307237202,
+        "total_tokens": 1537,
+        "total_time": 2.328524655,
+        "completion_tokens_details": {
+          "reasoning_tokens": 95
+        }
+      },
+      "contentCharacters": 5334,
+      "shape": {
+        "fields": [
+          "title",
+          "category",
+          "intro",
+          "sections",
+          "listSection",
+          "conclusion",
+          "keywords"
+        ],
+        "titleCharacters": 42,
+        "introCharacters": 496,
+        "conclusionCharacters": 362,
+        "sections": [
+          {
+            "headingCharacters": 35,
+            "paragraphWords": [
+              82,
+              83
+            ]
+          },
+          {
+            "headingCharacters": 41,
+            "paragraphWords": [
+              84,
+              76
+            ]
+          },
+          {
+            "headingCharacters": 47,
+            "paragraphWords": [
+              77,
+              76
+            ]
+          }
+        ],
+        "listItems": 7,
+        "keywordCount": 8,
+        "approxWords": 711
+      },
+      "passed": true,
+      "words": 726,
+      "model": "openai/gpt-oss-120b"
+    },
+    "interpretation": "Real Gemini Pin and Cloudflare FLUX.2 featured-image adapter requests passed. The first one-model Groq article request was not accepted by the bounded adapter; its exact response failure was not captured. A separate Groq request then passed complete article validation. Earlier FLUX.1 live inference is recorded separately. These are bounded availability snapshots, not a reliability guarantee. Automatic failure/quota routing is deliberately tested with doubles, not induced live outages. No production Firebase session, owner usage transaction, genuine Google consent or publication was tested by these direct probes."
+  },
+  "limitations": [
+    "Vercel project environment was confirmed empty before this release. Production Admin authorization and owner Console work remain necessary; env import has not been performed by the agent.",
+    "No real Firebase Authentication provider enablement, production verification/reset email delivery or Google consent has been performed.",
+    "Firestore production rules/indexes/IAM have not been deployed or checked. The emulator does not enforce production composite-index readiness.",
+    "No Functions/Scheduler deployment, scheduled delivery, provider publishing consent, live Pin/Blog publication, paid upgrade or billing activation occurred.",
+    "AI artwork is downloadable only, not saved to Firestore/Library, publicly hosted or automatically scheduled. Worker images remain signed server-rendered PNG title cards.",
+    "Model fallback cannot bypass a Cloudflare-wide outage or account quota. Safety refusals stop failover. All providers can be exhausted; errors are explicit and do not substitute an offline template.",
+    "Reserved failures consume request caps. Caps bound request counts, not monetary charges. Provider quotas and billing are separate.",
+    "Text receipt replay expires logically after 24 hours. No Firestore TTL policy or automated deletion is enabled. Images and raw prompts are not persisted in AI receipts.",
+    "Native/emulator logs can contain a MetadataLookupWarning with HTTP 401 during credential metadata discovery; native checks pass, browser runtime/console errors remain empty."
+  ],
+  "ownerGuide": "docs/firebase-ai-setup.bn.md",
+  "suites": [
+    {
+      "suite": "firebaseAuth",
+      "passed": 39,
+      "total": 39,
+      "mode": "Real local Firebase Auth emulator + app session signatures. Explicit synthetic Google and Email/Password accounts with verification/reset codes; no genuine Google consent or production email delivery.",
+      "browserErrors": [],
+      "results": [
+        {
+          "name": "Firebase web config + Admin identity + strong session secret are required together",
+          "pass": true
+        },
+        {
+          "name": "Missing Firebase project cannot fall back to an old Google Web Client ID",
+          "pass": true
+        },
+        {
+          "name": "Short session-signing secrets are rejected",
+          "pass": true
+        },
+        {
+          "name": "Public Firebase config is allow-listed and contains no Admin credential or private key",
+          "pass": true
+        },
+        {
+          "name": "Cross-project Firebase Auth domains are rejected",
+          "pass": true
+        },
+        {
+          "name": "Emulator mode is impossible under Vercel production",
+          "pass": true
+        },
+        {
+          "name": "Emulator hosts cannot point at an arbitrary remote server",
+          "pass": true
+        },
+        {
+          "name": "Sign-in CSRF nonces are random 256-bit values",
+          "pass": true
+        },
+        {
+          "name": "Missing, oversized and multibyte nonces cannot pass comparison",
+          "pass": true
+        },
+        {
+          "name": "App sessions are HttpOnly, SameSite=Lax and limited to one week",
+          "pass": true
+        },
+        {
+          "name": "HTTPS and trusted forwarded HTTPS use Secure cookies",
+          "pass": true
+        },
+        {
+          "name": "Same-origin sign-in accepts normal and proxied site authorities",
+          "pass": true
+        },
+        {
+          "name": "Foreign or missing origins do not authorize an authentication mutation",
+          "pass": true
+        },
+        {
+          "name": "Real Firebase Auth emulator issues an accepted Google-provider ID token",
+          "pass": true
+        },
+        {
+          "name": "Firebase ID-token verification rejects a forged or oversized credential",
+          "pass": true
+        },
+        {
+          "name": "Verification cannot run with incomplete server configuration",
+          "pass": true
+        },
+        {
+          "name": "Public profile includes only Firebase UID + display name, never email",
+          "pass": true
+        },
+        {
+          "name": "Unverified email and unsupported Firebase providers are rejected",
+          "pass": true
+        },
+        {
+          "name": "Missing UID cannot authenticate; blank name uses Creator, not email prefix",
+          "pass": true
+        },
+        {
+          "name": "Signed app cookie omits email, Firebase ID token and provider OAuth tokens",
+          "pass": true
+        },
+        {
+          "name": "Session round-trip rechecks the managed Firebase user and returns only ID/name",
+          "pass": true
+        },
+        {
+          "name": "Tampering with a signed cookie cannot change the authenticated UID",
+          "pass": true
+        },
+        {
+          "name": "A different signing secret cannot authenticate the same cookie",
+          "pass": true
+        },
+        {
+          "name": "Another Firebase project, old login issuer or wrong audience is rejected",
+          "pass": true
+        },
+        {
+          "name": "Expired or malformed session claims cannot grant access",
+          "pass": true
+        },
+        {
+          "name": "Missing and oversized cookies are treated as guests",
+          "pass": true
+        },
+        {
+          "name": "Session creation rejects unverified UID-only caller data",
+          "pass": true
+        },
+        {
+          "name": "Disabling a Firebase user immediately invalidates an existing app cookie",
+          "pass": true
+        },
+        {
+          "name": "Firebase refresh-token revocation invalidates the earlier app session",
+          "pass": true
+        },
+        {
+          "name": "Deleting a Firebase identity invalidates its previously signed app cookie",
+          "pass": true
+        },
+        {
+          "name": "Browser Firebase sign-in is lazy, supports both methods and uses only in-memory persistence",
+          "pass": true
+        },
+        {
+          "name": "A real local Firebase Email/Password signup creates an unverified managed identity",
+          "pass": true
+        },
+        {
+          "name": "An unverified password ID token cannot be exchanged for a PinCraft session",
+          "pass": true
+        },
+        {
+          "name": "A real emulator verification email/code verifies the password identity",
+          "pass": true
+        },
+        {
+          "name": "Verified Email/Password login passes revoked-token checks and gets a real signed app session",
+          "pass": true
+        },
+        {
+          "name": "Password identities use Creator rather than storing an email prefix in the app profile",
+          "pass": true
+        },
+        {
+          "name": "Removing email verification invalidates an existing password app cookie",
+          "pass": true
+        },
+        {
+          "name": "Real Firebase password reset accepts an OOB code and invalidates the earlier app session",
+          "pass": true
+        },
+        {
+          "name": "The app credential exchange sends no email or password to a PinCraft API",
+          "pass": true
+        }
+      ]
+    },
+    {
+      "suite": "aiBackend",
+      "passed": 50,
+      "total": 50,
+      "mode": "Real isolated Firestore transactions, actual WebP decoding/resizing and explicitly doubled provider responses. No production Firebase access, live inference or deployed scheduler is claimed by this suite.",
+      "browserErrors": [],
+      "results": [
+        {
+          "name": "Provider status exposes only configured flags, model names and bounded app limits",
+          "pass": true
+        },
+        {
+          "name": "Browser requests cannot choose providers, models, owners or credentials",
+          "pass": true
+        },
+        {
+          "name": "Task, language, consent and idempotency key must be valid",
+          "pass": true
+        },
+        {
+          "name": "Input caps cover text, large drafts and visual prompts",
+          "pass": true
+        },
+        {
+          "name": "Task-specific field allowlists and image formats reject unrelated payloads",
+          "pass": true
+        },
+        {
+          "name": "Pin validation produces exactly five titles, ten unique hashtags and image guidance",
+          "pass": true
+        },
+        {
+          "name": "Pin validation rejects truncated packs, unsafe markup and duplicate tags",
+          "pass": true
+        },
+        {
+          "name": "Article validation preserves the requested title and complete 500–850 word structure",
+          "pass": true
+        },
+        {
+          "name": "Article validation rejects incomplete prose or changed titles",
+          "pass": true
+        },
+        {
+          "name": "Keyword groups provide real adapter output with no invented search-volume fields",
+          "pass": true
+        },
+        {
+          "name": "Seven-day plans are ordered drafts, never schedule mutations",
+          "pass": true
+        },
+        {
+          "name": "Quality reviews label editorial scores and require structured checks",
+          "pass": true
+        },
+        {
+          "name": "Bengali requests keep English JSON keys and explicit Bengali output instructions",
+          "pass": true
+        },
+        {
+          "name": "AI JSON parsing accepts fenced objects but rejects arrays, trailing text and oversized output",
+          "pass": true
+        },
+        {
+          "name": "Gemini primary inference uses server headers and validates its JSON before success",
+          "pass": true
+        },
+        {
+          "name": "A Gemini quota error automatically falls back to a current Groq model",
+          "pass": true
+        },
+        {
+          "name": "Invalid Gemini content is not shown and can fall back to Groq",
+          "pass": true
+        },
+        {
+          "name": "A failed primary Groq model can use the second configured Groq model",
+          "pass": true
+        },
+        {
+          "name": "All-provider exhaustion returns an actionable failure, not local fabricated success",
+          "pass": true
+        },
+        {
+          "name": "Gemini safety blocks, Groq filters and structured refusals never trigger failover",
+          "pass": true
+        },
+        {
+          "name": "Provider output truncation is a failure and token budgets are bounded",
+          "pass": true
+        },
+        {
+          "name": "A retired model cooldown skips repeated failed calls and expires",
+          "pass": true
+        },
+        {
+          "name": "No browser-provided candidate list can raise the three-attempt text ceiling",
+          "pass": true
+        },
+        {
+          "name": "Fixed-host HTTP transport permits Groq/Cloudflare without allowing arbitrary API hosts",
+          "pass": true
+        },
+        {
+          "name": "HTTP quota classification retains bounded retry-after metadata, never provider body secrets",
+          "pass": true
+        },
+        {
+          "name": "Cloudflare moderation error codes and provider content-policy errors block retries",
+          "pass": true
+        },
+        {
+          "name": "Cloudflare image responses are decoded and resized to a real 1000×1500 WebP",
+          "pass": true
+        },
+        {
+          "name": "Blog featured images produce a real 1200×630 WebP rather than a placeholder URL",
+          "pass": true
+        },
+        {
+          "name": "An image-model failure falls back using real multipart REST encoding for FLUX.2",
+          "pass": true
+        },
+        {
+          "name": "Image fallbacks stop at two attempts on a provider-wide outage",
+          "pass": true
+        },
+        {
+          "name": "An image safety refusal never runs another model",
+          "pass": true
+        },
+        {
+          "name": "SVG, malformed images and oversized byte payloads are not accepted as AI artwork",
+          "pass": true
+        },
+        {
+          "name": "Real Firestore reservation atomically counts private and site-wide usage",
+          "pass": true
+        },
+        {
+          "name": "Same-key successful text replays do not perform another reservation or expose another owner’s receipt",
+          "pass": true
+        },
+        {
+          "name": "Expired completed text results cannot replay or silently start another inference",
+          "pass": true
+        },
+        {
+          "name": "Reusing a request key for different content is rejected transactionally",
+          "pass": true
+        },
+        {
+          "name": "Concurrent duplicate keys cannot start duplicate provider work",
+          "pass": true
+        },
+        {
+          "name": "A failed request consumes its budget and cannot silently restart with the same key",
+          "pass": true
+        },
+        {
+          "name": "Image receipts store no prompt, base64 or generated image bytes",
+          "pass": true
+        },
+        {
+          "name": "Per-user daily caps cannot be bypassed by fresh request keys",
+          "pass": true
+        },
+        {
+          "name": "A short per-user cooldown and two-request concurrency cap stop rapid requests",
+          "pass": true
+        },
+        {
+          "name": "Site-wide daily caps apply across unrelated users",
+          "pass": true
+        },
+        {
+          "name": "Completion requires the original private lease and cannot alter another request",
+          "pass": true
+        },
+        {
+          "name": "An expired in-flight receipt requires a deliberate new request rather than blind inference replay",
+          "pass": true
+        },
+        {
+          "name": "The full owner service budgets one request, executes fallback and replays only its private result",
+          "pass": true
+        },
+        {
+          "name": "Managed automation verification requires owner-scoped budgets and uses automatic fallback",
+          "pass": true
+        },
+        {
+          "name": "Managed automation generates a validated content pack and privately replays only its own job-attempt key",
+          "pass": true
+        },
+        {
+          "name": "An optional personal AI provider can fail over to configured server AI inside one shared budget",
+          "pass": true
+        },
+        {
+          "name": "Background-generation request keys are stable per job attempt and differ across attempts",
+          "pass": true
+        },
+        {
+          "name": "No production AI source imports the offline engines as an error fallback",
+          "pass": true
+        }
+      ]
+    },
+    {
+      "suite": "emailAndAiBrowser",
+      "passed": 26,
+      "total": 26,
+      "mode": "Real Firebase browser SDK proxied only to the real guarded local Auth emulator; actual verification/reset codes, signed app cookies, Firestore ownership/budgets, Next production APIs, Chromium and WebP downloads. External AI generation is an explicit HTTP double, not live inference. No real provider consent, production email, deployed rules or scheduler is claimed. Synthetic per-user cooldown timestamps are cleared between unrelated UI scenarios; budget limits have their own transactional tests.",
+      "browserErrors": [],
+      "results": [
+        {
+          "name": "The configured fixture site advertises both Firebase sign-in methods without returning Admin secrets",
+          "pass": true
+        },
+        {
+          "name": "The account dialog provides email login, signup and Continue with Google",
+          "pass": true
+        },
+        {
+          "name": "The real Firebase browser SDK signs up by email and requests a real emulator verification email",
+          "pass": true
+        },
+        {
+          "name": "Signup does not fabricate a session before email verification",
+          "pass": true
+        },
+        {
+          "name": "A real email verification code followed by SDK login creates an HttpOnly app session",
+          "pass": true
+        },
+        {
+          "name": "Passwords and email addresses go to Firebase, never PinCraft’s credential exchange or browser storage",
+          "pass": true
+        },
+        {
+          "name": "Password reset UI uses Firebase and a non-enumerating confirmation message",
+          "pass": true
+        },
+        {
+          "name": "Resetting the real Firebase password revokes the old app session; the new password can sign in",
+          "pass": true
+        },
+        {
+          "name": "New credential-exchange API rejects foreign origins and cannot create a raw-password session",
+          "pass": true
+        },
+        {
+          "name": "Live AI APIs require a real authenticated session and same-origin mutation",
+          "pass": true
+        },
+        {
+          "name": "AI Studio is in navigation and shows configured status, not a quota guarantee",
+          "pass": true
+        },
+        {
+          "name": "A real HTTP Gemini quota double falls through the app to Groq and renders keyword clusters",
+          "pass": true
+        },
+        {
+          "name": "AI keyword hashtags can actually be copied",
+          "pass": true
+        },
+        {
+          "name": "Seven-day plans render all days and do not create scheduled jobs",
+          "pass": true
+        },
+        {
+          "name": "Content review renders structured checks and labels its limits honestly",
+          "pass": true
+        },
+        {
+          "name": "Pinterest artwork is real decoded WebP output and can be downloaded",
+          "pass": true
+        },
+        {
+          "name": "Blog featured artwork uses the requested wide format and remains download-only",
+          "pass": true
+        },
+        {
+          "name": "The existing Pin Generator uses live AI for a configured signed-in account",
+          "pass": true
+        },
+        {
+          "name": "A live AI Pin saves privately as a draft without publishing or storing provider keys",
+          "pass": true
+        },
+        {
+          "name": "The Article Writer accepts the live Pin title and renders a full AI article",
+          "pass": true
+        },
+        {
+          "name": "A complete live AI article saves to its owner’s Firestore Library",
+          "pass": true
+        },
+        {
+          "name": "Signing out removes private live-generated content and restores the explicit offline mode",
+          "pass": true
+        },
+        {
+          "name": "Guest live AI selection opens sign-in instead of fabricating a result",
+          "pass": true
+        },
+        {
+          "name": "Mobile account forms and all AI Studio tools have no horizontal overflow",
+          "pass": true
+        },
+        {
+          "name": "Private provider credentials, passwords and raw email addresses never enter PinCraft request bodies or localStorage",
+          "pass": true
+        },
+        {
+          "name": "The browser reports no uncaught JavaScript errors or unexpected console errors",
+          "pass": true
+        }
+      ]
+    },
+    {
+      "suite": "automationBackend",
+      "passed": 89,
+      "total": 89,
+      "mode": "Real local Firebase Auth/Firestore emulators, explicit synthetic provider OAuth/AI/publication responses. No genuine consent, production IAM/scheduler or external publication verified.",
+      "browserErrors": [],
+      "results": [
+        {
+          "name": "Firebase emulators require explicit demo project and are rejected in production",
+          "pass": true
+        },
+        {
+          "name": "Real Firestore Admin read succeeds without any PostgreSQL URL or migration",
+          "pass": true
+        },
+        {
+          "name": "Twenty topic defaults, 120-minute cadence and editable daily limit remain",
+          "pass": true
+        },
+        {
+          "name": "Unsafe topics, excess topic lists and invalid timezones are rejected",
+          "pass": true
+        },
+        {
+          "name": "Local-day quota boundaries support 23-hour and 25-hour DST days",
+          "pass": true
+        },
+        {
+          "name": "AES-GCM ciphertext has fresh IVs and is bound to the Firebase UID and purpose",
+          "pass": true
+        },
+        {
+          "name": "Missing vault key blocks credential encryption and public image signing",
+          "pass": true
+        },
+        {
+          "name": "Optional maintenance HTTP worker rejects forged or missing Bearer secrets",
+          "pass": true
+        },
+        {
+          "name": "Local/preview worker execution is disabled without explicit isolated authorization",
+          "pass": true
+        },
+        {
+          "name": "Unexpected errors never expose provider messages or secret values",
+          "pass": true
+        },
+        {
+          "name": "HTTPS guard rejects private addresses, credentials, HTTP, fragments and custom ports",
+          "pass": true
+        },
+        {
+          "name": "Mixed DNS, mapped loopback, private ranges and CGNAT are blocked before TCP",
+          "pass": true
+        },
+        {
+          "name": "Failed DNS lookup yields a sanitized retryable 422, not raw network details",
+          "pass": true
+        },
+        {
+          "name": "An unapproved provider host cannot receive saved Bearer credentials",
+          "pass": true
+        },
+        {
+          "name": "HTTP adapter distinguishes confirmed 429 from ambiguous mutation 500 responses",
+          "pass": true
+        },
+        {
+          "name": "Pinterest consent URL contains exactly the five requested scopes and state",
+          "pass": true
+        },
+        {
+          "name": "Blogger consent explicitly requests offline access, fresh consent and PKCE",
+          "pass": true
+        },
+        {
+          "name": "Missing OAuth app credentials fail closed before a connection is attached",
+          "pass": true
+        },
+        {
+          "name": "Firestore OAuth state binds owner, provider and HttpOnly browser nonce",
+          "pass": true
+        },
+        {
+          "name": "Concurrent OAuth callbacks consume one Firestore authorization request only once",
+          "pass": true
+        },
+        {
+          "name": "Expired OAuth state cannot be consumed",
+          "pass": true
+        },
+        {
+          "name": "OAuth start throttling is persisted across requests",
+          "pass": true
+        },
+        {
+          "name": "Blogger PKCE verifier is encrypted in Firestore, not stored as plain text",
+          "pass": true
+        },
+        {
+          "name": "OAuth grants without refresh permission cannot become connected",
+          "pass": true
+        },
+        {
+          "name": "Blogger persistence allow-list stores only refreshToken, even when callers pass access tokens",
+          "pass": true
+        },
+        {
+          "name": "Pinterest code exchange uses Basic app auth, exact callback and form encoding",
+          "pass": true
+        },
+        {
+          "name": "Google code exchange supplies the PKCE verifier and Blogger offline token contract",
+          "pass": true
+        },
+        {
+          "name": "Unexpired Pinterest access uses only the selected Firebase UID’s own grant",
+          "pass": true
+        },
+        {
+          "name": "Expired Pinterest access refreshes in the background and persists refresh rotation",
+          "pass": true
+        },
+        {
+          "name": "A Firestore refresh lease prevents simultaneous refresh-token rotation",
+          "pass": true
+        },
+        {
+          "name": "Disconnect during an in-flight refresh cannot resurrect deleted Firestore tokens",
+          "pass": true
+        },
+        {
+          "name": "Expired offline permission pauses posting and honestly requests reconnect",
+          "pass": true
+        },
+        {
+          "name": "Pinterest token maintenance runs for paused accounts before continuous refresh expiry",
+          "pass": true
+        },
+        {
+          "name": "Revoked refresh authorization marks only that owner/provider as reconnect-required",
+          "pass": true
+        },
+        {
+          "name": "An old rejected grant cannot invalidate its replacement revision or token version",
+          "pass": true
+        },
+        {
+          "name": "Pinterest resources omit foreign and secret boards",
+          "pass": true
+        },
+        {
+          "name": "Destination verification checks authorized board ownership and Blogger administrator access",
+          "pass": true
+        },
+        {
+          "name": "A public blog without this user’s administrator permission is rejected",
+          "pass": true
+        },
+        {
+          "name": "Blogger background refresh never persists its transient access token",
+          "pass": true
+        },
+        {
+          "name": "Google revocation is requested only after local Firestore token deletion commits",
+          "pass": true
+        },
+        {
+          "name": "Remote revoke failure cannot restore local tokens or claim provider success",
+          "pass": true
+        },
+        {
+          "name": "Pinterest Disconnect discloses manual provider revoke instead of inventing success",
+          "pass": true
+        },
+        {
+          "name": "AI settings reject passwords, legacy provider tokens and unknown credential fields",
+          "pass": true
+        },
+        {
+          "name": "AI verification and generation preserve the actual adapter contract and full article",
+          "pass": true
+        },
+        {
+          "name": "Article validation rejects incomplete or too-short content",
+          "pass": true
+        },
+        {
+          "name": "Generated HTML escapes titles and includes a per-job publication marker",
+          "pass": true
+        },
+        {
+          "name": "Blogger DRAFT or wrong-host results cannot be recorded as a successful article",
+          "pass": true
+        },
+        {
+          "name": "Google Trends rejects stale/DTD feeds and is not labeled Pinterest measurements",
+          "pass": true
+        },
+        {
+          "name": "Actual fresh Google Trends RSS is read without triggering a provider publication",
+          "pass": true
+        },
+        {
+          "name": "Signed image URLs bind one job ID and contain no provider credentials",
+          "pass": true
+        },
+        {
+          "name": "Image preflight rejects HTML/login pages and wrong generated PNG dimensions",
+          "pass": true
+        },
+        {
+          "name": "Browser-independent Firestore pipeline saves article first, then posts the linked Pinterest Pin",
+          "pass": true
+        },
+        {
+          "name": "Status exposes only own real metrics/metadata, never encrypted or plaintext secrets",
+          "pass": true
+        },
+        {
+          "name": "Cloud Library results and pagination cursors are scoped to the verified Firebase UID",
+          "pass": true
+        },
+        {
+          "name": "Pause/resume cannot bypass the saved two-hour posting interval",
+          "pass": true
+        },
+        {
+          "name": "Concurrent scheduler deliveries claim one active job for an owner only once",
+          "pass": true
+        },
+        {
+          "name": "Five Pins/day respects the user’s timezone and next local-day reset",
+          "pass": true
+        },
+        {
+          "name": "Confirmed 429 retries after one hour and resumes only the unfinished Pinterest step",
+          "pass": true
+        },
+        {
+          "name": "Ambiguous publication pauses Auto Mode and prevents an automatic repost",
+          "pass": true
+        },
+        {
+          "name": "Expired external-mutation leases become review-required even for paused accounts",
+          "pass": true
+        },
+        {
+          "name": "Pause while Blogger is responding saves its accepted article but sends no Pin request",
+          "pass": true
+        },
+        {
+          "name": "An accepted Pin followed by Firestore commit failure is uncertain, never safely retried",
+          "pass": true
+        },
+        {
+          "name": "Three confirmed failed attempts stop automatically and expose a bounded owner retry",
+          "pass": true
+        },
+        {
+          "name": "Publishing auth rejection invalidates only the matching provider grant",
+          "pass": true
+        },
+        {
+          "name": "A confirmed failed job cannot be retried into a different selected board",
+          "pass": true
+        },
+        {
+          "name": "Local disconnect takes effect during an in-flight response and blocks the next step",
+          "pass": true
+        },
+        {
+          "name": "Changing destinations cannot silently retarget an existing saved publication",
+          "pass": true
+        },
+        {
+          "name": "Verification throttling is atomic across simultaneous Firestore transactions",
+          "pass": true
+        },
+        {
+          "name": "A saved worker lease cannot be used under another Firebase UID",
+          "pass": true
+        },
+        {
+          "name": "Queue validation permits description line breaks but rejects invalid URLs and oversized fields",
+          "pass": true
+        },
+        {
+          "name": "Queued Pin survives in Firestore before posting and duplicate submissions reuse one job",
+          "pass": true
+        },
+        {
+          "name": "Reused request keys with changed title, description, image or destination produce 409",
+          "pass": true
+        },
+        {
+          "name": "Concurrent duplicate queue saves create exactly one Firestore job",
+          "pass": true
+        },
+        {
+          "name": "Queue respects a future per-Pin due time and selects the earliest due Pin",
+          "pass": true
+        },
+        {
+          "name": "Queue-only Pinterest publishing needs neither AI nor Blogger access",
+          "pass": true
+        },
+        {
+          "name": "Another owner cannot cancel a queued Pin; owner cancellation preserves its private draft",
+          "pass": true
+        },
+        {
+          "name": "An ambiguous queued Pin response requires Pin-step review without a Blogger URL",
+          "pass": true
+        },
+        {
+          "name": "Active status requires real connections, setup and a fresh healthy worker heartbeat",
+          "pass": true
+        },
+        {
+          "name": "Standalone worker posts two independent owners using their own saved OAuth tokens",
+          "pass": true
+        },
+        {
+          "name": "A bounded Firebase invocation drains more than three owners without exceeding maxJobs",
+          "pass": true
+        },
+        {
+          "name": "Native Firebase function defines a 30-minute schedule; old Vercel schedule is removed",
+          "pass": true
+        },
+        {
+          "name": "Signed-in manual Pin drafts save privately in Firestore without being queued",
+          "pass": true
+        },
+        {
+          "name": "Signed-in Article drafts retain the complete article in private Firestore",
+          "pass": true
+        },
+        {
+          "name": "Draft allow-list cannot persist arbitrary credential fields or a caller-supplied owner",
+          "pass": true
+        },
+        {
+          "name": "Manual draft saves are idempotent and reject a changed payload with the same request key",
+          "pass": true
+        },
+        {
+          "name": "Queue DNS failure writes no job and starts no image/provider request",
+          "pass": true
+        },
+        {
+          "name": "Firestore rules deny direct browser reads/writes even with a valid owner Firebase ID token",
+          "pass": true
+        },
+        {
+          "name": "Actual separate Node worker invocation persists heartbeat without any browser",
+          "pass": true
+        },
+        {
+          "name": "Firestore index manifest excludes ciphertext/content from indexing and contains due-worker indexes",
+          "pass": true
+        }
+      ]
+    },
+    {
+      "suite": "automationApiAndBrowser",
+      "passed": 73,
+      "total": 73,
+      "mode": "Real local Firebase Auth + Firestore emulators, real Next production APIs and Chromium. Firebase Google-provider identities and provider OAuth/AI/publishing HTTP responses are explicit isolated fixtures; no genuine Google/Pinterest/Blogger consent or live publication. Native scheduled-function bundle is invoked locally with Chromium closed, not by a deployed Cloud Scheduler. Public HTTPS PNG and signed PNG rendering are actual. One manual save intentionally receives an invalid success response to verify no fabricated save.",
+      "browserErrors": [],
+      "results": [
+        {
+          "name": "Firebase Auth config exposes only its public web config and a private browser nonce",
+          "pass": true
+        },
+        {
+          "name": "Firebase sign-in rejects missing nonce, forged ID tokens and foreign origins",
+          "pass": true
+        },
+        {
+          "name": "Actual Firebase emulator ID token creates a UID-bound HttpOnly app session with no email",
+          "pass": true
+        },
+        {
+          "name": "Credential exchange rejects caller-supplied owner IDs instead of accepting extra fields",
+          "pass": true
+        },
+        {
+          "name": "Legacy/localStorage-style identities and forged cookies do not authenticate",
+          "pass": true
+        },
+        {
+          "name": "Guest status stays Setup required and contains no other user data",
+          "pass": true
+        },
+        {
+          "name": "Guests cannot read/write private Firestore Library, queue or start OAuth",
+          "pass": true
+        },
+        {
+          "name": "Foreign or missing Origin cannot mutate settings, drafts, queue or OAuth connections",
+          "pass": true
+        },
+        {
+          "name": "Unsupported OAuth providers and GET authorization starts fail closed",
+          "pass": true
+        },
+        {
+          "name": "OAuth start cannot silently switch to an unregistered callback origin",
+          "pass": true
+        },
+        {
+          "name": "The optional protected worker route rejects missing and invalid secrets",
+          "pass": true
+        },
+        {
+          "name": "An actual idle server worker persists its Firestore heartbeat",
+          "pass": true
+        },
+        {
+          "name": "Pinterest start uses its own consent URL, exact scopes and a scoped secure HttpOnly nonce",
+          "pass": true
+        },
+        {
+          "name": "Callback without its browser nonce cannot attach any Pinterest account",
+          "pass": true
+        },
+        {
+          "name": "A different Firebase UID cannot consume or steal the OAuth callback",
+          "pass": true
+        },
+        {
+          "name": "Actual OAuth callback route saves encrypted per-UID Pinterest access/refresh grants to Firestore",
+          "pass": true
+        },
+        {
+          "name": "Replayed OAuth callback cannot overwrite the saved Firebase owner’s grant",
+          "pass": true
+        },
+        {
+          "name": "Denied Blogger consent consumes state and never reflects raw provider text",
+          "pass": true
+        },
+        {
+          "name": "Blogger connection separately requests offline consent and PKCE, not the Firebase login token",
+          "pass": true
+        },
+        {
+          "name": "Blogger callback persists only an encrypted refresh token, never its transient access token",
+          "pass": true
+        },
+        {
+          "name": "Own boards/blogs are read through the authorized provider contracts",
+          "pass": true
+        },
+        {
+          "name": "Destination save revalidates this UID’s provider ownership and remains paused",
+          "pass": true
+        },
+        {
+          "name": "Pasted account passwords/manual provider tokens are rejected, not stored in Firestore",
+          "pass": true
+        },
+        {
+          "name": "Oversized/non-JSON requests, unknown actions and invalid schedules are rejected",
+          "pass": true
+        },
+        {
+          "name": "A saved OAuth token alone cannot enable posting without explicit consent",
+          "pass": true
+        },
+        {
+          "name": "Queue API rejects HTTP/private images before any provider publication",
+          "pass": true
+        },
+        {
+          "name": "Real public HTTPS PNG preflight and duplicate queue requests persist exactly one Firestore Pin",
+          "pass": true
+        },
+        {
+          "name": "Another authenticated Firebase user cannot remove or see the owner’s queued Pin",
+          "pass": true
+        },
+        {
+          "name": "Authenticated status returns own UID/metrics but no OAuth token, code, AI key or ciphertext",
+          "pass": true
+        },
+        {
+          "name": "Firestore Library pagination has no duplicates or foreign-cursor leakage",
+          "pass": true
+        },
+        {
+          "name": "Unsigned and wrongly signed image URLs cannot enumerate private generated content",
+          "pass": true
+        },
+        {
+          "name": "Authorized public image route renders an actual 1000×1500 PNG from its Firestore content",
+          "pass": true
+        },
+        {
+          "name": "Review API cannot inspect or abandon another Firebase UID’s job",
+          "pass": true
+        },
+        {
+          "name": "Dashboard shows each real stored connection and provider-specific account buttons",
+          "pass": true
+        },
+        {
+          "name": "Dashboard has required metrics and no Gmail/password/token-entry controls",
+          "pass": true
+        },
+        {
+          "name": "Load-board and load-blog buttons use authenticated server resource routes",
+          "pass": true
+        },
+        {
+          "name": "Schedule form saves 5/day, every 120 minutes and timezone to Firestore",
+          "pass": true
+        },
+        {
+          "name": "ON requires confirmation, then ON/OFF persists on server without localStorage",
+          "pass": true
+        },
+        {
+          "name": "AI form verifies API-key access, clears the input and never saves keys in browser storage",
+          "pass": true
+        },
+        {
+          "name": "Queue form saves a real public-image draft and Remove cancels only its waiting job",
+          "pass": true
+        },
+        {
+          "name": "Cloud Library remains separate from device examples and paginates all server content",
+          "pass": true
+        },
+        {
+          "name": "Queued Pin drafts never appear as fabricated Cloud Articles",
+          "pass": true
+        },
+        {
+          "name": "Cloud article search, full reader and provenance still work",
+          "pass": true
+        },
+        {
+          "name": "Cloud Pin copy includes its complete title, description and hashtags",
+          "pass": true
+        },
+        {
+          "name": "Uncertain review requires explicit inspection and does not invent a published result",
+          "pass": true
+        },
+        {
+          "name": "No horizontal overflow: /dashboard at 320px",
+          "pass": true
+        },
+        {
+          "name": "No horizontal overflow: /library at 320px",
+          "pass": true
+        },
+        {
+          "name": "No horizontal overflow: /dashboard at 390px",
+          "pass": true
+        },
+        {
+          "name": "No horizontal overflow: /library at 390px",
+          "pass": true
+        },
+        {
+          "name": "No horizontal overflow: /dashboard at 640px",
+          "pass": true
+        },
+        {
+          "name": "No horizontal overflow: /library at 640px",
+          "pass": true
+        },
+        {
+          "name": "No horizontal overflow: /dashboard at 768px",
+          "pass": true
+        },
+        {
+          "name": "No horizontal overflow: /library at 768px",
+          "pass": true
+        },
+        {
+          "name": "No horizontal overflow: /dashboard at 1024px",
+          "pass": true
+        },
+        {
+          "name": "No horizontal overflow: /library at 1024px",
+          "pass": true
+        },
+        {
+          "name": "No horizontal overflow: /dashboard at 1440px",
+          "pass": true
+        },
+        {
+          "name": "No horizontal overflow: /library at 1440px",
+          "pass": true
+        },
+        {
+          "name": "With Chromium fully closed, the actual Firebase scheduled-function bundle publishes a due fixture Pin",
+          "pass": true
+        },
+        {
+          "name": "Reopened Dashboard displays the persisted published Pin URL and total",
+          "pass": true
+        },
+        {
+          "name": "Pinterest Disconnect button deletes tokens and shows honest provider-settings fallback",
+          "pass": true
+        },
+        {
+          "name": "Blogger Disconnect button revokes via Google and deletes its saved refresh token",
+          "pass": true
+        },
+        {
+          "name": "Signed-in Pin Generator Save writes a private Firestore draft, not device storage or the queue",
+          "pass": true
+        },
+        {
+          "name": "Article Writer suggests only this Firebase user’s saved cloud Pin",
+          "pass": true
+        },
+        {
+          "name": "Signed-in Article Writer Save persists its complete structured article privately in Firestore",
+          "pass": true
+        },
+        {
+          "name": "Cloud Library separates manual Pin versus Article drafts and never labels an unsent draft Published",
+          "pass": true
+        },
+        {
+          "name": "Manual Save cannot accept a caller-supplied owner or secretly publish its draft",
+          "pass": true
+        },
+        {
+          "name": "Another signed-in Firebase user sees neither this owner’s manual Pin nor Article",
+          "pass": true
+        },
+        {
+          "name": "Signing out on Article Writer immediately removes that owner’s private cloud Pin suggestion",
+          "pass": true
+        },
+        {
+          "name": "A semantically failed cloud save never shows Saved or silently writes a local draft",
+          "pass": true
+        },
+        {
+          "name": "Sign out clears the Firebase app cookie, hides private cloud content and denies its APIs",
+          "pass": true
+        },
+        {
+          "name": "A guest still can create a distinctly device-only manual Pin without touching private Firestore",
+          "pass": true
+        },
+        {
+          "name": "Logout denies cross-site mutations and expires the nonce as well as the app cookie",
+          "pass": true
+        },
+        {
+          "name": "All configured Firebase Dashboard/Library/manual-tool browser actions have zero runtime/console errors",
+          "pass": true
+        }
+      ]
+    },
+    {
+      "suite": "nativeNode22Functions",
+      "passed": 9,
+      "total": 9,
+      "mode": "Actual Node 22 native scheduled-function bundle, real local Firestore and public HTTPS image; explicitly synthetic provider grant and Pin response. No deployed Functions, Scheduler delivery, production IAM, genuine consent or live publication verified.",
+      "browserErrors": [],
+      "results": [
+        {
+          "name": "The shared scheduled-function bundle imports under actual Node 22",
+          "pass": true
+        },
+        {
+          "name": "The deployable export is a native Gen 2 UTC 30-minute schedule, not a public callable/HTTP trigger",
+          "pass": true
+        },
+        {
+          "name": "Scheduler retries are disabled; persisted application retries keep their separate one-hour policy",
+          "pass": true
+        },
+        {
+          "name": "The native bundle declares all five Secret Manager bindings, bounded concurrency and runtime budget",
+          "pass": true
+        },
+        {
+          "name": "Firebase deployment configuration selects Node 22 and builds from shared source before deploy",
+          "pass": true
+        },
+        {
+          "name": "Functions keeps the last Node 22-compatible Realtime Database adapter instead of a Node 24-only transitive release",
+          "pass": true
+        },
+        {
+          "name": "An actual Node 22 native handler invocation persists an idle Firestore heartbeat without a browser",
+          "pass": true
+        },
+        {
+          "name": "Actual Node 22 scheduled bundle claims, validates a real public PNG and persists a fixture-confirmed Pin",
+          "pass": true
+        },
+        {
+          "name": "A repeated native handler invocation cannot republish the same completed Firestore Pin",
+          "pass": true
+        }
+      ]
+    },
+    {
+      "suite": "unconfiguredUi",
+      "passed": 75,
+      "total": 75,
+      "mode": "Guest UI on unconfigured local production build; signed-in UI responses are explicitly doubled, never genuine Google consent.",
+      "browserErrors": [],
+      "results": [
+        {
+          "name": "Google config is truthful: unconfigured, no Firebase web config or nonce",
+          "pass": true
+        },
+        {
+          "name": "Auth configuration is not cached",
+          "pass": true
+        },
+        {
+          "name": "Guest session endpoint contains no invented account",
+          "pass": true
+        },
+        {
+          "name": "Forged session cookies do not authenticate",
+          "pass": true
+        },
+        {
+          "name": "Unconfigured Google login fails closed and never sets a session",
+          "pass": true
+        },
+        {
+          "name": "Cross-origin authentication is rejected",
+          "pass": true
+        },
+        {
+          "name": "Logout requires a same-origin request",
+          "pass": true
+        },
+        {
+          "name": "Same-origin logout clears HttpOnly session cookies",
+          "pass": true
+        },
+        {
+          "name": "Homepage shows the requested small welcome popup",
+          "pass": true
+        },
+        {
+          "name": "Welcome popup discloses verified sign-in/publishing requirements",
+          "pass": true
+        },
+        {
+          "name": "Welcome popup can be dismissed",
+          "pass": true
+        },
+        {
+          "name": "Welcome is not repeated on every visit in the same session",
+          "pass": true
+        },
+        {
+          "name": "Navbar has all seven working product routes",
+          "pass": true
+        },
+        {
+          "name": "Every homepage internal link resolves (no dead Login/About/Contact)",
+          "pass": true
+        },
+        {
+          "name": "Navbar Login opens a real accessible popup",
+          "pass": true
+        },
+        {
+          "name": "Login discloses pending setup before the Google button is clicked",
+          "pass": true
+        },
+        {
+          "name": "Login locks background scrolling and traps both Tab directions",
+          "pass": true
+        },
+        {
+          "name": "Unconfigured Google button explains the limitation instead of faking login",
+          "pass": true
+        },
+        {
+          "name": "Escape closes Login and restores Navbar focus/scroll",
+          "pass": true
+        },
+        {
+          "name": "Login backdrop click also closes the popup",
+          "pass": true
+        },
+        {
+          "name": "Setup link opens the implemented Login/setup page",
+          "pass": true
+        },
+        {
+          "name": "LocalStorage identities cannot spoof the signed-in Navbar",
+          "pass": true
+        },
+        {
+          "name": "Homepage Generate Viral Pin navigates to Pin Generator",
+          "pass": true
+        },
+        {
+          "name": "Local pin generation has no fake network delay (60ms)",
+          "pass": true
+        },
+        {
+          "name": "Pin Save genuinely persists on this device",
+          "pass": true
+        },
+        {
+          "name": "Generate Article hands off the actual pin title",
+          "pass": true
+        },
+        {
+          "name": "Auto Publish shows the exact requested success popup",
+          "pass": true
+        },
+        {
+          "name": "Publish success is visibly labeled Demo, not a live blog claim",
+          "pass": true
+        },
+        {
+          "name": "Publish popup fits the screen and traps keyboard focus",
+          "pass": true
+        },
+        {
+          "name": "Demo publish saves a local record with source ID and demo mode",
+          "pass": true
+        },
+        {
+          "name": "Publish CTA opens the real Saved Articles tab",
+          "pass": true
+        },
+        {
+          "name": "Saved + demo-published versions remain deduplicated",
+          "pass": true
+        },
+        {
+          "name": "Full Auto shows Setup required, never a fake Active state",
+          "pass": true
+        },
+        {
+          "name": "The server cadence and 20-topic defaults are visible",
+          "pass": true
+        },
+        {
+          "name": "Guest cannot enable server automation without verified sign-in",
+          "pass": true
+        },
+        {
+          "name": "No browser-only ON setting or fake success is saved",
+          "pass": true
+        },
+        {
+          "name": "Closing the setup dialog restores focus to the Auto switch",
+          "pass": true
+        },
+        {
+          "name": "Navbar highlights only the current route: /",
+          "pass": true
+        },
+        {
+          "name": "Navbar highlights only the current route: /pin-generator",
+          "pass": true
+        },
+        {
+          "name": "Navbar highlights only the current route: /article-writer",
+          "pass": true
+        },
+        {
+          "name": "Navbar highlights only the current route: /dashboard",
+          "pass": true
+        },
+        {
+          "name": "Navbar highlights only the current route: /library",
+          "pass": true
+        },
+        {
+          "name": "Navbar highlights only the current route: /adsterra-income",
+          "pass": true
+        },
+        {
+          "name": "Navbar highlights only the current route: /ai-studio",
+          "pass": true
+        },
+        {
+          "name": "Google SDK is never loaded while login is unconfigured",
+          "pass": true
+        },
+        {
+          "name": "Mobile welcome popup fits and can be dismissed",
+          "pass": true
+        },
+        {
+          "name": "Mobile navigation opens all seven product links and locks scroll",
+          "pass": true
+        },
+        {
+          "name": "Mobile-menu Login closes the menu and keeps the modal scroll-locked",
+          "pass": true
+        },
+        {
+          "name": "Mobile Login fits without horizontal overflow",
+          "pass": true
+        },
+        {
+          "name": "Mobile Login close restores page scrolling",
+          "pass": true
+        },
+        {
+          "name": "Mobile menu Escape closes and returns focus",
+          "pass": true
+        },
+        {
+          "name": "Switching to desktop closes the mobile menu and releases scrolling",
+          "pass": true
+        },
+        {
+          "name": "320px: all 10 public routes return 200 without horizontal overflow",
+          "pass": true
+        },
+        {
+          "name": "320px: Google popup fits, scrolls vertically and never clips horizontally",
+          "pass": true
+        },
+        {
+          "name": "390px: all 10 public routes return 200 without horizontal overflow",
+          "pass": true
+        },
+        {
+          "name": "390px: Google popup fits, scrolls vertically and never clips horizontally",
+          "pass": true
+        },
+        {
+          "name": "640px: all 10 public routes return 200 without horizontal overflow",
+          "pass": true
+        },
+        {
+          "name": "640px: Google popup fits, scrolls vertically and never clips horizontally",
+          "pass": true
+        },
+        {
+          "name": "768px: all 10 public routes return 200 without horizontal overflow",
+          "pass": true
+        },
+        {
+          "name": "768px: Google popup fits, scrolls vertically and never clips horizontally",
+          "pass": true
+        },
+        {
+          "name": "1024px: all 10 public routes return 200 without horizontal overflow",
+          "pass": true
+        },
+        {
+          "name": "1024px: Google popup fits, scrolls vertically and never clips horizontally",
+          "pass": true
+        },
+        {
+          "name": "1440px: all 10 public routes return 200 without horizontal overflow",
+          "pass": true
+        },
+        {
+          "name": "1440px: Google popup fits, scrolls vertically and never clips horizontally",
+          "pass": true
+        },
+        {
+          "name": "320px generated article and action buttons do not overflow",
+          "pass": true
+        },
+        {
+          "name": "320×568 publish popup is readable and fits the viewport",
+          "pass": true
+        },
+        {
+          "name": "320×568 Full Auto sign-in/setup dialog stays within the viewport",
+          "pass": true
+        },
+        {
+          "name": "Denied pin save shows an honest error and remains retryable",
+          "pass": true
+        },
+        {
+          "name": "Older shared Copy buttons no longer report false Copied",
+          "pass": true
+        },
+        {
+          "name": "Denied article save does not mark the article as saved",
+          "pass": true
+        },
+        {
+          "name": "Failed demo publish never shows a success popup",
+          "pass": true
+        },
+        {
+          "name": "UI fixture only: a server-provided session shows the Navbar username",
+          "pass": true
+        },
+        {
+          "name": "UI fixture only: My Library is active and marked available",
+          "pass": true
+        },
+        {
+          "name": "UI fixture only: Sign out returns the Navbar to guest state",
+          "pass": true
+        },
+        {
+          "name": "Zero browser console errors / uncaught exceptions",
+          "pass": true
+        }
+      ]
+    },
+    {
+      "suite": "offlinePin",
+      "passed": 21,
+      "total": 21,
+      "mode": "Guest offline templates in Chromium on the local production build, never live inference.",
+      "browserErrors": [],
+      "results": [
+        {
+          "name": "Page title heading",
+          "pass": true
+        },
+        {
+          "name": "Sub-text",
+          "pass": true
+        },
+        {
+          "name": "Topic input with placeholder",
+          "pass": true
+        },
+        {
+          "name": "Generate button",
+          "pass": true
+        },
+        {
+          "name": "Empty topic shows error",
+          "pass": true
+        },
+        {
+          "name": "Example chip fills input",
+          "pass": true
+        },
+        {
+          "name": "5 viral titles shown",
+          "pass": true
+        },
+        {
+          "name": "Title rows rendered",
+          "pass": true
+        },
+        {
+          "name": "Title copied → \"Sad Quotes — It still hurts, and that's …\"",
+          "pass": true
+        },
+        {
+          "name": "Copy shows Copied state",
+          "pass": true
+        },
+        {
+          "name": "Description copied (143 words, 100–150)",
+          "pass": true
+        },
+        {
+          "name": "10 hashtags rendered (10)",
+          "pass": true
+        },
+        {
+          "name": "All hashtags copied (10 tags)",
+          "pass": true
+        },
+        {
+          "name": "Single hashtag copies",
+          "pass": true
+        },
+        {
+          "name": "Image prompt copied",
+          "pass": true
+        },
+        {
+          "name": "Generate Article button",
+          "pass": true
+        },
+        {
+          "name": "Article link carries the title (/article-writer?title=Sad%20Quotes%20%E2%80%…)",
+          "pass": true
+        },
+        {
+          "name": "Save shows saved state",
+          "pass": true
+        },
+        {
+          "name": "Saved to localStorage (1 item, \"Sad Quotes\", 5 titles)",
+          "pass": true
+        },
+        {
+          "name": "Mobile: results render",
+          "pass": true
+        },
+        {
+          "name": "Mobile: no horizontal overflow (0px)",
+          "pass": true
+        }
+      ]
+    },
+    {
+      "suite": "offlineArticle",
+      "passed": 25,
+      "total": 25,
+      "mode": "Guest offline templates in Chromium on the local production build, never live inference.",
+      "browserErrors": [],
+      "results": [
+        {
+          "name": "Page heading",
+          "pass": true
+        },
+        {
+          "name": "Sub-text",
+          "pass": true
+        },
+        {
+          "name": "Title input placeholder",
+          "pass": true
+        },
+        {
+          "name": "Generate Article button",
+          "pass": true
+        },
+        {
+          "name": "Use Title From Pin Generator button",
+          "pass": true
+        },
+        {
+          "name": "Empty title shows error",
+          "pass": true
+        },
+        {
+          "name": "H1 equals pin title",
+          "pass": true
+        },
+        {
+          "name": "5 H2 headings (3 sections + list + conclusion) → 5",
+          "pass": true
+        },
+        {
+          "name": "Body paragraphs rendered (13)",
+          "pass": true
+        },
+        {
+          "name": "Quotes/list section items (8)",
+          "pass": true
+        },
+        {
+          "name": "Article 500–800 words (page text ≈ 672)",
+          "pass": true
+        },
+        {
+          "name": "SEO Score shown",
+          "pass": true
+        },
+        {
+          "name": "SEO score is realistic (100/100)",
+          "pass": true
+        },
+        {
+          "name": "Word Count shown",
+          "pass": true
+        },
+        {
+          "name": "Copy Full Article works (660 words, has H1 + H2)",
+          "pass": true
+        },
+        {
+          "name": "Save shows saved state",
+          "pass": true
+        },
+        {
+          "name": "Saved article in library (660 words, SEO 100)",
+          "pass": true
+        },
+        {
+          "name": "Publish opens requested success popup",
+          "pass": true
+        },
+        {
+          "name": "Publish popup honestly discloses the local demo",
+          "pass": true
+        },
+        {
+          "name": "Publish shows demo state",
+          "pass": true
+        },
+        {
+          "name": "Published item stored",
+          "pass": true
+        },
+        {
+          "name": "Title prefilled from URL (\"5 Home Decor Ideas for Small Rooms\")",
+          "pass": true
+        },
+        {
+          "name": "Niche-aware article for Home Decor",
+          "pass": true
+        },
+        {
+          "name": "Mobile: article renders",
+          "pass": true
+        },
+        {
+          "name": "Mobile: no horizontal overflow (0px)",
+          "pass": true
+        }
+      ]
+    }
+  ]
+}

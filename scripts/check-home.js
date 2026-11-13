@@ -19,7 +19,7 @@ async function run() {
 
   ok("Hero heading", await dpage.getByRole("heading", { name: /Pinterest Automation Machine/i }).isVisible());
   ok("Navbar links (5)", (await dpage.getByRole("listitem").filter({ hasText: /Pin Generator|Article Writer|Dashboard|My Library/ }).count()) >= 4);
-  ok("Navbar Google Login button", await dpage.getByRole("banner").getByRole("button", { name: "Login with Google", exact: true }).isVisible());
+  ok("Navbar Google Login button", await dpage.getByRole("banner").getByRole("button", { name: "Sign in or create account", exact: true }).isVisible());
   ok("CTA Generate Viral Pin", await dpage.getByRole("link", { name: /Generate Viral Pin/i }).first().isVisible());
   ok("CTA How It Works", await dpage.getByRole("link", { name: /How It Works/i }).first().isVisible());
   ok("How it works 4 steps", (await dpage.getByRole("heading", { name: /Give Topic|PinCraft Creates Viral Pin|Auto Article \+ Auto Post|Traffic/i }).count()) === 4);

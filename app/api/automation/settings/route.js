@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { apiError,automationResponse,json,preferencesInput,readBody,requireInfrastructure,sessionUser } from '@/lib/automation/api';
 import { getDatabase } from '@/lib/automation/db.mjs';
 import { AutomationError } from '@/lib/automation/errors.mjs';
@@ -19,7 +20,7 @@ export async function POST(request){
       const p=preferencesInput(body);if(p.topicSource==='google_trends'){await reserveVerification(db,user.id);await fetchTrends(p.trendRegion);}await updatePreferences(db,user.id,p);
     }else if(body.action==='ai'){
       if(body.consent!==true)throw new AutomationError('consent_required','Confirm AI provider API usage before verification.');
-      const config=aiInput(body.ai);await reserveVerification(db,user.id);const summary=await verifyAI(config);await saveAI(db,user.id,encryptCredentials(user.id,config),summary);
+      const config=aiInput(body.ai);await reserveVerification(db,user.id);const summary=await verifyAI(config,undefined,{database:db,userId:user.id,requestKey:randomUUID()});await saveAI(db,user.id,encryptCredentials(user.id,config),summary);
     }else if(body.action==='remove_ai'){if(body.confirm!==true)throw new AutomationError('confirmation_required','Confirm API-key removal.');await removeAI(db,user.id);
     }else if(body.action==='destinations'){
       const pinterest=await verifyDestination(db,user.id,'pinterest',body.boardId);

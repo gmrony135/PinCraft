@@ -9,6 +9,9 @@ import { generateArticle, countWords } from "@/lib/article";
 import { getLibrary, saveToLibrary } from "@/lib/library";
 import { saveCloudDraft } from "@/lib/cloud-library";
 import { useAuth, useFeedback } from "../providers/AppProvider";
+import { generateWithAI } from "@/lib/ai-client";
+import GenerationMode, { GenerationReceipt, useGenerationMode } from "../ai/GenerationMode";
+import ImageGenerator from "../ai/ImageGenerator";
 import {
   Sparkles,
   FileText,
@@ -37,7 +40,10 @@ const EXAMPLES = [
 export default function ArticleWriter() {
   const params = useSearchParams();
   const { showSuccess } = useFeedback();
-  const { user, authLoading } = useAuth();
+  const { user, authLoading, openLogin } = useAuth();
+  const { mode, setMode, status: aiStatus } = useGenerationMode(user);
+  const [language, setLanguage] = useState('en');
+  const generationRequest = useRef({ sequence: 0, controller: null });
   const [saving, setSaving] = useState(false);
   const saveRequest = useRef(null);
   const identity = useRef(null);
@@ -56,6 +62,11 @@ export default function ArticleWriter() {
   const resultRef = useRef(null);
   const toastTimer = useRef(null);
   useEffect(() => () => clearTimeout(toastTimer.current), []);
+  useEffect(() => {
+    generationRequest.current.sequence++; generationRequest.current.controller?.abort();
+    setLoading(false); setError(''); setArticle(previous => previous?.generation ? null : previous);
+    return () => { generationRequest.current.sequence++; generationRequest.current.controller?.abort(); };
+  }, [user?.id]);
 
   // Pull title/topic handed over by the Pin Generator
   useEffect(() => {
@@ -85,22 +96,25 @@ export default function ArticleWriter() {
       setError("That title is a little short. Try at least 10 characters for a better article.");
       return;
     }
-    setError("");
-    setSaved(false);
-    setPublished(false);
-    setLoading(true);
-
-    // Let the browser paint; the local writer does not need a fake network delay.
-    await new Promise((resolve) => requestAnimationFrame(resolve));
-
-    const topic = params.get("topic")?.slice(0, 160) || undefined;
-    setArticle(generateArticle(value, topic));
-    setLoading(false);
-    flash("Article generated ✅");
-    setTimeout(
-      () => resultRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }),
-      100
-    );
+    if (loading || authLoading) return;
+    if (mode === 'ai' && !user) { setError('Sign in with a verified account to use live AI, or choose Offline template.'); openLogin(); return; }
+    const owner = identity.current, sequence = ++generationRequest.current.sequence;
+    generationRequest.current.controller = new AbortController();
+    setError(''); setSaved(false); setPublished(false); setArticle(null); setLoading(true);
+    try {
+      const topic = params.get('topic')?.slice(0, 160) || undefined;
+      let generated;
+      if (mode === 'ai') {
+        const result = await generateWithAI('article', { title: value, ...(topic ? { topic } : {}), language }, { signal: generationRequest.current.controller.signal });
+        generated = { ...result.result, generation: result.generation };
+      } else {
+        await new Promise(resolve => requestAnimationFrame(resolve)); generated = generateArticle(value, topic);
+      }
+      if (sequence !== generationRequest.current.sequence || identity.current !== owner) return;
+      setArticle(generated); flash(mode === 'ai' ? 'AI article generated' : 'Offline article template generated');
+      setTimeout(() => resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+    } catch (issue) { if (issue.name !== 'AbortError' && sequence === generationRequest.current.sequence && identity.current === owner) setError(issue.message); }
+    finally { if (sequence === generationRequest.current.sequence) setLoading(false); }
   }
 
   useEffect(() => { setSaved(false); saveRequest.current = null; }, [user?.id, article?.id]);
@@ -204,6 +218,8 @@ export default function ArticleWriter() {
               onSubmit={handleGenerate}
               className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm sm:p-6"
             >
+              <GenerationMode mode={mode} setMode={setMode} status={aiStatus} disabled={loading || authLoading} />
+              {mode === 'ai' && <label className="mb-4 flex items-center justify-between gap-3 text-[12px] font-bold text-neutral-600">AI output language<select aria-label="AI output language" value={language} onChange={event => setLanguage(event.target.value)} disabled={loading} className="min-h-11 rounded-lg border border-neutral-300 bg-white px-3 text-[13px]"><option value="en">English</option><option value="bn">বাংলা</option></select></label>}
               <label
                 htmlFor="pin-title"
                 className="mb-2 block text-[13px] font-bold uppercase tracking-[0.08em] text-neutral-500"
@@ -299,7 +315,7 @@ export default function ArticleWriter() {
                 </div>
               </div>
 
-              <button type="submit" disabled={loading} className="btn-primary mt-5 w-full">
+              <button type="submit" disabled={loading || authLoading} className="btn-primary mt-5 w-full">
                 {loading ? (
                   <>
                     <Loader2 size={18} className="animate-spin" /> Writing your article…
@@ -336,7 +352,9 @@ export default function ArticleWriter() {
             {/* ------------------------------ article ------------------------------ */}
             {article && !loading && (
               <div ref={resultRef} className="animate-fade-up mt-6 scroll-mt-20">
+                <GenerationReceipt generation={article.generation} />
                 <ArticleView article={article} />
+                <div className="mt-4"><ImageGenerator initialPrompt={`Editorial photograph illustrating ${article.title}. Thoughtful composition, natural light, a clear central subject, no text or logos.`.slice(0, 1700)} useCase="featured" /></div>
 
                 {/* stats + actions */}
                 <div className="mt-4 rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm sm:p-5">

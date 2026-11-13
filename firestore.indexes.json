@@ -209,6 +209,21 @@
       "collectionGroup": "logs",
       "fieldPath": "message",
       "indexes": []
+    },
+    {
+      "collectionGroup": "aiRequests",
+      "fieldPath": "result",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "aiRequests",
+      "fieldPath": "fingerprint",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "aiRequests",
+      "fieldPath": "lease",
+      "indexes": []
     }
   ]
 }

@@ -2,18 +2,18 @@
 
 ## Scope and honest status
 
-PinCraft now uses **Firebase Authentication for Google identity, Cloud Firestore for owner-private persistence, and Firebase Cloud Functions + Cloud Scheduler for 30-minute background checks**. Firebase Auth does not supply or persist a Pinterest/Blogger publishing grant: each provider has its own separate OAuth consent.
+PinCraft now uses **Firebase Authentication for verified Email/Password and Google identity, Cloud Firestore for owner-private persistence, and Firebase Cloud Functions + Cloud Scheduler for 30-minute background checks**. Firebase Auth does not supply or persist a Pinterest/Blogger publishing grant: each provider has its own separate OAuth consent.
 
-**Live Firebase setup remains pending.** No real project, web config, Admin authorization, Firestore production rules/indexes, Functions deployment, Scheduler delivery, provider approval/consent or live publication has been verified. Local emulator/fixture success is not production connection evidence. No billing upgrade or paid service was activated.
+**Live Firebase setup remains pending.** Public configuration for `pincraft-ly` has been supplied, but no secure production Admin authorization, Firestore production rules/indexes, Functions deployment, Scheduler delivery, provider approval/consent or live publication has been verified. Local emulator/fixture success is not production connection evidence. No billing upgrade or paid service was activated.
 
 The manual guest tools remain device-only and clearly separate. Signed-in manual saves go to private Firestore drafts; the old Article Writer publishing preview remains an explicitly labeled local demo, not an external publication. No Firebase Storage upload is needed: the requested image links are sufficient.
 
 ## Owner workflow
 
-1. Google sign-in uses Firebase Authentication's popup. Only Google's own page handles account sign-in; PinCraft never asks for Gmail/password entry.
+1. Sign in with verified Email/Password or Google. Account passwords go directly to the Firebase browser SDK, not PinCraft APIs. Google uses its own popup. Email verification and password reset are supported.
 2. Dashboard → **Connect Pinterest** sends the owner to `https://www.pinterest.com/oauth/`. Blogger consent is separately requested on Google's OAuth page when article publishing is needed.
 3. Load/select a **public board owned by that authorized Pinterest account** and, for generated mode, a **live Blogger blog with administrator access**. Saving destinations verifies ownership and leaves posting paused.
-4. Choose the saved Pin queue, or generated Pin + Blogger Article mode. Generated mode also requires an optional OpenAI/Gemini API key, encrypted separately after explicit verification-usage consent.
+4. Choose the saved Pin queue, or generated Pin + Blogger Article mode. Generated mode supports managed Gemini/Groq fallback or an optional personal OpenAI/Gemini/Groq key, verified with explicit usage consent. Managed requests use the same Firestore budgets as AI Studio.
 5. Save a schedule such as **5 Pins/day, every 120 minutes**. Bounds: 1–10/day, 30–1440 minutes in 30-minute steps. Defaults: 10/day, 120 minutes, Asia/Dhaka.
 6. Queue title, description, public HTTPS image link, destination and optional due time; or choose generated topics. A private Library draft is **not** automatically queued/published.
 7. Explicitly consent to scheduled publishing and turn Full Auto ON. Native Firebase checks Firestore every **30 minutes**, even with the phone/browser off.
@@ -23,12 +23,12 @@ IANA timezone controls daily resets; date inputs convert the device's local time
 
 ## Firebase identity and session boundary
 
-`lib/firebase/client.js` lazy-loads only Firebase App/Auth when a configured sign-in button is clicked. Auth is initialized with **in-memory persistence**, Google account selection, `signInWithPopup`, then an ID token is sent to the same-origin server and client Auth is immediately signed out. Firebase credentials are not saved to localStorage.
+`lib/firebase/client.js` lazy-loads only Firebase App/Auth when a configured sign-in button is clicked. Auth is initialized with **in-memory persistence**, Google popup or Firebase email/password methods, then a verified ID token is sent to the same-origin server and client Auth is immediately signed out. Firebase credentials are not saved to localStorage.
 
 The server:
 
 - Requires a matching 256-bit browser nonce and same-origin bounded JSON POST.
-- Uses Firebase Admin `verifyIdToken(token, true)`; requires Google provider, verified email claim and recent `auth_time` (five minutes).
+- Uses Firebase Admin `verifyIdToken(token, true)`; requires Google or password provider, verified email claim and recent `auth_time` (five minutes).
 - Creates PinCraft's **own signed app cookie**, `pincraft.session.v2`: Firebase UID, display name, project, original authentication time and normal signed-cookie metadata. This is not Firebase Admin's native session-cookie API. It does not contain email, Firebase ID token, Pinterest/Blogger tokens or passwords.
 - Uses HttpOnly, SameSite=Lax, path `/`, seven-day expiry and Secure over HTTPS. Each authenticated API request checks the managed Firebase user for deletion, disablement, provider identity and revocation time.
 - Ignores caller-supplied owners and old localStorage/custom-Google sessions. Sign-in clears the old v1 cookie. Sign-out expires app/nonce cookies, refreshes other open tabs and removes private cloud UI; existing guest device saves are not erased.
@@ -43,6 +43,8 @@ Firebase/Google maintain their own identity profile under their services. PinCra
 | `.../connections/{pinterest\|blogger}` | Owner/provider-bound encrypted OAuth envelope, expiry, scopes, status, revision/token versions and refresh lease |
 | `.../oauthAttempts/{provider}` | Ten-minute hashed single-use state, hashed browser binding and encrypted Blogger PKCE verifier |
 | `.../requests/{uuid}` | Owner-scoped queue/draft request fingerprint and resulting job ID for idempotency |
+| `.../aiRequests/{uuid}`, `.../aiUsage/{UTC-day}` | Private bounded AI request receipts, leases and daily counters; no image bytes or raw input prompts |
+| `pincraft_system/ai-{UTC-day}` | Cross-instance site-wide AI daily caps and leases |
 | `.../logs/{id}` | Bounded API activity views; no raw token/code/password logging |
 | `pincraft_jobs/{uuid}` | Owner UID, kind, title/description/content/image/destination links, due time, saved original targets, posting/checkpoint/retry state, confirmed result URLs |
 | `pincraft_system/heartbeat` | Actual last worker start/finish/status; never inserted as production sample success |
@@ -73,16 +75,18 @@ Article saves retain intro, sections/paragraphs, list, conclusion, keywords and 
 | `AUTOMATION_ENCRYPTION_KEY` | Exactly 32 random bytes in standard base64 | **Same value**, Secret Manager binding |
 | `PINTEREST_CLIENT_ID`, `PINTEREST_CLIENT_SECRET` | Actual approved Pinterest app | Same app ID; secret through Secret Manager |
 | `BLOGGER_CLIENT_ID`, `BLOGGER_CLIENT_SECRET` | Google OAuth Web app, Blogger API enabled | Same app ID; secret through Secret Manager |
+| `GEMINI_API_KEY`, `GROQ_API_KEY` | Live AI text fallback; server-only | Secret Manager bindings for managed generated mode |
+| `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN` | Downloadable AI artwork; server-only | Not required by the current public-rendered-image worker |
 | `FIREBASE_SCHEDULER_CONFIGURED=1` | Set **only after** authorized scheduled deployment and IAM verification | Not required by the native handler |
 | `CRON_SECRET` | Optional protected maintenance HTTP endpoint | Not used by native Scheduler/IAM trigger |
 
-No `DATABASE_URL`, old `GOOGLE_CLIENT_ID` login flow, SQL migration or Firebase Storage bucket is required. The current scheduled export binds all three named secrets (vault, Pinterest app secret and Blogger app secret); the operator must supply/authorize them before deploying that combined export.
+No `DATABASE_URL`, old `GOOGLE_CLIENT_ID` login flow, SQL migration or Firebase Storage bucket is required. The current scheduled export binds five named secrets (vault, Pinterest app secret, Blogger app secret, Gemini key and Groq key); the operator must supply/authorize them before deploying that combined export.
 
 Firebase Console prerequisites:
 
-- Select the owner's actual project/web app. Enable **Authentication → Google** and authorize the canonical website domain `pincraftly.vercel.app` (plus only deliberately allowed development/custom domains).
+- Select the owner's actual project/web app. Enable **Authentication → Email/Password and Google** and authorize the canonical website domain `pincraftly.vercel.app` (plus only deliberately allowed development/custom domains).
 - Use Firestore `(default)` in production mode with the location agreed by the owner; location and IAM are not guessed/provisioned without approval.
-- Give website server identity only the Firebase Auth user-verification/read and Firestore access it needs. Give the runtime Function identity Firestore access and access to its three secret bindings. Do not make either identity an Owner or put Admin credentials in `NEXT_PUBLIC_*`.
+- Give website server identity only the Firebase Auth user-verification/read and Firestore access it needs. Give the runtime Function identity Firestore access and access to its five secret bindings. Do not make either identity an Owner or put Admin credentials in `NEXT_PUBLIC_*`.
 - Configure real Pinterest/Google OAuth applications, consent/approval, redirect URLs and API permissions. Firebase Google login and Blogger publishing are separate grants even if the operator uses one Google project.
 
 Exact provider callbacks:
@@ -103,9 +107,9 @@ After approval and secure access, the **agent/operator**, not the user manually 
 1. Verify project/web config, provider apps, chosen database location, billing consent and least-privilege IAM. Do not log secrets.
 2. Install locked dependencies; build the website and `npm run build:functions`. `firebase.json` also runs this shared-source build before Functions deployment.
 3. Deploy the deny-all Firestore rules/indexes to the correct explicitly selected project; wait for indexes READY. Verify denied anonymous/client-token access plus successful owner-scoped server access.
-4. Configure the three authorized Secret Manager bindings, non-secret `APP_URL`/provider client IDs in Functions environment, and the runtime service account. The function region currently defaults to `asia-south1`; confirm region/location suitability before deployment.
+4. Configure the five authorized Secret Manager bindings, non-secret `APP_URL`/provider client IDs in Functions environment, and the runtime service account. The function region currently defaults to `asia-south1`; confirm region/location suitability before deployment.
 5. Selectively deploy codebase `pincraft-automation` / export `pincraftAutoPost`, Node 22. Firebase CLI creates the native Scheduler job and IAM-bound invocation. Confirm that **anonymous invocation is denied**, the Scheduler service identity is permitted, and UTC `*/30 * * * *` is correct. Do not make the Function public or rely on a spoofable schedule header.
-6. Configure the website's secure Admin/session/vault/app settings and verify Firebase Google sign-in. Once native deployment/IAM is confirmed, declare `FIREBASE_SCHEDULER_CONFIGURED=1` and redeploy the website. This flag is not execution proof.
+6. Configure the website's secure Admin/session/vault/app settings and verify Firebase Email/Password and Google sign-in. Once native deployment/IAM is confirmed, declare `FIREBASE_SCHEDULER_CONFIGURED=1` and redeploy the website. This flag is not execution proof.
 7. Observe an actual scheduled heartbeat, inspect its status, obtain genuine owner provider consent and verify destinations. No fixture Connected/Published records are inserted into the production project.
 8. With explicit publishing consent, enable one controlled real scheduled Pin (and Blogger article if selected). Verify the provider's real URL and a later browser-off dispatch. Only then describe production offline posting as verified.
 
@@ -164,8 +168,11 @@ Generated mode renders a signed **1000×1500 PNG** from saved Firestore content.
 | Endpoint | Access/effect |
 | --- | --- |
 | `GET /api/auth/config` | Public Firebase web config + HttpOnly browser nonce, no Admin secret |
-| `POST /api/auth/google` | Same-origin nonce-bound Firebase ID-token verification and v2 app cookie |
+| `POST /api/auth/firebase` (legacy `/google` alias) | Same-origin nonce-bound Firebase ID-token verification and v2 app cookie |
 | `GET /api/auth/session`, `POST /api/auth/logout` | Managed-user check / same-origin cookie expiry |
+| `GET /api/ai/status` | Public server-configuration flags and app caps, not a live quota/connectivity guarantee |
+| `POST /api/ai/generate` | Same-origin verified owner, explicit usage consent, UUID request key, allowlisted task and transactional budget |
+| `GET /api/ai/usage` | Owner-private daily text/image counters; provider charges/quotas are separate |
 | `GET /api/automation` | Guest-safe empty state or owner's real metrics/logs/queue |
 | `POST /api/integrations/{provider}/start` | Same-origin owner, registered app callback, consent URL |
 | `GET /api/integrations/{provider}/callback` | Owner/browser/state-bound one-time exchange, clean redirect |
@@ -193,25 +200,42 @@ In a separate local test terminal, source only the excluded synthetic test envir
 
 ```bash
 set -a; . .cache/firebase-test.env; set +a
+export NODE_OPTIONS=--no-experimental-require-module
 npm run test:firebase
 npm run test:auth
+npm run test:ai
 npm run build:functions
 npm run build
-# Use a separate terminal/process for this Next test server:
-AUTOMATION_HTTP_FIXTURES=1 node --import ./scripts/automation-http-fixtures.mjs \
+
+# Separate terminal, same synthetic test env, Node 24. No real API keys here:
+set -a; . .cache/firebase-test.env; set +a
+export NODE_OPTIONS=--no-experimental-require-module
+AUTOMATION_HTTP_FIXTURES=1 \
+  GEMINI_API_KEY=isolated-gemini-api-key-fixture \
+  GROQ_API_KEY=isolated-groq-api-key-fixture \
+  CLOUDFLARE_ACCOUNT_ID=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa \
+  CLOUDFLARE_API_TOKEN=isolated-cloudflare-token-fixture \
+  node --import ./scripts/ai-http-fixtures.mjs \
   node_modules/next/dist/bin/next start --hostname 0.0.0.0 --port 3001
-# Once that server is ready, run tests sequentially:
-npm run test:automation:ui
-# Use an actual Node 22 binary, after building the Functions bundle:
-AUTOMATION_HTTP_FIXTURES=1 node22 --conditions=react-server \
-  --import ./scripts/automation-http-fixtures.mjs scripts/check-functions.mjs
+
+# Back in the test terminal, once that server is ready, run sequentially:
+BASE_URL=http://127.0.0.1:3001 npm run test:ai:ui
+# Select an actual Node 22 executable for the browser-closed child invocation:
+FIREBASE_FUNCTIONS_NODE="$(command -v node22)" \
+  NODE_OPTIONS='--no-experimental-require-module --conditions=react-server' \
+  npm run test:automation:ui
+AUTOMATION_HTTP_FIXTURES=1 node22 --no-experimental-require-module \
+  --conditions=react-server --import ./scripts/automation-http-fixtures.mjs \
+  scripts/check-functions.mjs
 ```
 
 `node22` denotes the operator's installed Node 22 executable, not an npm script. `FIREBASE_FUNCTIONS_NODE` may optionally select that executable for the configured UI suite's browser-closed child invocation. Tests reset **only** explicitly authorized `demo-pincraft-local` emulators and must run sequentially, not against shared production data. The optional HTTP preload refuses non-loopback hosts and production; it is never imported by the application or activated through an API input. Never upload the synthetic test env or set its emulator/non-production flags in a real deployment.
 
-See `docs/automation-verification.json` for exact fresh results. Real Auth/Firestore emulators, Next routes, browser UI, private owner isolation, rules denial, transactions, signed PNGs and browser-closed native bundle execution are exercised. Google-provider identities and provider consent/AI/publication responses are **explicit test doubles**; they do not prove genuine consent or external publication. Actual public HTTPS PNG and Google Trends RSS are read.
+See `docs/firebase-ai-verification.json` for the expanded Email/Password/AI regression results; `docs/automation-verification.json` retains the earlier Firebase-migration run, not new-feature or production proof. Real Auth/Firestore emulators, Next routes, browser UI, private owner isolation, rules denial, transactions, signed PNGs and browser-closed native bundle execution are exercised. Google-provider identities and provider consent/AI/publication responses are **explicit test doubles**; they do not prove genuine consent or external publication. Actual public HTTPS PNG and Google Trends RSS are read.
 
 The production-only gates remain: supplied real project/config, secure Admin IAM, deployed/index-ready rules, approved billing and native Function/Scheduler, observed scheduled invocation, genuine provider owner consent and one verified real post/offline follow-up. The old SQL counts are not reused as Firebase evidence.
+
+For the expanded account/AI setup, download-only image limitations, provider models, app budgets, logical receipt expiry and the no-paid-upgrade gate, see [the Bengali operator guide](firebase-ai-setup.bn.md).
 
 ## Primary references
 

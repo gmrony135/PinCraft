@@ -14,7 +14,9 @@
     "firebase:emulators": "firebase emulators:start --only auth,firestore --project demo-pincraft-local",
     "test:auth": "node --conditions=react-server scripts/check-auth.js",
     "test:firebase": "node --conditions=react-server scripts/check-automation.mjs",
-    "test:firebase:setup": "node scripts/create-firebase-test-env.mjs"
+    "test:firebase:setup": "node scripts/create-firebase-test-env.mjs",
+    "test:ai": "node --conditions=react-server scripts/check-ai.mjs",
+    "test:ai:ui": "node --conditions=react-server scripts/check-ai-auth-ui.mjs"
   },
   "dependencies": {
     "firebase": "^13.3.0",
@@ -26,6 +28,7 @@
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "server-only": "^0.0.1",
+    "sharp": "0.35.5",
     "undici": "^7.30.2"
   },
   "devDependencies": {
@@ -40,7 +43,10 @@
     "next": {
       "postcss": "^8.5.23"
     },
-    "@grpc/grpc-js": "1.14.7"
+    "@grpc/grpc-js": "1.14.7",
+    "uuid": "11.1.1",
+    "glob": "14.0.2",
+    "@opentelemetry/core": "2.10.0"
   },
   "engines": {
     "node": "^24.12.0"

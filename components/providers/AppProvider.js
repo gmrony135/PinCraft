@@ -76,9 +76,9 @@ export default function AppProvider({ children }) {
   const openLogin = useCallback(() => { closeNotice(); setSuccess(null); setLoginOpen(true); }, [closeNotice]);
   const closeLogin = useCallback(() => setLoginOpen(false), []);
   const signIn = useCallback(async (idToken, nonce) => {
-    const response = await fetch("/api/auth/google", { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ idToken, nonce }) });
-    const result = await response.json();
-    if (!response.ok || !result.user?.id) throw new Error(result.error || "Google sign-in could not be completed.");
+    const response = await fetch("/api/auth/firebase", { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ idToken, nonce }) });
+    let result; try { result = await response.json(); } catch { throw new Error("The sign-in server is unavailable. Please try again shortly."); }
+    if (!response.ok || !result.user?.id) throw Object.assign(new Error(result.error || "Sign-in could not be completed."), { appAuthError: true });
     authSequence.current++;
     setUser(result.user);
     setAuthLoading(false);
