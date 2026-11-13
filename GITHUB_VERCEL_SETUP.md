@@ -1,97 +1,99 @@
-# 🚀 PinCraft — GitHub + Vercel Auto-Deploy
+# 🚀 PinCraft — Live Setup
 
-## 📌 লিংক
+## 🔗 লিংক
 
-| | |
+| কী | লিংক |
 |---|---|
 | **GitHub রিপো** | **https://github.com/gmrony135/PinCraft** |
-| Vercel প্রজেক্ট | https://vercel.com/gmrony135-9877/pincraft |
-| Vercel Git সেটিংস | https://vercel.com/gmrony135-9877/pincraft/settings/git |
+| **Live website** | **https://pincraft-gmrony135-9877s-projects.vercel.app** |
+| Vercel প্রজেক্ট | https://vercel.com/gmrony135-9877s-projects/pincraft |
+| Deployment Protection সেটিংস | https://vercel.com/gmrony135-9877s-projects/pincraft/settings/deployment-protection |
 
 ---
 
-## ✅ যা যা হয়ে গেছে
+## ✅ সব সেটআপ সম্পন্ন ও টেস্টেড
 
 | কাজ | স্ট্যাটাস |
 |---|---|
-| Git রিপো (`main`) | ✅ |
-| GitHub-এ কোড পুশ | ✅ ৩টি ফাইল-সেট, শেষ commit `main`-এ লাইভ |
-| **Auto-push hook** (`.git/hooks/post-commit`) | ✅ commit হলেই নিজে থেকে GitHub-এ push হয় |
-| Vercel প্রজেক্ট `pincraft` | ✅ তৈরি |
-| Vercel অ্যাকাউন্ট কানেক্ট | ✅ `gmrony135-9877` (Hobby) |
+| GitHub রিপো + কোড | ✅ [gmrony135/PinCraft](https://github.com/gmrony135/PinCraft) |
+| GitHub → Vercel লিংক | ✅ `repo: PinCraft`, `productionBranch: main` |
+| **Auto-push** (commit → GitHub) | ✅ `.git/hooks/post-commit` ইনস্টল + টেস্টেড |
+| **Auto-deploy** (GitHub → Vercel) | ✅ টেস্ট push দিয়ে যাচাই করা — deployment `READY`, production-এ promoted |
+| Live URL | ✅ HTTP 200 |
 
----
+### 🧪 লাইভ টেস্টের প্রমাণ
 
-## ⚠️ বাকি ১টা ধাপ — Vercel-এ GitHub কানেক্ট (তোমাকে করতে হবে)
-
-Vercel API দিয়ে রিপো লিংক করার চেষ্টা করেছিলাম, কিন্তু Vercel বলল:
-
-> *"Failed to link gmrony135/PinCraft. You need to add a Login Connection to your GitHub account first."*
-
-Login Connection = Vercel-এ তোমার GitHub অ্যাকাউন্ট দিয়ে OAuth লগইন। এটা শুধু
-ব্রাউজার থেকে করা যায়, API দিয়ে করা যায় না। **২ মিনিটের কাজ:**
-
-### ধাপ ১ — রিপো কানেক্ট করো
-
-1. এই লিংকে যাও → **https://vercel.com/gmrony135-9877/pincraft/settings/git**
-2. **Connect Git Repository** বাটনে ক্লিক করো
-3. **GitHub** → **Authorize Vercel** / **Login with GitHub** → Allow
-4. লিস্টে **PinCraft** খুঁজে **Connect** করো
-   - রিপো না দেখালে → **Adjust GitHub App Permissions** → PinCraft সিলেক্ট → Save
-
-### ধাপ ২ — Production Branch চেক করো
-
-একই পেজে **Production Branch** = `main` আছে কিনা দেখো (ডিফল্টেই থাকে)।
-
-### ব্যাস 🎉 — এখন থেকে:
+খালি একটা commit (`ci: trigger vercel auto-deploy test`) push করা হয়েছিল।
+Vercel নিজেই সেটা ধরে নিয়ে ডিপ্লয় করেছে — কোনো ম্যানুয়াল কাজ ছাড়া:
 
 ```
-কোড বদল  →  git commit  →  auto-push hook  →  GitHub main
-                                                   ↓
-                                         Vercel webhook
-                                                   ↓
-                                    Live site ~৩০ সেকেন্ডে আপডেট
+commit 9183e0b (main)  →  Vercel auto-build  →  READY (~1.5s)  →  production alias assigned
 ```
 
-লাইভ লিংক ধাপ ১ শেষ হলেই Vercel ড্যাশবোর্ডে দেখবে
-(`https://pincraft-xxxx.vercel.app` ধরনের)।
+Vercel-এর নিজের event log: *"You deployed pincraft from gmrony135/PinCraft
+(9183e0b in main) to production"*
 
 ---
 
-## 🔄 Auto-push কীভাবে চলে
+## ⚠️ ১টা ছোট কাজ বাকি — Deployment Protection বন্ধ করা
 
-`.git/hooks/post-commit` হুক ইনস্টল করা আছে — এই ওয়ার্কস্পেসে যতবার commit
-হবে, সাথে সাথেই GitHub-এ push হয়ে যাবে। আলাদা কমান্ড লাগবে না।
+লাইভ লিংক খুললে এখন **"Login – Vercel"** পেজ দেখাচ্ছে (HTTP 200 কিন্তু পেজটা
+Vercel-এর লগইন স্ক্রিন)। কারণ প্রজেক্টে **Vercel Authentication** চালু আছে
+(`all_except_custom_domains`) — এটা ডিফল্টে চালু থাকে।
 
-ম্যানুয়ালি করতে চাইলে:
+### সমাধান (৩০ সেকেন্ড)
 
-```bash
-./scripts/auto-push.sh "feat: নতুন সেকশন যোগ করলাম"
+1. যাও → **https://vercel.com/gmrony135-9877s-projects/pincraft/settings/deployment-protection**
+2. **Vercel Authentication** সেকশনে যাও
+3. ড্রপডাউন থেকে **`Only Preview Deployments`** সিলেক্ট করো
+   (অথবা **`Disabled`** — সবাই সাইট দেখতে পারবে)
+4. **Save** ক্লিক করো
+
+এরপর `https://pincraft-gmrony135-9877s-projects.vercel.app` সবার জন্য খুলবে।
+
+> 💡 Vercel API/connector দিয়ে এই সেটিংটা বদলানো যায় না — এটা Vercel
+> ড্যাশবোর্ড থেকেই করতে হয়। তাই এই এক ক্লিকটা তোমার লাগবে।
+
+---
+
+## 🔄 এখন থেকে ওয়ার্কফ্লো
+
+```
+আমি কোড বদলাই
+      ↓
+git commit  (post-commit hook অটো চালায়)
+      ↓
+GitHub main-এ push  (অটো)
+      ↓
+Vercel webhook  (GitHub App, অটো)
+      ↓
+~৩০ সেকেন্ডে live site আপডেট  (অটো)
+```
+
+আমাকে আলাদা করে কিছু বলতে হবে না — কোড বদলালেই চেইনটা নিজে চলবে।
+
+---
+
+## 📁 প্রজেক্ট ফাইল
+
+```
+index.html              → মূল পেজ (Vercel এটাই serve করে)
+vercel.json             → clean URLs + security headers
+.gitignore              → .env, node_modules, credentials ব্লক
+scripts/auto-push.sh    → ম্যানুয়াল commit+push
+scripts/post-commit     → auto-push hook (ইনস্টলড)
+GITHUB_VERCEL_SETUP.md  → এই ফাইল
 ```
 
 ---
 
-## 🔒 নিরাপত্তা নোট (গুরুত্বপূর্ণ)
+## 🔒 নিরাপত্তা
 
-1. **টোকেন চ্যাটে শেয়ার হয়েছে** → সেটআপ শেষ হওয়ার পর обязательно revoke করো:
-   GitHub → Settings → Developer settings → Tokens (classic) → `Delete`
-2. প্রথম commit-এ ভুল করে `.git-credentials` ও `.gitconfig` ঢুকে গিয়েছিল।
-   GitHub-এর **Push Protection** সেটা ব্লক করে দেয় — তাই টোকেন GitHub-এ
-   পৌঁছায়নি। এরপর হিস্ট্রি রিরাইট করে (force না করেই) ফাইল দুটো বাদ দেওয়া
-   হয়েছে এবং `.gitignore` + `.git/info/exclude`-এ ব্লক করা হয়েছে।
-   ✅ বর্তমানে রিপোতে কোনো credential নেই — যাচাই করা হয়েছে।
-
----
-
-## 🆘 সমস্যা হলে
-
-| সমস্যা | সমাধান |
-|---|---|
-| Vercel-এ রিপো দেখাচ্ছে না | Settings → Git → Adjust GitHub App Permissions → repo add |
-| `Permission denied` | টোকেনে `repo` scope আছে কিনা দেখো |
-| `Updates were rejected` | `git pull --rebase origin main` তারপর push |
-| Build fail | Framework Preset = `Other`, Build Command = খালি |
-| সাইট 404 | `index.html` root-এ আছে কিনা দেখো (আছে) |
+- রিপোতে কোনো টোকেন/credential নেই (যাচাই করা)
+- প্রথম commit-এ ভুলে ঢোকা `.git-credentials` GitHub Push Protection ব্লক করেছে,
+  এরপর হিস্ট্রি পরিষ্কার করা হয়েছে
+- ⚠️ **টোকেনটা চ্যাটে শেয়ার হয়েছে** → কাজ শেষ হলে revoke করে নতুন বানাও:
+  GitHub → Settings → Developer settings → Tokens (classic) → Delete
 
 ---
 *আপডেট: 2026-11-13*
