@@ -1,0 +1,89 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --pin-red: #e60023;
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  @apply bg-white text-neutral-900 antialiased;
+  overscroll-behavior-y: none;
+}
+
+/* Mobile app feel: hide scrollbars on horizontal rails */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-full font-semibold
+           transition-all duration-150 active:scale-[.97] disabled:opacity-50
+           disabled:pointer-events-none select-none;
+    min-height: 52px;
+    padding-inline: 1.5rem;
+    font-size: 0.975rem;
+  }
+  .btn-primary {
+    @apply btn bg-pin-600 text-white shadow-pop hover:bg-pin-700;
+  }
+  .btn-dark {
+    @apply btn bg-neutral-900 text-white hover:bg-neutral-800;
+  }
+  .btn-ghost {
+    @apply btn bg-neutral-100 text-neutral-900 hover:bg-neutral-200;
+  }
+  .btn-outline {
+    @apply btn border-2 border-neutral-200 bg-white text-neutral-900 hover:border-neutral-300;
+  }
+  .btn-sm {
+    min-height: 42px;
+    padding-inline: 1rem;
+    font-size: 0.875rem;
+  }
+
+  .card {
+    @apply rounded-3xl border border-neutral-100 bg-white shadow-card;
+  }
+
+  .field {
+    @apply w-full rounded-2xl border-2 border-neutral-200 bg-white px-4 py-3.5 text-[15px]
+           text-neutral-900 outline-none transition placeholder:text-neutral-400
+           focus:border-pin-600 focus:ring-4 focus:ring-pin-50;
+    min-height: 54px;
+  }
+  .label {
+    @apply mb-2 block text-sm font-semibold text-neutral-800;
+  }
+
+  .chip {
+    @apply inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold;
+  }
+
+  .app-shell {
+    @apply mx-auto w-full max-w-[430px] px-5;
+  }
+
+  .tap {
+    @apply transition-transform duration-150 active:scale-[.98];
+  }
+}
+
+/* Safe areas for iOS */
+.pb-safe {
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 0.5rem);
+}
