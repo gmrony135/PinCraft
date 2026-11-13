@@ -1,56 +1,67 @@
-# 🚀 PinCraft — Setup Status
+# 🚀 PinCraft — GitHub + Vercel Auto-Deploy
 
-## ✅ যা হয়ে গেছে
+## 📌 লিংক
+
+| | |
+|---|---|
+| **GitHub রিপো** | **https://github.com/gmrony135/PinCraft** |
+| Vercel প্রজেক্ট | https://vercel.com/gmrony135-9877/pincraft |
+| Vercel Git সেটিংস | https://vercel.com/gmrony135-9877/pincraft/settings/git |
+
+---
+
+## ✅ যা যা হয়ে গেছে
 
 | কাজ | স্ট্যাটাস |
 |---|---|
-| লোকাল Git রিপো (`main` branch) | ✅ তৈরি |
-| GitHub রিপোতে কোড পুশ | ✅ [gmrony135/PinCraft](https://github.com/gmrony135/PinCraft) |
-| Auto-push hook (`post-commit`) | ✅ ইনস্টল — প্রতিবার commit → GitHub push |
-| Vercel প্রজেক্ট তৈরি (`pincraft`) | ✅ তৈরি (এখনো GitHub-এ লিংক হয়নি) |
-| Vercel অ্যাকাউন্ট | ✅ কানেক্টেড (`gmrony135-9877`) |
+| Git রিপো (`main`) | ✅ |
+| GitHub-এ কোড পুশ | ✅ ৩টি ফাইল-সেট, শেষ commit `main`-এ লাইভ |
+| **Auto-push hook** (`.git/hooks/post-commit`) | ✅ commit হলেই নিজে থেকে GitHub-এ push হয় |
+| Vercel প্রজেক্ট `pincraft` | ✅ তৈরি |
+| Vercel অ্যাকাউন্ট কানেক্ট | ✅ `gmrony135-9877` (Hobby) |
 
 ---
 
-## ⚠️ শুধু ২টা ধাপ বাকি (তোমাকে করতে হবে)
+## ⚠️ বাকি ১টা ধাপ — Vercel-এ GitHub কানেক্ট (তোমাকে করতে হবে)
 
-API দিয়ে GitHub → Vercel অটো-লিংক করা যায়নি, কারণ Vercel-এ "Login Connection"
-(অর্থাৎ GitHub অ্যাকাউন্ট OAuth) আগে লাগে — এটা শুধু ব্রাউজার থেকে করা যায়।
+Vercel API দিয়ে রিপো লিংক করার চেষ্টা করেছিলাম, কিন্তু Vercel বলল:
 
-### ধাপ ১ — Vercel-এ GitHub কানেক্ট করো
+> *"Failed to link gmrony135/PinCraft. You need to add a Login Connection to your GitHub account first."*
 
-1. https://vercel.com/gmrony135-9877/pincraft/settings/git এ যাও (অথবা
-   https://vercel.com/dashboard → pincraft → Settings → Git)
-2. **Connect Git Repository** ক্লিক করো
-3. **GitHub** সিলেক্ট করো → **Authorize / Login with GitHub** → Allow দাও
-4. রিপো লিস্টে `PinCraft` সিলেক্ট করে **Connect** ক্লিক করো
-5. নিশ্চিত করো **Production Branch = `main`**
+Login Connection = Vercel-এ তোমার GitHub অ্যাকাউন্ট দিয়ে OAuth লগইন। এটা শুধু
+ব্রাউজার থেকে করা যায়, API দিয়ে করা যায় না। **২ মিনিটের কাজ:**
 
-### ধাপ ২ — নিশ্চিত করো Production Branch `main`
+### ধাপ ১ — রিপো কানেক্ট করো
 
-Settings → Git → **Production Branch** এ `main` আছে কিনা দেখো।
-এটা থাকলেই প্রতিবার `main`-এ push হলে production site auto-deploy হবে।
+1. এই লিংকে যাও → **https://vercel.com/gmrony135-9877/pincraft/settings/git**
+2. **Connect Git Repository** বাটনে ক্লিক করো
+3. **GitHub** → **Authorize Vercel** / **Login with GitHub** → Allow
+4. লিস্টে **PinCraft** খুঁজে **Connect** করো
+   - রিপো না দেখালে → **Adjust GitHub App Permissions** → PinCraft সিলেক্ট → Save
 
----
+### ধাপ ২ — Production Branch চেক করো
 
-## 🎉 এরপর কী হবে
+একই পেজে **Production Branch** = `main` আছে কিনা দেখো (ডিফল্টেই থাকে)।
+
+### ব্যাস 🎉 — এখন থেকে:
 
 ```
-আমি কোড বদলাই  →  git commit  →  post-commit hook  →  GitHub main push
-                                        ↓
-                              Vercel webhook (GitHub App)
-                                        ↓
-                              Live site ~30 সেকেন্ডে আপডেট
+কোড বদল  →  git commit  →  auto-push hook  →  GitHub main
+                                                   ↓
+                                         Vercel webhook
+                                                   ↓
+                                    Live site ~৩০ সেকেন্ডে আপডেট
 ```
 
-লাইভ লিংক (ধাপ ১ শেষ হলে): `https://pincraft-<hash>.vercel.app`
+লাইভ লিংক ধাপ ১ শেষ হলেই Vercel ড্যাশবোর্ডে দেখবে
+(`https://pincraft-xxxx.vercel.app` ধরনের)।
 
 ---
 
-## 🔄 Auto-push কীভাবে কাজে লাগবে
+## 🔄 Auto-push কীভাবে চলে
 
-`.git/hooks/post-commit` ইনস্টল করা আছে। মানে এই ওয়ার্কস্পেসে যতবার কোড
-commit হবে, সাথে সাথে GitHub-এ push হয়ে যাবে — আলাদা করে push কমান্ড লাগবে না।
+`.git/hooks/post-commit` হুক ইনস্টল করা আছে — এই ওয়ার্কস্পেসে যতবার commit
+হবে, সাথে সাথেই GitHub-এ push হয়ে যাবে। আলাদা কমান্ড লাগবে না।
 
 ম্যানুয়ালি করতে চাইলে:
 
@@ -60,12 +71,27 @@ commit হবে, সাথে সাথে GitHub-এ push হয়ে যা�
 
 ---
 
-## 🔒 নিরাপত্তা
+## 🔒 নিরাপত্তা নোট (গুরুত্বপূর্ণ)
 
-- `.gitignore`-এ `.env`, `node_modules` ব্লক করা
-- GitHub টোকেন শুধু ওয়ার্কস্পেসের credential store-এ আছে, কোডে নেই
-- ⚠️ তুমি টোকেনটা চ্যাটে শেয়ার করেছো — সেটআপ শেষ হলে GitHub →
-  Settings → Developer settings → Tokens → **Revoke** করে নতুন টোকেন বানিয়ে নেওয়া ভালো
+1. **টোকেন চ্যাটে শেয়ার হয়েছে** → সেটআপ শেষ হওয়ার পর обязательно revoke করো:
+   GitHub → Settings → Developer settings → Tokens (classic) → `Delete`
+2. প্রথম commit-এ ভুল করে `.git-credentials` ও `.gitconfig` ঢুকে গিয়েছিল।
+   GitHub-এর **Push Protection** সেটা ব্লক করে দেয় — তাই টোকেন GitHub-এ
+   পৌঁছায়নি। এরপর হিস্ট্রি রিরাইট করে (force না করেই) ফাইল দুটো বাদ দেওয়া
+   হয়েছে এবং `.gitignore` + `.git/info/exclude`-এ ব্লক করা হয়েছে।
+   ✅ বর্তমানে রিপোতে কোনো credential নেই — যাচাই করা হয়েছে।
+
+---
+
+## 🆘 সমস্যা হলে
+
+| সমস্যা | সমাধান |
+|---|---|
+| Vercel-এ রিপো দেখাচ্ছে না | Settings → Git → Adjust GitHub App Permissions → repo add |
+| `Permission denied` | টোকেনে `repo` scope আছে কিনা দেখো |
+| `Updates were rejected` | `git pull --rebase origin main` তারপর push |
+| Build fail | Framework Preset = `Other`, Build Command = খালি |
+| সাইট 404 | `index.html` root-এ আছে কিনা দেখো (আছে) |
 
 ---
 *আপডেট: 2026-11-13*
