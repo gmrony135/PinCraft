@@ -26,13 +26,13 @@ Every push to `main` auto-deploys to production (tested and verified).
 - Headline: *"Pinterest + Blog Automation in 1 Click"*
 - Sub headline: *"Choose category, AI will craft Pin + Blog daily. You just relax."*
 - Buttons: **Get Started Free**, **Login**
-- 3 category cards: Sad Quotes · Motivation · Food Recipes (tap → signup)
+- 9 niche cards: Home Decor · Food · Fashion · Beauty · DIY & Crafts · Gardening · Quotes · Travel · Art (tap → signup)
 - How it works: 1. Connect Pinterest → 2. Choose Category → 3. AI Crafts & Posts Daily
 
 ### 2. Signup
 - Full Name, Email, Password (with show/hide)
 - *Do you have a Pinterest account?* **Yes / No**
-- Category dropdown: Sad Quotes · Motivation · Food Recipes · Travel · Fashion · Health
+- Category dropdown: the 9 niches below
 - Inline validation, terms checkbox, **[Create Free Account]**
 
 ### 3. Login
@@ -42,7 +42,7 @@ Every push to `main` auto-deploys to production (tested and verified).
 - Welcome + first name, **Plan: Free** badge
 - 4 stat boxes: Total Pins Created · Total Blogs · Pinterest Connected · Today's Task
 - Big **Connect Pinterest Account** button
-- Category selection (single select, 6 niches)
+- Category selection (single select, 9 niches)
 - Quick actions + recent content list
 - Bottom tab bar: Home · Create · Schedule · Settings
 
@@ -73,6 +73,25 @@ Every push to `main` auto-deploys to production (tested and verified).
 - Profile link → connect flow with loading state → connected card, disconnect option
 
 ---
+
+## 🗂 Niches (9)
+
+| # | Niche | Emoji |
+|---|---|---|
+| 1 | Home Decor & Home Organization | 🏡 |
+| 2 | Food, Recipes & Cooking Ideas | 🍔 |
+| 3 | Fashion & Outfit Ideas | 👗 |
+| 4 | Beauty & Skincare | 💄 |
+| 5 | DIY & Crafts | 💡 |
+| 6 | Gardening & Plant Ideas | 🌿 |
+| 7 | Love Quotes, Sad Quotes & Motivation | ❤️ |
+| 8 | Travel & Lifestyle | ✈️ |
+| 9 | Art, Aesthetic & Creative Ideas | 🎨 |
+
+Every niche has its own hook lines, US-style title patterns, hashtag sets and
+SEO keyword base, so generated pins actually match the topic. Old saved
+categories (`sad`, `motivation`, `health`…) are mapped automatically by
+`resolveCategory()` so existing state keeps working.
 
 ## 🏷 Brand assets
 
