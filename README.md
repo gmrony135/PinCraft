@@ -32,12 +32,27 @@ Every push to `main` auto-deploys to Vercel production.
 | **Income Formula** | `PinCraft = Pin Create + Article Write + Auto Post` and the Pinterest → Blog → Adsterra pipeline |
 | **Footer** | PinCraft · About · Contact (+ product links) |
 
+### Step 2 — Pin Generator (`/pin-generator`) ✔
+
+| Part | Contents |
+|---|---|
+| **Header** | Title *“Viral Pin Generator”* + sub-text, breadcrumb, free-tool badge |
+| **Input** | “Enter your topic” field (placeholder `Sad Quotes`) + 6 example chips + validation |
+| **Generate** | **Generate Viral Pin** red button (loading state, smooth scroll to results) |
+| **Output 1** | 5 viral, emotional, US-style pin titles — **Copy** on each |
+| **Output 2** | 1 SEO description, 100–150 words — **Copy description** |
+| **Output 3** | 10 viral hashtags — tag chips (tap to copy) + **Copy all hashtags** |
+| **Output 4** | Pin image idea (headline text, palette, layout, AI prompt + copy) |
+| **Output 5** | **Generate Article For This Pin** (pre-fills Article Writer) + **Save To My Library** (persists) |
+
+Niche-aware engine (`lib/generator.js`) detects the topic type (quotes, food,
+home, beauty, wood… ) and uses matching hooks + hashtag sets.
+
 ### Next steps (not built yet)
 
-- Pin Generator tool
 - Article Writer tool
 - Automation Dashboard
-- My Library
+- My Library page
 - Adsterra Income section
 - Google login
 
@@ -67,18 +82,23 @@ components/
   IncomeFormula.js  dark formula + pipeline section
   Footer.js
 public/brand/       official logo, marks, app icons, favicons
-scripts/check-home.js  Playwright checks (desktop + mobile)
+lib/generator.js     pin pack generator (titles, description, hashtags, image idea)
+lib/library.js       localStorage library (Save To My Library)
+components/CopyButton.js         clipboard copy with fallback + copied state
+components/pin-generator/        PinGenerator + ResultSection
+scripts/check-home.js            Playwright checks (desktop + mobile)
+scripts/check-pin-generator.js   Playwright checks for the generator
 ```
 
 ## 🧪 Verification
 
 ```bash
 npm run build                 # production build
-node scripts/check-home.js    # 15/15 checks: content, nav, mobile menu,
-                              # no horizontal overflow, tap targets, console errors
+node scripts/check-home.js            # 15/15 homepage checks
+node scripts/check-pin-generator.js   # 21/21 generator checks (real clipboard reads)
 ```
 
-Latest run: **15/15 passed, zero console errors.**
+Latest run: **homepage 15/15 · pin generator 21/21 · zero console errors.**
 
 ## 🚀 Local development
 
