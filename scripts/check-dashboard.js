@@ -43,6 +43,7 @@ async function stored(page) {
 
 async function save(page) {
   await page.getByRole("button", { name: "Save Automation Settings", exact: true }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Got it", exact: true }).click();
   await page.getByRole("status").filter({ hasText: "Automation settings saved on this device." }).waitFor();
 }
 
@@ -74,7 +75,7 @@ async function run() {
     check("Dashboard route returns HTTP 200", response.status() === 200);
     check("Page title and canonical metadata", (await page.title()) === "Automation Dashboard · PinCraft" && (await page.locator('link[rel="canonical"]').getAttribute("href")).endsWith("/dashboard"));
     check("One page H1: Automation Dashboard", await page.getByRole("heading", { level: 1, name: "Automation Dashboard", exact: true }).count() === 1);
-    check("Requested sub-text", await page.getByText("Your PinCraft is working automatically for you", { exact: true }).isVisible());
+    check("Truthful workspace sub-text", await page.getByText("Plan your content routine, all in one place", { exact: true }).isVisible());
     check("Demo analytics and disconnected posting disclosed", await page.getByText("Demo workspace", { exact: true }).isVisible() && await page.getByText(/no pins are posted automatically yet/).isVisible());
 
     for (const stat of data.DASHBOARD_STATS) {
@@ -128,6 +129,7 @@ async function run() {
     await page.getByLabel("Post Time", { exact: true }).selectOption("Morning");
     await page.getByRole("button", { name: "Save Automation Settings", exact: true }).focus();
     await page.keyboard.press("Enter");
+    await page.getByRole("dialog").getByRole("button", { name: "Got it", exact: true }).click();
     await page.getByRole("status").filter({ hasText: "Automation settings saved on this device." }).waitFor();
     check("Save works with keyboard Enter", (await stored(page)).enabled === true && (await stored(page)).pinsPerDay === 10);
     const buttonColor = await page.getByRole("button", { name: "Save Automation Settings", exact: true }).evaluate((node) => getComputedStyle(node).backgroundColor);

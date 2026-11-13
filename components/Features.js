@@ -23,8 +23,8 @@ const FEATURES = [
   {
     icon: LayoutDashboard,
     title: "Automation Dashboard",
-    text: "Watch pins, views, clicks and earnings in one place. Schedule 10 pins a day and let PinCraft keep posting while you sleep.",
-    points: ["Pins / views / clicks", "Earnings chart", "10 pins daily"],
+    text: "Explore sample pins, views, clicks and earnings. Save a local posting plan; live Pinterest scheduling is not connected yet.",
+    points: ["Demo analytics", "Earnings chart", "Local posting plan"],
     href: "/dashboard",
     cta: "See dashboard",
     tone: "neutral",
@@ -36,10 +36,10 @@ export default function Features() {
     <section className="container-x py-14 sm:py-20">
       <div className="mx-auto max-w-2xl text-center">
         <span className="eyebrow">Features</span>
-        <h2 className="h2 mt-4">Everything you need to earn from Pinterest</h2>
+        <h2 className="h2 mt-4">Your content workflow, in one place</h2>
         <p className="lead mt-3">
-          Three tools that replace a designer, a writer and a daily posting
-          routine — built into one simple site.
+          Start with a topic, build an article, and plan your routine.
+          Three focused tools, one simple workspace.
         </p>
       </div>
 

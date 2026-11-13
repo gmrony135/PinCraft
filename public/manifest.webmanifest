@@ -1,7 +1,7 @@
 {
   "name": "PinCraft — Crafted Pins, Daily Traffic",
   "short_name": "PinCraft",
-  "description": "Pinterest + Blog Automation in 1 Click",
+  "description": "Create pin ideas, write article drafts, and plan your publishing routine",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",

@@ -81,8 +81,11 @@ async function run() {
   // ---------- auto publish ----------
   await page.getByRole("button", { name: "Auto Publish To Blog", exact: true }).click();
   await page.waitForTimeout(500);
-  ok("Publish shows published state", await page.getByRole("button", { name: "Published To Blog", exact: true }).isVisible());
-  ok("Publish confirmation note", await page.getByText(/queued for your blog/i).isVisible());
+  await page.getByRole("dialog").waitFor();
+  ok("Publish opens requested success popup", await page.getByRole("dialog").getByRole("heading", { name: "Article Published Successfully!", exact: true }).isVisible());
+  ok("Publish popup honestly discloses the local demo", await page.getByRole("dialog").getByText(/nothing was published online/).isVisible());
+  await page.getByRole("button", { name: "Close confirmation", exact: true }).click();
+  ok("Publish shows demo state", await page.getByRole("button", { name: "Published (Demo)", exact: true }).isVisible());
   const published = await page.evaluate(() => {
     const list = JSON.parse(localStorage.getItem("pincraft.library.v1") || "[]");
     return list.some((x) => x.type === "published");

@@ -19,14 +19,14 @@ const STEPS = [
     n: "03",
     icon: Send,
     title: "Auto Article + Auto Post",
-    text: "A 500–800 word SEO article is written and published, then the pin is posted to Pinterest.",
+    text: "Generate a 500–800 word article. Preview the publishing flow; live blog and Pinterest posting need integration.",
     accent: "bg-neutral-900",
   },
   {
     n: "04",
     icon: TrendingUp,
     title: "Traffic → Income",
-    text: "Pinterest sends free traffic to your blog. Adsterra ads turn that traffic into earnings.",
+    text: "Publish to your own connected blog to pursue Pinterest traffic and ad income. Results and earnings are not guaranteed.",
     accent: "bg-brand-600",
   },
 ];
@@ -37,10 +37,10 @@ export default function HowItWorks() {
       <div className="container-x py-14 sm:py-20">
         <div className="mx-auto max-w-2xl text-center">
           <span className="eyebrow">How it works</span>
-          <h2 className="h2 mt-4">Four steps. Then it runs itself.</h2>
+          <h2 className="h2 mt-4">One topic. A clearer content routine.</h2>
           <p className="lead mt-3">
-            No design skills, no SEO knowledge, no daily posting. You give one
-            topic — PinCraft handles the rest on repeat.
+            Try the content tools now. The final publishing and monetization
+            steps need connected accounts and a live blog.
           </p>
         </div>
 

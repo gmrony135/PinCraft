@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useRef } from "react";
+import useDialog from "../useDialog";
 import Link from "next/link";
 import { BookOpen, Clock3, FileText, Info, X } from "lucide-react";
 import ContentCopyButton from "./ContentCopyButton";
@@ -22,18 +23,7 @@ function PlainArticle({ text, title }) {
 export default function ArticleReader({ article, onClose }) {
   const dialogRef = useRef(null);
 
-  useEffect(() => {
-    const dialog = dialogRef.current;
-    const opener = document.activeElement;
-    const previousOverflow = document.body.style.overflow;
-    dialog.showModal();
-    document.body.style.overflow = "hidden";
-    return () => {
-      if (dialog.open) dialog.close();
-      document.body.style.overflow = previousOverflow;
-      if (opener?.isConnected) opener.focus({ preventScroll: true });
-    };
-  }, []);
+  useDialog(dialogRef);
 
   return (
     <dialog

@@ -4,7 +4,7 @@ import { ArrowRight, Pin, FileText, Send, MousePointerClick, Wallet } from "luci
 const FORMULA = [
   { icon: Pin, label: "Pin Create", sub: "Viral pins" },
   { icon: FileText, label: "Article Write", sub: "SEO blog" },
-  { icon: Send, label: "Auto Post", sub: "Daily, hands-off" },
+  { icon: Send, label: "Auto Post", sub: "Integration required" },
 ];
 
 const PIPELINE = [
@@ -34,8 +34,8 @@ export default function IncomeFormula() {
             The maths behind PinCraft
           </h2>
           <p className="mt-3 text-[14.5px] leading-relaxed text-neutral-400 sm:text-[16px]">
-            Nothing complicated. One engine creates, one platform sends traffic,
-            one ad network pays.
+            The idea: useful content, an audience, and an ad-supported blog.
+            Live posting and earnings require your own connected accounts.
           </p>
         </div>
 

@@ -16,11 +16,11 @@ function DemoCard() {
           <span className="h-2.5 w-2.5 rounded-full bg-amber-400" />
           <span className="h-2.5 w-2.5 rounded-full bg-emerald-400" />
           <span className="ml-2 truncate text-[11.5px] font-semibold text-neutral-400">
-            pincraft.app · generator
+            pincraftly · demo preview
           </span>
           <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10.5px] font-bold text-emerald-600">
             <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
-            AUTO
+            DEMO
           </span>
         </div>
 
@@ -35,9 +35,9 @@ function DemoCard() {
               <span className="truncate text-[13.5px] font-semibold text-neutral-800">
                 Sad Quotes for Broken Heart
               </span>
-              <span className="ml-auto hidden shrink-0 rounded-lg bg-brand-600 px-2.5 py-1 text-[10.5px] font-bold text-white sm:block">
+              <Link href="/pin-generator" prefetch={false} aria-label="Try the pin generator preview" className="ml-auto hidden min-h-11 shrink-0 items-center rounded-lg bg-brand-600 px-2.5 py-1 text-[10.5px] font-bold text-white hover:bg-brand-700 sm:inline-flex">
                 Generate
-              </span>
+              </Link>
             </div>
           </div>
 
@@ -78,7 +78,7 @@ function DemoCard() {
           <div className="grid grid-cols-2 gap-2">
             <div className="rounded-xl border border-neutral-150 bg-neutral-50/70 px-3 py-2">
               <p className="text-[9.5px] font-bold uppercase tracking-wide text-neutral-400">
-                Traffic today
+                Sample traffic
               </p>
               <p className="text-[14px] font-extrabold text-neutral-900">
                 12.4k <span className="text-[10.5px] font-bold text-emerald-600">↑ 8%</span>
@@ -86,7 +86,7 @@ function DemoCard() {
             </div>
             <div className="rounded-xl border border-brand-100 bg-brand-50/60 px-3 py-2">
               <p className="text-[9.5px] font-bold uppercase tracking-wide text-brand-400">
-                Adsterra today
+                Sample income
               </p>
               <p className="text-[14px] font-extrabold text-brand-600">$8.92</p>
             </div>
@@ -98,9 +98,9 @@ function DemoCard() {
               <span className="grid h-4 w-4 place-items-center rounded-full bg-emerald-500 text-[9px] text-white">
                 ✓
               </span>
-              Posted to Pinterest + Blog
+              Publishing workflow preview
             </p>
-            <p className="text-[11px] font-bold text-emerald-600">10 pins/day</p>
+            <p className="text-[11px] font-bold text-emerald-600">10/day plan</p>
           </div>
         </div>
       </div>
@@ -149,8 +149,8 @@ export default function Hero() {
           </h1>
 
           <p className="lead mt-5 max-w-xl">
-            You just give Topic, PinCraft will do everything automatically —
-            Pin, Article, Post, Traffic, Income.
+            Give a topic. Create pin ideas and SEO article drafts in seconds,
+            then organize your publishing plan in one simple workspace.
           </p>
 
           <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -180,9 +180,10 @@ export default function Hero() {
               <span className="grid h-4 w-4 place-items-center rounded-full bg-emerald-100 text-[9px] text-emerald-600">
                 ✓
               </span>
-              Works 24/7
+              No signup to create
             </span>
           </div>
+          <p className="mt-4 max-w-md text-[11px] leading-relaxed text-neutral-500"><strong className="font-bold text-brand-700">UI preview:</strong> Google Login and live posting need setup. Analytics show sample data; income is not guaranteed.</p>
         </div>
 
         {/* visual */}

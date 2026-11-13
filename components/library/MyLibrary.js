@@ -6,6 +6,7 @@ import { ArrowLeft, ArrowRight, ArrowUpRight, BookOpen, Bookmark, FileText, Fold
 import { LIBRARY_PAGE_SIZE, LIBRARY_STORAGE_KEY, createDemoLibrary, filterLibrary, partitionLibrary } from "@/lib/library-content";
 import ContentCopyButton from "./ContentCopyButton";
 import ArticleReader from "./ArticleReader";
+import { LIBRARY_UPDATED_EVENT } from "@/lib/library";
 
 const TABS = [{ id: "pins", label: "Saved Pins", Icon: Pin }, { id: "articles", label: "Saved Articles", Icon: FileText }];
 
@@ -21,6 +22,7 @@ export default function MyLibrary() {
   const tabRefs = useRef([]);
 
   useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("tab") === "articles") setTab("articles");
     function refresh() {
       try {
         const raw = window.localStorage.getItem(LIBRARY_STORAGE_KEY);
@@ -38,7 +40,8 @@ export default function MyLibrary() {
     const onStorage = (event) => { if (event.key === LIBRARY_STORAGE_KEY || event.key === null) { refresh(); setPage(0); } };
     refresh();
     window.addEventListener("storage", onStorage);
-    return () => window.removeEventListener("storage", onStorage);
+    window.addEventListener(LIBRARY_UPDATED_EVENT, refresh);
+    return () => { window.removeEventListener("storage", onStorage); window.removeEventListener(LIBRARY_UPDATED_EVENT, refresh); };
   }, []);
 
   const isDemo = saved[tab].length === 0;

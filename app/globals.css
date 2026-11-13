@@ -77,3 +77,23 @@ body {
     @apply text-[16px] leading-relaxed text-neutral-500 sm:text-[17.5px];
   }
 }
+
+@layer base {
+  :where(a, button, summary):focus-visible {
+    outline: 2px solid var(--brand);
+    outline-offset: 3px;
+  }
+  :where(h1, h2, h3, p) {
+    overflow-wrap: break-word;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

@@ -7,6 +7,7 @@ import CopyButton from "../CopyButton";
 import ArticleView from "./ArticleView";
 import { generateArticle, countWords } from "@/lib/article";
 import { getLibrary, saveToLibrary } from "@/lib/library";
+import { useFeedback } from "../providers/AppProvider";
 import {
   Sparkles,
   FileText,
@@ -34,6 +35,7 @@ const EXAMPLES = [
 
 export default function ArticleWriter() {
   const params = useSearchParams();
+  const { showSuccess } = useFeedback();
   const [title, setTitle] = useState("");
   const [loading, setLoading] = useState(false);
   const [article, setArticle] = useState(null);
@@ -44,13 +46,14 @@ export default function ArticleWriter() {
   const [libraryDrop, setLibraryDrop] = useState(null); // latest saved pin from generator
   const resultRef = useRef(null);
   const toastTimer = useRef(null);
+  useEffect(() => () => clearTimeout(toastTimer.current), []);
 
   // Pull title/topic handed over by the Pin Generator
   useEffect(() => {
     const t = params.get("title");
     const topic = params.get("topic");
-    if (t) setTitle(t);
-    if (!t && topic) setTitle(topic);
+    if (t) setTitle(t.slice(0, 200));
+    if (!t && topic) setTitle(topic.slice(0, 200));
   }, [params]);
 
   // Offer the most recent library pin as a source for the title
@@ -84,9 +87,10 @@ export default function ArticleWriter() {
     setPublished(false);
     setLoading(true);
 
-    await new Promise((r) => setTimeout(r, 1100));
+    // Let the browser paint; the local writer does not need a fake network delay.
+    await new Promise((resolve) => requestAnimationFrame(resolve));
 
-    const topic = params.get("topic") || undefined;
+    const topic = params.get("topic")?.slice(0, 160) || undefined;
     setArticle(generateArticle(value, topic));
     setLoading(false);
     flash("Article generated ✅");
@@ -98,29 +102,40 @@ export default function ArticleWriter() {
 
   function handleSave() {
     if (!article) return;
-    saveToLibrary({ type: "article", ...article });
-    setSaved(true);
-    flash("Saved to My Library 📚");
+    try {
+      saveToLibrary({ type: "article", ...article });
+      setSaved(true);
+      flash("Saved to My Library on this device 📚");
+    } catch (issue) { flash(issue.message); }
   }
 
   function handlePublish() {
     if (!article) return;
-    saveToLibrary({
-      ...article,
-      type: "published",
-      id: `pub_${Date.now()}`,
-      sourceId: article.id,
-      publishedAt: new Date().toISOString(),
-    });
-    setPublished(true);
-    flash("Published to your blog 🎉");
+    try {
+      saveToLibrary({
+        ...article,
+        type: "published",
+        id: `pub_${article.id}`,
+        sourceId: article.id,
+        publishedAt: new Date().toISOString(),
+        publicationMode: "demo",
+      });
+      setPublished(true);
+      setToast("");
+      showSuccess({
+        title: "Article Published Successfully!",
+        description: "Demo only: this article was saved to My Library on this device. No live blog is connected and nothing was published online.",
+        href: "/library?tab=articles",
+        linkLabel: "View in My Library",
+      });
+    } catch (issue) { flash(issue.message); }
   }
 
   return (
     <div className="relative">
       {toast && (
         <div className="pointer-events-none fixed inset-x-0 top-20 z-50 flex justify-center px-5">
-          <div className="animate-pop-in rounded-full bg-neutral-900 px-4 py-2.5 text-[13px] font-bold text-white shadow-xl">
+          <div role="status" className="animate-pop-in max-w-lg rounded-2xl bg-neutral-900 px-4 py-2.5 text-center text-[13px] font-bold text-white shadow-xl">
             {toast}
           </div>
         </div>
@@ -184,8 +199,10 @@ export default function ArticleWriter() {
                   }}
                   placeholder="10 Sad Quotes That Will Make You Cry"
                   autoComplete="off"
+                  maxLength={200}
                   aria-invalid={!!error}
-                  className={`h-[58px] w-full rounded-xl border-2 bg-white pl-11 pr-4 text-[15.5px] font-semibold text-neutral-900 outline-none transition placeholder:font-normal placeholder:text-neutral-400 focus:ring-4 ${
+                  aria-describedby={error ? "article-title-error" : undefined}
+                  className={`h-[58px] w-full rounded-xl border-2 bg-white pl-11 pr-4 text-[16px] font-semibold text-neutral-900 outline-none transition placeholder:font-normal placeholder:text-neutral-400 focus:ring-4 ${
                     error
                       ? "border-brand-600 focus:ring-brand-50"
                       : "border-neutral-200 focus:border-brand-600 focus:ring-brand-50"
@@ -194,7 +211,7 @@ export default function ArticleWriter() {
               </div>
 
               {error && (
-                <p className="mt-2 flex items-center gap-1.5 text-[12.5px] font-semibold text-brand-600">
+                <p id="article-title-error" role="alert" className="mt-2 flex items-center gap-1.5 text-[12.5px] font-semibold text-brand-600">
                   <AlertCircle size={14} /> {error}
                 </p>
               )}
@@ -211,7 +228,7 @@ export default function ArticleWriter() {
                     flash("No saved pin yet — generate a pin first");
                   }
                 }}
-                className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-brand-200 bg-brand-50/40 px-4 py-3 text-[13px] font-bold text-brand-700 transition-colors hover:border-brand-300 hover:bg-brand-50 active:scale-[.99]"
+                className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-brand-200 bg-brand-50/40 px-4 py-3 text-[13px] font-bold text-brand-700 transition-colors hover:border-brand-400 hover:bg-brand-50 active:scale-[.99]"
               >
                 <Link2 size={15} /> Use Title From Pin Generator
               </button>
@@ -336,7 +353,7 @@ export default function ArticleWriter() {
                     </ul>
                   </details>
 
-                  <div className="mt-4 flex flex-col gap-2.5 sm:flex-row">
+                  <div className="mt-4 grid gap-2.5 sm:grid-cols-2">
                     <div className="w-full sm:flex-1">
                       <CopyButton
                         text={article.plainText}
@@ -368,13 +385,13 @@ export default function ArticleWriter() {
                       type="button"
                       onClick={handlePublish}
                       disabled={published}
-                      className={`w-full sm:flex-1 ${
+                      className={`w-full sm:col-span-2 ${
                         published ? "btn-outline border-emerald-200 text-emerald-600" : "btn-primary"
                       }`}
                     >
                       {published ? (
                         <>
-                          <Check size={17} strokeWidth={3} /> Published To Blog
+                          <Check size={17} strokeWidth={3} /> Published (Demo)
                         </>
                       ) : (
                         <>
@@ -384,13 +401,9 @@ export default function ArticleWriter() {
                     </button>
                   </div>
 
-                  {published && (
-                    <p className="mt-3 rounded-xl bg-emerald-50 px-3.5 py-2.5 text-[12px] font-semibold text-emerald-700">
-                      ✅ Article queued for your blog and saved to My Library.
-                      In the next step it will publish automatically with your
-                      Adsterra ad code in place.
-                    </p>
-                  )}
+                  <p className="mt-3 rounded-xl border border-brand-100 bg-brand-50/40 px-3.5 py-2.5 text-[11.5px] leading-relaxed text-neutral-600">
+                    <strong className="font-bold text-brand-800">Demo publishing:</strong> {published ? "Demo publication saved to My Library on this device. Nothing was published online." : "Auto Publish saves a local demo record. A live blog and publishing API are not connected."}
+                  </p>
 
                   <button
                     type="button"

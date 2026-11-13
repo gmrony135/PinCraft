@@ -1,88 +1,25 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { Copy, Check } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Copy, Check, CircleAlert } from "lucide-react";
+import { copyText } from "@/lib/clipboard";
 
-/**
- * Copy-to-clipboard button with fallbacks (clipboard API → execCommand).
- * Shows a green "Copied" state for 1.6s.
- */
-export default function CopyButton({
-  text,
-  label = "Copy",
-  copiedLabel = "Copied",
-  className = "",
-  variant = "soft",
-}) {
-  const [copied, setCopied] = useState(false);
-
+/** Copy feedback follows the real clipboard result, including denied access. */
+export default function CopyButton({ text, label = "Copy", copiedLabel = "Copied", className = "", variant = "soft" }) {
+  const [state, setState] = useState("idle");
   useEffect(() => {
-    if (!copied) return;
-    const t = setTimeout(() => setCopied(false), 1600);
-    return () => clearTimeout(t);
-  }, [copied]);
+    if (state === "idle") return;
+    const timer = setTimeout(() => setState("idle"), 2200);
+    return () => clearTimeout(timer);
+  }, [state]);
 
-  const copy = useCallback(async () => {
-    const value = String(text ?? "");
-    let ok = false;
-
-    try {
-      if (navigator.clipboard && window.isSecureContext) {
-        await navigator.clipboard.writeText(value);
-        ok = true;
-      }
-    } catch {
-      ok = false;
-    }
-
-    if (!ok) {
-      // fallback for non-secure contexts / older browsers
-      try {
-        const ta = document.createElement("textarea");
-        ta.value = value;
-        ta.setAttribute("readonly", "");
-        ta.style.position = "fixed";
-        ta.style.top = "-1000px";
-        ta.style.opacity = "0";
-        document.body.appendChild(ta);
-        ta.select();
-        ta.setSelectionRange(0, value.length);
-        ok = document.execCommand("copy");
-        document.body.removeChild(ta);
-      } catch {
-        ok = false;
-      }
-    }
-
-    setCopied(true);
-  }, [text]);
-
-  const base =
-    "inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg font-bold transition-all duration-150 active:scale-95 select-none";
-  const styles =
-    variant === "solid"
-      ? "bg-neutral-900 text-white hover:bg-neutral-800"
-      : copied
-      ? "bg-emerald-50 text-emerald-600 ring-1 ring-emerald-200"
-      : "bg-neutral-100 text-neutral-600 hover:bg-neutral-200";
-
+  async function copy() { setState((await copyText(text)) ? "copied" : "error"); }
+  const base = "inline-flex min-h-11 shrink-0 items-center justify-center gap-1.5 rounded-lg font-bold outline-none transition-colors focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:ring-offset-2 active:scale-95 select-none";
+  const styles = state === "error" ? "bg-brand-50 text-brand-800 ring-1 ring-brand-100" : state === "copied" ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200" : variant === "solid" ? "bg-neutral-900 text-white hover:bg-neutral-800" : "bg-neutral-100 text-neutral-600 hover:bg-neutral-200";
+  const textLabel = state === "copied" ? copiedLabel : state === "error" ? "Copy failed — retry" : label;
   return (
-    <button
-      type="button"
-      onClick={copy}
-      aria-label={copied ? `${copiedLabel} to clipboard` : `${label} to clipboard`}
-      aria-live="polite"
-      className={`${base} ${styles} ${className || "h-9 px-3 text-[12px]"}`}
-    >
-      {copied ? (
-        <>
-          <Check size={14} strokeWidth={3} /> {copiedLabel}
-        </>
-      ) : (
-        <>
-          <Copy size={14} /> {label}
-        </>
-      )}
+    <button type="button" onClick={copy} aria-label={state === "error" ? `${label} failed. Try again` : `${textLabel} to clipboard`} aria-live="polite" className={`${base} ${styles} ${className || "px-3 text-[12px]"}`}>
+      {state === "copied" ? <Check aria-hidden="true" size={14} strokeWidth={3} /> : state === "error" ? <CircleAlert aria-hidden="true" size={14} /> : <Copy aria-hidden="true" size={14} />}{textLabel}
     </button>
   );
 }

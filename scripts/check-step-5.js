@@ -194,12 +194,12 @@ async function run() {
     await pinCards(page).first().getByRole("button").click();
     await pinCards(page).first().getByRole("button", { name: "Copied to clipboard", exact: true }).waitFor();
     check("Copy retry recovers after a failure", (await page.evaluate(() => navigator.clipboard.readText())) === demos.pins[0].title);
-    await page.getByRole("link", { name: "Adsterra Income", exact: true }).click();
+    await page.getByTestId("library-root").getByRole("link", { name: "Adsterra Income", exact: true }).click();
     await page.waitForURL(`${BASE}/adsterra-income`);
     await adInput(page).waitFor();
     check("Library links back to Adsterra Income", new URL(page.url()).pathname === "/adsterra-income");
 
-    // Integrate with the existing save actions WITHOUT editing those pages.
+    // Integrate with the real save actions and the final demo-publish popup.
     await open(page, "/pin-generator");
     await page.getByPlaceholder("Sad Quotes", { exact: true }).fill("Balcony Gardening");
     await page.getByRole("button", { name: /Generate Viral Pin$/ }).click();
@@ -219,7 +219,8 @@ async function run() {
     await page.getByRole("button", { name: "Save To My Library", exact: true }).click();
     await page.getByRole("button", { name: "Saved to My Library", exact: true }).waitFor();
     await page.getByRole("button", { name: "Auto Publish To Blog", exact: true }).click();
-    await page.getByRole("button", { name: "Published To Blog", exact: true }).waitFor();
+    await page.getByRole("dialog").getByRole("button", { name: "Close confirmation", exact: true }).click();
+    await page.getByRole("button", { name: "Published (Demo)", exact: true }).waitFor();
     const realItems = await json(page, LIB_KEY);
     const realArticle = realItems.find((item) => item.type === "article");
     await open(page, "/library");

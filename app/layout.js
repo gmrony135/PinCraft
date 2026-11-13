@@ -1,4 +1,5 @@
 import "./globals.css";
+import AppProvider from "@/components/providers/AppProvider";
 
 export const metadata = {
   metadataBase: new URL("https://pincraftly.vercel.app"),
@@ -7,7 +8,7 @@ export const metadata = {
     template: "%s · PinCraft",
   },
   description:
-    "You just give a topic — PinCraft writes the viral pins, SEO articles and posts them automatically. Pinterest traffic + Adsterra income on autopilot.",
+    "Create pin titles and SEO article drafts, save your content, and explore the PinCraft automation workspace. Live posting and Google Login require configuration.",
   keywords: [
     "Pinterest automation",
     "viral pin generator",
@@ -19,7 +20,7 @@ export const metadata = {
   openGraph: {
     title: "PinCraft — Your Pinterest Automation Machine",
     description:
-      "Give a topic. PinCraft creates viral pins, writes SEO articles and auto-posts them. Pinterest traffic → Adsterra income.",
+      "A simple workspace for Pinterest pin ideas, SEO articles, and automation planning. Try the free content tools.",
     url: "https://pincraftly.vercel.app",
     siteName: "PinCraft",
     type: "website",
@@ -29,7 +30,7 @@ export const metadata = {
     card: "summary_large_image",
     title: "PinCraft — Your Pinterest Automation Machine",
     description:
-      "Give a topic. PinCraft creates viral pins, writes SEO articles and auto-posts them.",
+      "Create pin ideas and SEO articles. Explore your library and the automation UI preview.",
     images: ["/brand/pincraft-logo-full-1024.png"],
   },
   appleWebApp: {
@@ -59,7 +60,7 @@ export const viewport = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body><AppProvider>{children}</AppProvider></body>
     </html>
   );
 }

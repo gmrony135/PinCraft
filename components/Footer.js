@@ -7,6 +7,7 @@ const LINKS = [
   { label: "Article Writer", href: "/article-writer" },
   { label: "Dashboard", href: "/dashboard" },
   { label: "My Library", href: "/library" },
+  { label: "Adsterra Income", href: "/adsterra-income" },
 ];
 
 export default function Footer() {
@@ -18,9 +19,10 @@ export default function Footer() {
           <div>
             <Logo />
             <p className="mt-3 max-w-sm text-[13.5px] leading-relaxed text-neutral-500">
-              Your Pinterest Automation Machine. Give a topic — PinCraft creates
-              the viral pin, writes the SEO article and posts it for you.
+              Your Pinterest content workspace. Create pin ideas, write SEO
+              articles, and keep your publishing plan together.
             </p>
+            <p className="mt-2 max-w-sm text-[11px] leading-relaxed text-neutral-500">UI preview · Device-local saves. Google Login and live publishing require configuration.</p>
             <p className="mt-4 inline-flex items-center gap-2 rounded-full bg-neutral-50 px-3 py-1.5 text-[11.5px] font-bold text-neutral-500">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
               Built for beginners · Free to start
@@ -77,7 +79,7 @@ export default function Footer() {
             © {new Date().getFullYear()} PinCraft. All rights reserved.
           </p>
           <p className="text-[12.5px] font-semibold text-neutral-400">
-            Pin Create · Article Write · Auto Post
+            Pin Create · Article Write · Plan Posts
           </p>
         </div>
       </div>

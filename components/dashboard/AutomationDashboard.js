@@ -35,11 +35,13 @@ import {
 } from "@/lib/dashboard";
 import RecentActivity from "./RecentActivity";
 import ViewsChart from "./ViewsChart";
+import { useFeedback } from "../providers/AppProvider";
 
 const STAT_ICONS = { pins: Bookmark, views: Eye, clicks: MousePointer2, earning: DollarSign };
 const TIME_ICONS = { Morning: Sunrise, Afternoon: Sun, Evening: Sunset, Night: Moon };
 
 export default function AutomationDashboard() {
+  const { showSuccess } = useFeedback();
   const [settings, setSettings] = useState({ ...DEFAULT_AUTOMATION });
   const [savedSettings, setSavedSettings] = useState(null);
   const [ready, setReady] = useState(false);
@@ -88,6 +90,10 @@ export default function AutomationDashboard() {
       setSettings(next);
       setSavedSettings(next);
       setFeedback({ type: "success", text: "Automation settings saved on this device." });
+      showSuccess({
+        title: next.enabled ? "Automation ON - Your PinCraft will post automatically" : "Automation OFF - Your settings are saved",
+        description: next.enabled ? "Demo only: your ON preference is saved on this device. Pinterest and a remote scheduler are not connected, so no pins will be posted automatically." : "Your OFF preference is saved on this device. This preview does not run a remote posting scheduler.",
+      });
     } catch {
       setFeedback({ type: "error", text: "Settings could not be saved in this browser. Your changes are still here; please try again." });
     }
@@ -107,7 +113,7 @@ export default function AutomationDashboard() {
             <LayoutDashboard aria-hidden="true" size={13} /> Your workspace
           </p>
           <h1 className="text-[32px] font-extrabold leading-[1.12] tracking-[-0.04em] text-neutral-900 sm:text-[40px] lg:text-[43px]">Automation Dashboard</h1>
-          <p className="mt-2.5 text-[14px] leading-relaxed text-neutral-500 sm:text-[15.5px]">Your PinCraft is working automatically for you</p>
+          <p className="mt-2.5 text-[14px] leading-relaxed text-neutral-500 sm:text-[15.5px]">Plan your content routine, all in one place</p>
         </div>
         <div className="shrink-0 sm:text-right">
           <span className="inline-flex items-center gap-1.5 rounded-full border border-neutral-200 bg-white px-3 py-1.5 text-[11.5px] font-bold text-neutral-600">
@@ -182,7 +188,7 @@ export default function AutomationDashboard() {
               <div>
                 <label htmlFor="pins-per-day" className="mb-2 block text-[12px] font-bold text-neutral-700">How many Pins per day?</label>
                 <div className="relative">
-                  <select id="pins-per-day" disabled={!ready} value={settings.pinsPerDay} onChange={(event) => updateSettings({ pinsPerDay: Number(event.target.value) })} className="h-[50px] w-full appearance-none rounded-xl border border-neutral-200 bg-white pl-4 pr-10 text-[14px] font-semibold text-neutral-800 outline-none transition-shadow focus:border-brand-600 focus:ring-4 focus:ring-brand-50 disabled:opacity-50">
+                  <select id="pins-per-day" disabled={!ready} value={settings.pinsPerDay} onChange={(event) => updateSettings({ pinsPerDay: Number(event.target.value) })} className="h-[50px] w-full appearance-none rounded-xl border border-neutral-200 bg-white pl-4 pr-10 text-[16px] font-semibold text-neutral-800 outline-none transition-shadow focus:border-brand-600 focus:ring-4 focus:ring-brand-50 disabled:opacity-50">
                     {PIN_COUNTS.map((count) => <option key={count} value={count}>{count}</option>)}
                   </select>
                   <ChevronDown aria-hidden="true" size={16} className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-neutral-400" />
@@ -192,7 +198,7 @@ export default function AutomationDashboard() {
               <div>
                 <label htmlFor="post-time" className="mb-2 block text-[12px] font-bold text-neutral-700">Post Time</label>
                 <div className="relative">
-                  <select id="post-time" disabled={!ready} value={settings.postTime} onChange={(event) => updateSettings({ postTime: event.target.value })} className="h-[50px] w-full appearance-none rounded-xl border border-neutral-200 bg-white pl-4 pr-10 text-[14px] font-semibold text-neutral-800 outline-none transition-shadow focus:border-brand-600 focus:ring-4 focus:ring-brand-50 disabled:opacity-50">
+                  <select id="post-time" disabled={!ready} value={settings.postTime} onChange={(event) => updateSettings({ postTime: event.target.value })} className="h-[50px] w-full appearance-none rounded-xl border border-neutral-200 bg-white pl-4 pr-10 text-[16px] font-semibold text-neutral-800 outline-none transition-shadow focus:border-brand-600 focus:ring-4 focus:ring-brand-50 disabled:opacity-50">
                     {POST_TIMES.map((time) => <option key={time} value={time}>{time}</option>)}
                   </select>
                   <ChevronDown aria-hidden="true" size={16} className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-neutral-400" />

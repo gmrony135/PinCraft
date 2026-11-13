@@ -1,126 +1,82 @@
-# 📌 PinCraft — Your Pinterest Automation Machine
+# PinCraft — Your Pinterest Automation Machine
 
-Give a topic. PinCraft creates the viral pin, writes the SEO article and posts
-it automatically. Pinterest sends free traffic → your blog shows Adsterra ads →
-you earn.
+A Pinterest content-workflow **UI/prototype**: turn a topic into pin ideas and SEO article drafts, keep content in a device-local library, and preview automation and income dashboards.
 
-**Formula:** `PinCraft = Pin Create + Article Write + Auto Post` · `Pinterest = Free Traffic` · `Blog = Content` · `Adsterra = Income`
+**Live:** https://pincraftly.vercel.app
+**Repository:** https://github.com/gmrony135/PinCraft
 
----
+Pushes to `main` automatically deploy to Vercel. The repository's post-commit hook automatically pushes committed changes.
 
-## 🔗 Live
+## Completion status
 
-| | |
-|---|---|
-| **Live site** | **https://pincraftly.vercel.app** |
-| **GitHub** | **https://github.com/gmrony135/PinCraft** |
+All five page-building steps and the final **UI-first** polish step are implemented. Google OAuth is **not configured**. Publish/automation confirmations are explicitly labeled demos. No live Pinterest posting, remote blog publication, live ad reporting, or cloud sync is claimed.
 
-Every push to `main` auto-deploys to Vercel production.
+| Route | Working features |
+| --- | --- |
+| `/` | Landing sections, connected generator CTA, dismissible welcome popup |
+| `/pin-generator` | Local niche-aware titles, description, hashtags, image idea, real Copy/Save, title handoff |
+| `/article-writer` | Local structured 500–800-word drafts, stats, Copy/Save, clearly labeled demo publish |
+| `/dashboard` | Demo analytics, editable device-local posting preferences, ON/OFF demo confirmations |
+| `/adsterra-income` | Labeled sample income/history, inert device-local ad-snippet editor |
+| `/library` | Real saved pins/articles, demo examples for empty collections, search, pagination, full reader |
+| `/login` | Google popup entry, honest configuration-pending state, setup information |
+| `/about` | Product overview and integration boundaries |
+| `/contact` | Real public issue-tracker links; no dummy contact form |
 
----
+The shared Navbar tracks the current page and includes all six product routes. Mobile navigation, native modals, keyboard focus, Escape, clipboard failures, and blocked-storage behavior are tested.
 
-## ✅ Built so far
+## Google Login foundation
 
-### Step 1 — Homepage (`/`) ✔
+The Navbar button opens a Google popup. Until the site owner configures OAuth, it clearly shows **Google Login needs setup** and never invents a logged-in identity.
 
-| Section | Contents |
-|---|---|
-| **Navbar** | PinCraft logo · Home · Pin Generator · Article Writer · Dashboard · My Library · Login button (mobile hamburger menu) |
-| **Hero** | H1 *“PinCraft — Your Pinterest Automation Machine”* · sub-text · **Generate Viral Pin** (red) + **How It Works** buttons · live generator demo card |
-| **How It Works** | 4 steps with icons: Give Topic → PinCraft Creates Viral Pin → Auto Article + Auto Post → Traffic → Income |
-| **Features** | 3 cards: Viral Pin Generator · Auto Article Writer · Automation Dashboard |
-| **Income Formula** | `PinCraft = Pin Create + Article Write + Auto Post` and the Pinterest → Blog → Adsterra pipeline |
-| **Footer** | PinCraft · About · Contact (+ product links) |
+The server foundation validates Google-signed RS256 credentials, audience/issuer/expiry/age, verified email and an HttpOnly nonce before issuing a signed HttpOnly session. A genuine verified session drives the Navbar username/account menu and My Library marker. Sign-out clears the session.
 
-### Step 2 — Pin Generator (`/pin-generator`) ✔
+See `.env.example` and `/login#setup` for future deployment configuration. The public OAuth Web Client ID, authorized JavaScript origin, and server-only session-signing secret must be set before real Google sign-in is available. No real credentials are committed. Offline auth tests and an isolated signed-in UI fixture are **not** a live Google OAuth test.
 
-| Part | Contents |
-|---|---|
-| **Header** | Title *“Viral Pin Generator”* + sub-text, breadcrumb, free-tool badge |
-| **Input** | “Enter your topic” field (placeholder `Sad Quotes`) + 6 example chips + validation |
-| **Generate** | **Generate Viral Pin** red button (loading state, smooth scroll to results) |
-| **Output 1** | 5 viral, emotional, US-style pin titles — **Copy** on each |
-| **Output 2** | 1 SEO description, 100–150 words — **Copy description** |
-| **Output 3** | 10 viral hashtags — tag chips (tap to copy) + **Copy all hashtags** |
-| **Output 4** | Pin image idea (headline text, palette, layout, AI prompt + copy) |
-| **Output 5** | **Generate Article For This Pin** (pre-fills Article Writer) + **Save To My Library** (persists) |
+## Storage and integration boundaries
 
-Niche-aware engine (`lib/generator.js`) detects the topic type (quotes, food,
-home, beauty, wood… ) and uses matching hooks + hashtag sets.
+- `pincraft.library.v1`: browser-local pins, articles, and demo publication records; up to 100 raw saves.
+- `pincraft.automation.v1`: local posting preferences, **not** a running scheduler.
+- `pincraft.adsterra.v1`: exact pasted snippet stored as inert text; never executed/injected by the editor.
+- Empty library collections show six labeled examples without writing them to storage.
+- Dashboard/income figures are examples, not API-derived reports. Income is not guaranteed.
+- Account login does not yet provide account-scoped cloud content or cross-device sync.
 
-### Step 3 — Auto Article Writer (`/article-writer`) ✔
+## Stack and design
 
-| Part | Contents |
-|---|---|
-| **Header** | Title *“Auto Article Writer”* + sub-text, breadcrumb |
-| **Input** | “Enter your pin title” (placeholder `10 Sad Quotes That Will Make You Cry`), 4 example chips, validation |
-| **Pin hand-off** | **Use Title From Pin Generator** — pulls the latest saved pin title (also auto-fills from `?title=` / `?topic=` links) |
-| **Generate** | **Generate Article** red button with writing animation |
-| **Article** | H1 = pin title · 80–100 word emotional intro · **3 H2 sections** (2–3 paragraphs each) · **quotes / list section** · conclusion — 588–700 words, easy English, real blog reading style |
-| **Stats** | Word Count · **SEO Score /100** with a “Why this score?” checklist · read time |
-| **Actions** | **Copy Full Article** (real clipboard) · **Save To My Library** · **Auto Publish To Blog** |
+Next.js **15.5.29**, React **18.3.1**, Tailwind CSS 3.4, Lucide icons, `jose` for server-side token verification. Pinterest red **#E60023**, white surfaces, black text, rounded cards, English UI, mobile-first layouts and reduced-motion support. Google SDK/auth dialogs load on demand; local content generation has no artificial network delay.
 
-Niche-aware voice (`lib/article.js`): sad quotes get quote lists and a gentler
-tone; food gets kitchen rules; home decor gets room fixes, and so on.
+A compatible patched PostCSS override removes Next's old bundled PostCSS advisories. Clean install and audit were verified with **0 known vulnerabilities** at release verification time.
 
-### Next steps (not built yet)
-- Automation Dashboard
-- My Library page
-- Adsterra Income section
-- Google login
-
----
-
-## 🎨 Design system
-
-- **Colors:** Pinterest Red `#E60023`, white, black text
-- Modern, clean, professional; soft shadows, rounded cards, brand glow accents
-- Fully responsive: mobile-first (390px) up to 1440px+ desktop
-- 44px+ tap targets, sticky navbar with blur, smooth anchor scrolling
-- English UI, fast static rendering (no client-side libraries beyond React)
-
-## 🗂 Project structure
-
-```
-app/
-  layout.js         metadata, SEO/OG tags, fonts, viewport
-  page.js           homepage composition
-  globals.css       design tokens + component classes (.btn, .h1, .card…)
-components/
-  Brand.js          logo + brand mark
-  Navbar.js         responsive nav with mobile menu
-  Hero.js           hero copy + animated generator demo card
-  HowItWorks.js     4-step section
-  Features.js       3 feature cards
-  IncomeFormula.js  dark formula + pipeline section
-  Footer.js
-public/brand/       official logo, marks, app icons, favicons
-lib/generator.js     pin pack generator (titles, description, hashtags, image idea)
-lib/article.js       article engine + SEO scoring
-lib/library.js       localStorage library (Save To My Library)
-components/CopyButton.js         clipboard copy with fallback + copied state
-components/pin-generator/        PinGenerator + ResultSection
-components/article-writer/       ArticleWriter + ArticleView
-scripts/check-home.js            Playwright checks (desktop + mobile)
-scripts/check-pin-generator.js   Playwright checks for the generator
-scripts/check-article-writer.js  Playwright checks for the article writer
-```
-
-## 🧪 Verification
+## Development
 
 ```bash
-npm run build                 # production build
-node scripts/check-home.js            # 15/15 homepage checks
-node scripts/check-pin-generator.js   # 21/21 generator checks (real clipboard reads)
-node scripts/check-article-writer.js  # 24/24 article checks (structure, SEO, buttons)
-```
-
-Latest run: **homepage 15/15 · pin generator 21/21 · article writer 24/24 · zero console errors.**
-
-## 🚀 Local development
-
-```bash
-npm install
-npm run dev     # http://localhost:3000
+npm ci
+npm run dev -- --hostname 0.0.0.0
+# Stop the dev server before building:
 npm run build
+npm run start -- --hostname 0.0.0.0
 ```
+
+Never run development and build simultaneously: both use `.next`.
+
+## Verification
+
+With a production server running on port 3000:
+
+```bash
+node scripts/check-home.js             # 15 checks
+node scripts/check-pin-generator.js    # 21
+node scripts/check-article-writer.js   # 25
+node scripts/check-dashboard.js        # 54
+node scripts/check-step-5.js           # 87
+node scripts/check-auth.js             # 35 offline crypto/auth guards
+node scripts/check-final.js            # 74 final UI checks
+npm audit
+```
+
+**Final local production verification: 311/311 passed**, zero browser console errors. Responsive coverage includes all nine routes at 320 / 390 / 640 / 768 / 1024 / 1440px. Final modal checks also cover 320×568px. If Playwright's browser is absent in a fresh environment, install it with `npx playwright install chromium`.
+
+The UI suites support `BASE_URL=https://pincraftly.vercel.app`. Test artifacts are in ignored `.shots/`; selected screenshots are versioned under `docs/screenshots/`.
+
+Full final-scope implementation and verification notes: [docs/final-step.md](docs/final-step.md). Prior step notes remain as historical release records.

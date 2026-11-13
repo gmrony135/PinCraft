@@ -1,11 +1,12 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import CopyButton from "../CopyButton";
 import ResultSection from "./ResultSection";
 import { generatePinPack, wordCount } from "@/lib/generator";
 import { saveToLibrary } from "@/lib/library";
+import { copyText } from "@/lib/clipboard";
 import {
   Sparkles,
   Wand2,
@@ -39,6 +40,7 @@ export default function PinGenerator() {
   const [toast, setToast] = useState("");
   const resultsRef = useRef(null);
   const toastTimer = useRef(null);
+  useEffect(() => () => clearTimeout(toastTimer.current), []);
 
   const descWords = useMemo(
     () => (pack ? wordCount(pack.description) : 0),
@@ -66,8 +68,8 @@ export default function PinGenerator() {
     setSaved(false);
     setLoading(true);
 
-    // brief delay so the generation feels like work is being done
-    await new Promise((r) => setTimeout(r, 900));
+    // Yield once for responsive input/loading feedback. Generation runs locally.
+    await new Promise((resolve) => requestAnimationFrame(resolve));
 
     const generated = generatePinPack(value);
     setPack(generated);
@@ -81,9 +83,13 @@ export default function PinGenerator() {
 
   function handleSave() {
     if (!pack) return;
-    saveToLibrary({ type: "pin", ...pack });
-    setSaved(true);
-    flash("Saved to My Library 📚");
+    try {
+      saveToLibrary({ type: "pin", ...pack });
+      setSaved(true);
+      flash("Saved to My Library on this device 📚");
+    } catch (issue) {
+      flash(issue.message);
+    }
   }
 
   const articleHref = pack
@@ -97,7 +103,7 @@ export default function PinGenerator() {
       {/* toast */}
       {toast && (
         <div className="pointer-events-none fixed inset-x-0 top-20 z-50 flex justify-center px-5">
-          <div className="animate-pop-in rounded-full bg-neutral-900 px-4 py-2.5 text-[13px] font-bold text-white shadow-xl">
+          <div role="status" className="animate-pop-in max-w-lg rounded-2xl bg-neutral-900 px-4 py-2.5 text-center text-[13px] font-bold text-white shadow-xl">
             {toast}
           </div>
         </div>
@@ -120,7 +126,7 @@ export default function PinGenerator() {
           </nav>
 
           <span className="eyebrow">
-            <Sparkles size={13} /> Free tool · no signup needed
+            <Sparkles size={13} /> Free tool · local generation
           </span>
 
           <h1 className="h1 mt-4 text-neutral-900">Viral Pin Generator</h1>
@@ -162,6 +168,7 @@ export default function PinGenerator() {
                   }}
                   placeholder="Sad Quotes"
                   autoComplete="off"
+                  maxLength={160}
                   aria-invalid={!!error}
                   aria-describedby={error ? "topic-error" : undefined}
                   className={`h-[58px] w-full rounded-xl border-2 bg-white pl-11 pr-4 text-[16px] font-semibold text-neutral-900 outline-none transition placeholder:font-normal placeholder:text-neutral-400 focus:ring-4 ${
@@ -175,6 +182,7 @@ export default function PinGenerator() {
               {error && (
                 <p
                   id="topic-error"
+                  role="alert"
                   className="mt-2 flex items-center gap-1.5 text-[12.5px] font-semibold text-brand-600"
                 >
                   <AlertCircle size={14} /> {error}
@@ -324,9 +332,9 @@ export default function PinGenerator() {
                         <button
                           key={tag}
                           type="button"
-                          onClick={() => navigator.clipboard?.writeText(tag).catch(() => {})}
+                          onClick={async () => { const copied = await copyText(tag); flash(copied ? `Copied ${tag}` : "Copy failed. Select and copy the hashtag manually, or try again."); }}
                           title="Click to copy this hashtag"
-                          className="rounded-full bg-brand-50 px-3 py-1.5 text-[12.5px] font-bold text-brand-700 transition-colors hover:bg-brand-100 active:scale-95"
+                          className="min-h-11 rounded-full bg-brand-50 px-3 py-1.5 text-[12.5px] font-bold text-brand-700 transition-colors hover:bg-brand-100 active:scale-95"
                         >
                           {tag}
                         </button>
@@ -413,7 +421,7 @@ export default function PinGenerator() {
                       <Link
                         href={articleHref}
                         prefetch={false}
-                        className="btn-primary w-full sm:flex-1"
+                        className="btn-primary w-full whitespace-normal px-4 text-[14px] sm:flex-1"
                       >
                         <FileText size={17} /> Generate Article For This Pin
                       </Link>
@@ -421,7 +429,7 @@ export default function PinGenerator() {
                         type="button"
                         onClick={handleSave}
                         disabled={saved}
-                        className={`w-full sm:flex-1 ${
+                        className={`w-full whitespace-normal px-4 text-[14px] sm:flex-1 ${
                           saved ? "btn-outline border-emerald-200 text-emerald-600" : "btn-dark"
                         }`}
                       >
