@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 :root {
-  --pin-red: #e60023;
+  --brand: #e60023;
 }
 
 * {
@@ -17,73 +17,63 @@ html {
 
 body {
   @apply bg-white text-neutral-900 antialiased;
-  overscroll-behavior-y: none;
 }
 
-/* Mobile app feel: hide scrollbars on horizontal rails */
-.no-scrollbar::-webkit-scrollbar {
-  display: none;
-}
-.no-scrollbar {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
+::selection {
+  background: #ffe0e3;
+  color: #a1031c;
 }
 
 @layer components {
+  /* ---------- Buttons ---------- */
   .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-full font-semibold
-           transition-all duration-150 active:scale-[.97] disabled:opacity-50
-           disabled:pointer-events-none select-none;
+    @apply inline-flex items-center justify-center gap-2 rounded-xl font-semibold
+           transition-all duration-200 active:scale-[.98] disabled:pointer-events-none
+           disabled:opacity-50 select-none whitespace-nowrap;
     min-height: 52px;
     padding-inline: 1.5rem;
-    font-size: 0.975rem;
+    font-size: 1rem;
   }
   .btn-primary {
-    @apply btn bg-pin-600 text-white shadow-pop hover:bg-pin-700;
+    @apply btn bg-brand-600 text-white shadow-lg shadow-brand-600/25
+           hover:bg-brand-700 hover:shadow-xl hover:shadow-brand-600/30;
   }
   .btn-dark {
     @apply btn bg-neutral-900 text-white hover:bg-neutral-800;
   }
-  .btn-ghost {
-    @apply btn bg-neutral-100 text-neutral-900 hover:bg-neutral-200;
-  }
   .btn-outline {
-    @apply btn border-2 border-neutral-200 bg-white text-neutral-900 hover:border-neutral-300;
+    @apply btn border-2 border-neutral-200 bg-white text-neutral-900
+           hover:border-neutral-300 hover:bg-neutral-50;
   }
   .btn-sm {
     min-height: 42px;
     padding-inline: 1rem;
     font-size: 0.875rem;
+    @apply rounded-lg;
+  }
+
+  /* ---------- Layout ---------- */
+  .container-x {
+    @apply mx-auto w-full max-w-6xl px-5 sm:px-8;
   }
 
   .card {
-    @apply rounded-3xl border border-neutral-100 bg-white shadow-card;
+    @apply rounded-2xl border border-neutral-200/80 bg-white shadow-sm;
   }
 
-  .field {
-    @apply w-full rounded-2xl border-2 border-neutral-200 bg-white px-4 py-3.5 text-[15px]
-           text-neutral-900 outline-none transition placeholder:text-neutral-400
-           focus:border-pin-600 focus:ring-4 focus:ring-pin-50;
-    min-height: 54px;
+  /* ---------- Typography ---------- */
+  .h1 {
+    @apply text-[34px] font-extrabold leading-[1.08] tracking-[-0.035em]
+           sm:text-[46px] lg:text-[56px];
   }
-  .label {
-    @apply mb-2 block text-sm font-semibold text-neutral-800;
+  .h2 {
+    @apply text-[26px] font-extrabold leading-tight tracking-[-0.03em] sm:text-[34px];
   }
-
-  .chip {
-    @apply inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold;
+  .eyebrow {
+    @apply inline-flex items-center gap-2 rounded-full border border-brand-100
+           bg-brand-50 px-3.5 py-1.5 text-[12.5px] font-bold text-brand-700;
   }
-
-  .app-shell {
-    @apply mx-auto w-full max-w-[430px] px-5;
+  .lead {
+    @apply text-[16px] leading-relaxed text-neutral-500 sm:text-[17.5px];
   }
-
-  .tap {
-    @apply transition-transform duration-150 active:scale-[.98];
-  }
-}
-
-/* Safe areas for iOS */
-.pb-safe {
-  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 0.5rem);
 }

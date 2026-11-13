@@ -7,6 +7,15 @@ module.exports = {
   theme: {
     extend: {
       colors: {
+        "neutral-150": "#ececee",
+        brand: {
+          50: "#fff1f2",
+          100: "#ffe0e3",
+          200: "#ffc6cc",
+          600: "#E60023",
+          700: "#c2001d",
+          800: "#a1031c",
+        },
         pin: {
           50: "#fff1f2",
           100: "#ffe0e3",
