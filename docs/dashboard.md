@@ -1,5 +1,7 @@
 # Step 4 — Automation Dashboard
 
+> Historical UI-first release record. The browser-only automation/dashboard scope below has been superseded by [real Full Auto Mode](full-auto-mode.md). Old counts describe that release, not live provider authorization.
+
 Route: `/dashboard`
 
 This step adds only the dashboard and its dedicated components, data, verification script, and screenshots. The homepage, Pin Generator, Article Writer, shared navigation, and global styles are unchanged.

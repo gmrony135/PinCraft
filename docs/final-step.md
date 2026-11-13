@@ -1,5 +1,7 @@
 # Final Step — Login UI + connected workflow + polish
 
+> Historical UI-first release record. The browser-only automation/dashboard scope below has been superseded by [real Full Auto Mode](full-auto-mode.md). Old counts describe that release, not live provider authorization.
+
 ## Delivered scope
 
 The user explicitly selected **UI-first completion** because no Google OAuth Web Client ID / session secret was configured. This release completes that UI/prototype scope. It does **not** represent an enabled Google account login, live blog publishing, or a running Pinterest scheduler.

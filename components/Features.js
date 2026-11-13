@@ -23,8 +23,8 @@ const FEATURES = [
   {
     icon: LayoutDashboard,
     title: "Automation Dashboard",
-    text: "Explore sample pins, views, clicks and earnings. Save a local posting plan; live Pinterest scheduling is not connected yet.",
-    points: ["Demo analytics", "Earnings chart", "Local posting plan"],
+    text: "Connect AI, your blog and Pinterest for server-side posting. Every 2 hours, up to 10 pipelines per day; setup is required before activation.",
+    points: ["Real server schedule", "Provider-confirmed logs", "Private cloud Library"],
     href: "/dashboard",
     cta: "See dashboard",
     tone: "neutral",

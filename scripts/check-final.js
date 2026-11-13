@@ -1,4 +1,4 @@
-// Final UI/prototype acceptance + regression checks. No live Google account is simulated.
+// Shared UI/manual-tool regression checks, updated for server-side Full Auto setup. No live Google account is simulated.
 // Usage: [BASE_URL=https://pincraftly.vercel.app] node scripts/check-final.js
 const { chromium } = require("playwright");
 const fs = require("node:fs");
@@ -12,7 +12,6 @@ const errors = [];
 const ROUTES = ["/", "/pin-generator", "/article-writer", "/dashboard", "/library", "/adsterra-income", "/about", "/contact", "/login"];
 const NAV = ROUTES.slice(0, 6);
 const WELCOME = "Welcome to PinCraft - Your Automation Machine is Ready!";
-const AUTOMATION = "Automation ON - Your PinCraft will post automatically";
 
 function check(name, pass) { results.push({ name, pass: Boolean(pass) }); console.log(`${pass ? "PASS" : "FAIL"}  ${name}`); }
 function watch(page, label) {
@@ -142,20 +141,17 @@ async function run() {
     check("Saved + demo-published versions remain deduplicated", (await page.getByTestId("library-article-card").getByRole("heading", { level: 3 }).innerText()) === requestedTitle);
 
     await load(page, "/dashboard");
-    await page.getByRole("switch", { name: "Auto Post", exact: true }).click();
-    await page.getByRole("button", { name: "Save Automation Settings", exact: true }).click();
+    await page.getByTestId("auto-status").filter({ hasText: "Setup required" }).waitFor();
+    check("Full Auto shows Setup required, never a fake Active state", await page.getByTestId("auto-status").getAttribute("data-state") === "setup");
+    check("The server cadence and 20-topic defaults are visible", await page.getByText("Every 2 Hours, Daily 10 Pins", { exact: true }).isVisible() && (await page.getByLabel("Rotating topics", { exact: true }).inputValue()).split("\n").length === 20);
+    const autoSwitch = page.getByRole("switch", { name: "Full Auto Mode", exact: true });
+    await autoSwitch.click();
     dialog = page.getByRole("dialog"); await dialog.waitFor();
-    check("ON Save shows the exact requested automation popup", await dialog.getByRole("heading", { name: AUTOMATION, exact: true }).isVisible());
-    check("Automation popup prominently discloses demo/no scheduler", await dialog.getByText("Demo preview", { exact: true }).isVisible() && await dialog.getByText(/no pins will be posted automatically/).isVisible());
+    check("Guest cannot enable server automation without verified sign-in", await dialog.getByText("Google Login needs setup", { exact: true }).isVisible());
     await photo(page, "final-automation-desktop.png");
-    await dialog.getByRole("button", { name: "Got it", exact: true }).click();
-    check("Automation ON really saves only the local preference", (await json(page, "pincraft.automation.v1")).enabled === true);
-    await page.getByRole("switch", { name: "Auto Post", exact: true }).click();
-    await page.getByRole("button", { name: "Save Automation Settings", exact: true }).click();
-    dialog = page.getByRole("dialog"); await dialog.waitFor();
-    check("OFF Save never lies that automation is ON", await dialog.getByRole("heading", { name: "Automation OFF - Your settings are saved", exact: true }).isVisible() && (await json(page, "pincraft.automation.v1")).enabled === false);
-    await dialog.getByRole("button", { name: "Close confirmation", exact: true }).click();
-    check("Confirmation close restores focus to Save", await page.getByRole("button", { name: "Save Automation Settings", exact: true }).evaluate((node) => document.activeElement === node));
+    await dialog.getByRole("button", { name: "Close login popup", exact: true }).click();
+    check("No browser-only ON setting or fake success is saved", await json(page, "pincraft.automation.v1") === null && await autoSwitch.getAttribute("aria-checked") === "false");
+    check("Closing the setup dialog restores focus to the Auto switch", await autoSwitch.evaluate((node) => document.activeElement === node));
 
     // Active route state, page availability, mobile layout and modal ergonomics.
     for (const route of NAV) {
@@ -215,12 +211,11 @@ async function run() {
     await photo(mobile, "final-publish-mobile.png");
     await dialog.getByRole("button", { name: "Got it", exact: true }).tap();
     await load(mobile, "/dashboard");
-    await mobile.getByRole("switch", { name: "Auto Post", exact: true }).tap();
-    await mobile.getByRole("button", { name: "Save Automation Settings", exact: true }).tap();
+    await mobile.getByRole("switch", { name: "Full Auto Mode", exact: true }).tap();
     dialog = mobile.getByRole("dialog"); await dialog.waitFor();
-    check("320×568 long automation popup stays within the viewport", await fits(dialog, mobile) && await dialog.evaluate((node) => node.scrollWidth <= node.clientWidth + 1));
+    check("320×568 Full Auto sign-in/setup dialog stays within the viewport", await fits(dialog, mobile) && await dialog.evaluate((node) => node.scrollWidth <= node.clientWidth + 1));
     await photo(mobile, "final-automation-mobile.png");
-    await dialog.getByRole("button", { name: "Got it", exact: true }).tap();
+    await dialog.getByRole("button", { name: "Close login popup", exact: true }).tap();
 
     // Denied storage/copy should preserve work and never claim false success.
     const blockedContext = await browser.newContext({ viewport: { width: 1280, height: 900 } });
@@ -251,6 +246,7 @@ async function run() {
     let fixtureSignedIn = true;
     await uiContext.route("**/api/auth/session", (route) => route.fulfill({ json: { configured: true, user: fixtureSignedIn ? { id: "ui-fixture-only", name: "UI Test Creator", email: "ui@example.test" } : null } }));
     await uiContext.route("**/api/auth/logout", (route) => { fixtureSignedIn = false; return route.fulfill({ json: { signedOut: true } }); });
+    await uiContext.route("**/api/library", (route) => route.fulfill({ json: { ready: false, items: [], nextCursor: null, message: "Isolated UI fixture: cloud setup pending." } }));
     const ui = await uiContext.newPage(); watch(ui, "isolated signed-in UI fixture");
     await load(ui, "/library");
     await ui.getByRole("button", { name: "Account: UI Test Creator", exact: true }).waitFor();

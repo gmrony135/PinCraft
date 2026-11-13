@@ -7,6 +7,7 @@ import { LIBRARY_PAGE_SIZE, LIBRARY_STORAGE_KEY, createDemoLibrary, filterLibrar
 import ContentCopyButton from "./ContentCopyButton";
 import ArticleReader from "./ArticleReader";
 import { LIBRARY_UPDATED_EVENT } from "@/lib/library";
+import CloudLibrary from "./CloudLibrary";
 
 const TABS = [{ id: "pins", label: "Saved Pins", Icon: Pin }, { id: "articles", label: "Saved Articles", Icon: FileText }];
 
@@ -69,6 +70,9 @@ export default function MyLibrary() {
         <Link href="/adsterra-income" prefetch={false} className="inline-flex min-h-11 w-fit items-center gap-2 rounded-xl border border-neutral-200 bg-white px-4 py-3 text-[12px] font-bold text-neutral-700 transition-colors hover:border-brand-200 hover:text-brand-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600"><Wallet aria-hidden="true" size={15} /> Adsterra Income <ArrowUpRight aria-hidden="true" size={14} /></Link>
       </div>
 
+      <CloudLibrary />
+      <div className="mb-3 mt-8"><h2 className="text-[19px] font-extrabold tracking-tight">Device saves & examples</h2><p className="mt-1 text-[11.5px] leading-relaxed text-neutral-500">Manual tool saves stay in this browser. Example collections below are never uploaded or counted as cloud results.</p></div>
+
       <section aria-label="Your saved collections" className="mt-7 overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-sm">
         <div className="flex flex-col justify-between gap-4 border-b border-neutral-100 p-4 sm:px-6 sm:py-4 md:flex-row md:items-center">
           <div role="tablist" aria-label="Library collections" className="inline-flex min-w-0 rounded-xl bg-neutral-100/80 p-1">
@@ -89,7 +93,7 @@ export default function MyLibrary() {
           </>}
         </div>)}
       </section>
-      <div className="mt-5 flex flex-wrap items-center justify-between gap-3 text-[11px] text-neutral-500"><p className="flex items-center gap-1.5"><Monitor aria-hidden="true" size={13} /> Your saves stay in this browser. Account sync is not connected yet.</p><Link href={tab === "pins" ? "/pin-generator" : "/article-writer"} prefetch={false} className="inline-flex min-h-11 items-center gap-1.5 font-bold text-brand-700">{tab === "pins" ? "Generate a new pin" : "Write a new article"}<ArrowRight aria-hidden="true" size={13} /></Link></div>
+      <div className="mt-5 flex flex-wrap items-center justify-between gap-3 text-[11px] text-neutral-500"><p className="flex items-center gap-1.5"><Monitor aria-hidden="true" size={13} /> Manual tool saves stay on this device. Full Auto results appear in Cloud Library above.</p><Link href={tab === "pins" ? "/pin-generator" : "/article-writer"} prefetch={false} className="inline-flex min-h-11 items-center gap-1.5 font-bold text-brand-700">{tab === "pins" ? "Generate a new pin" : "Write a new article"}<ArrowRight aria-hidden="true" size={13} /></Link></div>
       {reader && <ArticleReader key={reader.id} article={reader} onClose={() => setReader(null)} />}
     </div>
   );

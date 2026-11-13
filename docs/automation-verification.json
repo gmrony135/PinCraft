@@ -1,0 +1,47 @@
+{
+  "date": "2026-11-13",
+  "scope": "Local production build; isolated PostgreSQL with explicit provider and signed-session fixtures; one real public Google Trends RSS read; no live account authorization or external publishing verified.",
+  "suites": {
+    "automation-backend": {
+      "passed": 44,
+      "total": 44
+    },
+    "automation-api-ui": {
+      "passed": 38,
+      "total": 38
+    },
+    "dashboard": {
+      "passed": 34,
+      "total": 34
+    },
+    "auth": {
+      "passed": 35,
+      "total": 35
+    },
+    "final": {
+      "passed": 74,
+      "total": 74
+    },
+    "step-5": {
+      "passed": 87,
+      "total": 87
+    },
+    "home": {
+      "passed": 15,
+      "total": 15
+    },
+    "pin-generator": {
+      "passed": 21,
+      "total": 21
+    },
+    "article-writer": {
+      "passed": 25,
+      "total": 25
+    }
+  },
+  "totalPassed": 373,
+  "totalChecks": 373,
+  "productionStatus": "Setup required; permanent database/auth/provider configuration not supplied",
+  "audit": "0 known vulnerabilities",
+  "browserRuntimeErrors": 0
+}

@@ -1,262 +1,184 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { cloneElement, useCallback, useEffect, useId, useRef, useState } from "react";
 import Link from "next/link";
-import {
-  ArrowUpRight,
-  Bookmark,
-  CheckCircle2,
-  ChevronDown,
-  CircleAlert,
-  Clock3,
-  DollarSign,
-  Eye,
-  FlaskConical,
-  Info,
-  LayoutDashboard,
-  Monitor,
-  Moon,
-  MousePointer2,
-  Save,
-  SlidersHorizontal,
-  Sun,
-  Sunrise,
-  Sunset,
-} from "lucide-react";
-import {
-  AUTOMATION_STORAGE_KEY,
-  DASHBOARD_STATS,
-  DEFAULT_AUTOMATION,
-  PIN_COUNTS,
-  POST_TIMES,
-  isValidAutomation,
-  normalizeAutomation,
-  sameAutomation,
-} from "@/lib/dashboard";
-import RecentActivity from "./RecentActivity";
-import ViewsChart from "./ViewsChart";
-import { useFeedback } from "../providers/AppProvider";
+import { Activity, ArrowRight, ArrowUpRight, Bot, Check, CheckCircle2, ChevronDown, CircleAlert, Clock3, Cloud, FileText, LayoutDashboard, Link2, LoaderCircle, LockKeyhole, Pause, Pin, RefreshCw, Settings2, ShieldCheck, Sparkles } from "lucide-react";
+import { automationState, DEFAULT_TOPICS, emptyAutomation, PIPELINE_STEPS, relativeTime } from "@/lib/automation/shared.mjs";
+import { useAuth } from "../providers/AppProvider";
 
-const STAT_ICONS = { pins: Bookmark, views: Eye, clicks: MousePointer2, earning: DollarSign };
-const TIME_ICONS = { Morning: Sunrise, Afternoon: Sun, Evening: Sunset, Night: Moon };
+const inputStyle = "min-h-11 w-full rounded-xl border border-neutral-200 bg-white px-3.5 py-2.5 text-[16px] font-normal text-neutral-900 outline-none transition focus:border-brand-600 focus:ring-4 focus:ring-brand-50 disabled:bg-neutral-50 disabled:text-neutral-500 sm:text-[13px]";
+const buttonStyle = "inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-[12px] font-bold transition disabled:cursor-not-allowed disabled:opacity-50";
+const initialConnections = { aiProvider: "openai", aiKey: "", model: "gpt-4.1-mini", pinterestToken: "", pinterestBoardId: "", pinterestRefreshToken: "", blogProvider: "", blogUrl: "", blogId: "", blogUsername: "", blogToken: "", blogRefreshToken: "" };
+const jobLabels = { pending: "Queued", generating: "Generating", generated: "Saved to cloud", publishing: "Publishing article", blog_published: "Article published", posting: "Posting Pin", success: "Completed", retry: "Retry scheduled", failed: "Stopped", attention: "Review required", cancelled: "Abandoned" };
+function dateTime(value, timezone) { try { return new Intl.DateTimeFormat("en", { timeZone: timezone, month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }).format(new Date(value)); } catch { return "Not scheduled"; } }
 
 export default function AutomationDashboard() {
-  const { showSuccess } = useFeedback();
-  const [settings, setSettings] = useState({ ...DEFAULT_AUTOMATION });
-  const [savedSettings, setSavedSettings] = useState(null);
-  const [ready, setReady] = useState(false);
+  const { user, authLoading, openLogin } = useAuth();
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
   const [feedback, setFeedback] = useState(null);
+  const [busy, setBusy] = useState("");
+  const [topics, setTopics] = useState(DEFAULT_TOPICS.join("\n"));
+  const [timezone, setTimezone] = useState("Asia/Dhaka");
+  const [topicSource, setTopicSource] = useState("rotation");
+  const [trendRegion, setTrendRegion] = useState("BD");
+  const [dirty, setDirty] = useState(false);
+  const [connections, setConnections] = useState(initialConnections);
+  const [consent, setConsent] = useState(false);
+  const [activate, setActivate] = useState(true);
+  const [removeOpen, setRemoveOpen] = useState(false);
+  const sequence = useRef(0);
 
-  useEffect(() => {
+  const refresh = useCallback(async () => {
+    const current = ++sequence.current;
     try {
-      const raw = window.localStorage.getItem(AUTOMATION_STORAGE_KEY);
-      if (raw !== null) {
-        const parsed = JSON.parse(raw);
-        if (isValidAutomation(parsed)) {
-          const restored = normalizeAutomation(parsed);
-          setSettings(restored);
-          setSavedSettings(restored);
-        } else {
-          setFeedback({ type: "error", text: "Saved settings were invalid. Defaults are shown; save to replace them." });
-        }
-      }
-    } catch {
-      setFeedback({ type: "error", text: "We could not load your saved settings. Defaults are shown." });
-    } finally {
-      setReady(true);
-    }
+      const response = await fetch("/api/automation", { cache: "no-store", credentials: "same-origin" });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Server status could not be loaded.");
+      if (current === sequence.current) { setData(result); setLoadError(""); }
+    } catch (error) { if (current === sequence.current) setLoadError(error.message || "Server status could not be verified."); }
+    finally { if (current === sequence.current) setLoading(false); }
   }, []);
+  useEffect(() => {
+    if (authLoading) return;
+    setData(null); setLoading(true); setDirty(false); setConnections(initialConnections); setConsent(false); setFeedback(null);
+    refresh();
+    const onVisible = () => { if (!document.hidden) refresh(); };
+    // This only reads status while the page is open. All jobs run on the server.
+    const timer = setInterval(onVisible, 30000);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => { sequence.current++; clearInterval(timer); document.removeEventListener("visibilitychange", onVisible); };
+  }, [authLoading, user?.id, refresh]);
+  useEffect(() => {
+    if (!data || dirty) return;
+    setTopics(data.topics.join("\n")); setTimezone(data.timezone); setTopicSource(data.topicSource); setTrendRegion(data.trendRegion);
+  }, [data, dirty]);
 
-  const hasChanges = !sameAutomation(settings, savedSettings);
-  const settingStatus = !ready
-    ? "Loading settings…"
-    : !savedSettings
-      ? "Not saved yet"
-      : hasChanges
-        ? "Unsaved changes"
-        : "Saved locally";
+  const current = data && data.accountId === (user?.id || null) ? data : emptyAutomation();
+  const infrastructure = data?.infrastructure;
+  const state = loadError ? { key: "offline", title: "Status unavailable", description: "We cannot confirm the current server state. Refresh before assuming automation is running." } : automationState({ ...current, infrastructure, authenticated: Boolean(user && data?.authenticated) });
+  const running = state.key === "running";
+  const canSave = Boolean(user && infrastructure?.databaseReady);
+  const parsedTopics = [...new Set(topics.split("\n").map((topic) => topic.trim()).filter(Boolean))];
+  const preferences = { topics: parsedTopics, timezone, topicSource, trendRegion };
 
-  function updateSettings(update) {
-    setSettings((previous) => ({ ...previous, ...update }));
-    setFeedback(null);
-  }
-
-  function handleSave(event) {
-    event.preventDefault();
-    if (!ready) return;
-    const next = { ...normalizeAutomation(settings), savedAt: new Date().toISOString() };
+  async function action(payload, message, endpoint = "/api/automation/settings") {
+    if (busy) return false;
+    if (!user) { openLogin(); return false; }
+    sequence.current++; setBusy(payload.action); setFeedback(null);
     try {
-      window.localStorage.setItem(AUTOMATION_STORAGE_KEY, JSON.stringify(next));
-      setSettings(next);
-      setSavedSettings(next);
-      setFeedback({ type: "success", text: "Automation settings saved on this device." });
-      showSuccess({
-        title: next.enabled ? "Automation ON - Your PinCraft will post automatically" : "Automation OFF - Your settings are saved",
-        description: next.enabled ? "Demo only: your ON preference is saved on this device. Pinterest and a remote scheduler are not connected, so no pins will be posted automatically." : "Your OFF preference is saved on this device. This preview does not run a remote posting scheduler.",
-      });
-    } catch {
-      setFeedback({ type: "error", text: "Settings could not be saved in this browser. Your changes are still here; please try again." });
-    }
+      const response = await fetch(endpoint, { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "The server could not save this change.");
+      setData(result); setLoadError(""); setFeedback({ tone: "success", text: message });
+      window.dispatchEvent(new Event("pincraft:cloud-library-updated"));
+      return true;
+    } catch (error) { setFeedback({ tone: "error", text: error.message || "The request could not be completed. No success was assumed." }); return false; }
+    finally { setBusy(""); }
+  }
+  async function toggleMode() {
+    if (!user) return openLogin();
+    if (!current.enabled && (!infrastructure?.ready || !current.connections)) { setFeedback({ tone: "error", text: "Complete server setup and verify Pinterest, AI and your blog before enabling Full Auto Mode." }); return; }
+    await action({ action: "mode", enabled: !current.enabled }, current.enabled ? "Auto Mode paused on the server. An in-flight request may finish." : "Auto Mode enabled on the server. The next due job does not need this browser to stay open.");
+  }
+  async function connect(event) {
+    event.preventDefault();
+    const saved = await action({ action: "connect", ...preferences, connections, consent, activate }, activate ? "Connections verified and encrypted. Auto Mode is enabled; its live status depends on the server worker." : "Connections verified and encrypted on the server. Auto Mode remains paused.");
+    if (saved) { setConnections({ ...connections, aiKey: "", pinterestToken: "", pinterestRefreshToken: "", blogToken: "", blogRefreshToken: "" }); setConsent(false); setDirty(false); }
   }
 
   return (
-    <div className="container-x pb-10 pt-7 sm:pb-14 sm:pt-9">
-      <nav aria-label="Breadcrumb" className="mb-5 flex items-center gap-2 text-[12px] font-medium text-neutral-500">
-        <Link href="/" prefetch={false} className="rounded-sm transition-colors hover:text-brand-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-600">Home</Link>
-        <span aria-hidden="true" className="text-neutral-300">/</span>
-        <span aria-current="page" className="text-neutral-700">Dashboard</span>
-      </nav>
+    <div className="container-x pb-12 pt-7 sm:pb-16 sm:pt-9" data-testid="automation-dashboard">
+      <nav aria-label="Breadcrumb" className="mb-6 flex items-center gap-2 text-[12px] font-medium text-neutral-500"><Link href="/" prefetch={false} className="hover:text-brand-600">Home</Link><span aria-hidden="true">/</span><span aria-current="page" className="text-neutral-800">Dashboard</span></nav>
+      <header className="flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
+        <div><p className="mb-2 flex items-center gap-1.5 text-[10.5px] font-bold uppercase tracking-[0.15em] text-brand-600"><LayoutDashboard size={13} aria-hidden="true" /> Your server workspace</p><h1 className="text-[34px] font-extrabold leading-[1.1] tracking-[-0.04em] sm:text-[43px]">Automation Dashboard</h1><p className="mt-3 max-w-xl text-[14px] leading-relaxed text-neutral-500">Your content. On autopilot. Real server jobs, real publishing results.</p></div>
+        <div className="flex shrink-0 items-center gap-2"><button type="button" onClick={refresh} disabled={loading || Boolean(busy)} className={`${buttonStyle} border border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50`} aria-label="Refresh server status"><RefreshCw size={14} aria-hidden="true" className={loading ? "animate-spin" : ""} />Refresh</button><Link href="/library" prefetch={false} className={`${buttonStyle} bg-neutral-900 text-white hover:bg-black`}><Cloud size={15} aria-hidden="true" /> My Library<ArrowUpRight size={13} aria-hidden="true" /></Link></div>
+      </header>
+      {!authLoading && !user && <div className="mt-6 flex flex-col justify-between gap-3 rounded-2xl border border-neutral-200 bg-white p-4 sm:flex-row sm:items-center"><p className="flex items-start gap-2 text-[12px] leading-relaxed text-neutral-600"><LockKeyhole size={17} className="mt-0.5 shrink-0 text-brand-600" aria-hidden="true" />Sign in to manage your private server schedule. Guest visits cannot enable publishing or see another creator’s content.</p><button type="button" onClick={openLogin} className={`${buttonStyle} shrink-0 bg-brand-50 text-brand-700 hover:bg-brand-100`}>Sign in with Google <ArrowRight size={14} aria-hidden="true" /></button></div>}
+      {feedback && <div role={feedback.tone === "error" ? "alert" : "status"} className={`mt-5 flex items-start gap-2 rounded-xl border px-4 py-3.5 text-[12px] leading-relaxed ${feedback.tone === "error" ? "border-brand-100 bg-brand-50 text-brand-800" : "border-emerald-100 bg-emerald-50 text-emerald-800"}`}><CircleAlert size={16} className="mt-0.5 shrink-0" aria-hidden="true" /><span>{feedback.text}</span></div>}
+      {loadError && <p role="alert" className="mt-4 text-[12px] text-brand-700">{loadError}</p>}
 
-      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-        <div>
-          <p className="mb-2 flex items-center gap-1.5 text-[10.5px] font-bold uppercase tracking-[0.15em] text-brand-600">
-            <LayoutDashboard aria-hidden="true" size={13} /> Your workspace
-          </p>
-          <h1 className="text-[32px] font-extrabold leading-[1.12] tracking-[-0.04em] text-neutral-900 sm:text-[40px] lg:text-[43px]">Automation Dashboard</h1>
-          <p className="mt-2.5 text-[14px] leading-relaxed text-neutral-500 sm:text-[15.5px]">Plan your content routine, all in one place</p>
+      <div className="mt-7 grid grid-cols-2 gap-3 lg:grid-cols-4 sm:gap-4">
+        <Metric Icon={Clock3} title="Completed today" value={`${current.todayCount} / 10`} detail="Pin + Article pipelines" />
+        <Metric Icon={Pin} title="Pins posted" value={current.totalSuccess} detail="Provider-confirmed completions" />
+        <Metric Icon={FileText} title="Articles published" value={current.totalArticles} detail="Confirmed public article URLs" />
+        <Metric Icon={Activity} title="Last Auto Post" value={current.lastSuccessAt ? relativeTime(current.lastSuccessAt) : "No posts yet"} detail={current.lastSuccessAt ? "Success · confirmed by Pinterest" : "No sample timestamps"} small />
+      </div>
+
+      <div className="mt-6 grid items-start gap-6 lg:grid-cols-[1.15fr_1fr]">
+        <div className="min-w-0 space-y-6">
+          <section aria-labelledby="auto-heading" className="overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-sm">
+            <div className="flex items-center gap-3 border-b border-neutral-100 p-5 sm:p-6"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-brand-600 text-white"><Bot size={23} aria-hidden="true" /></span><div className="min-w-0"><h2 id="auto-heading" className="text-[19px] font-extrabold tracking-tight">Full Auto Mode</h2><p className="mt-0.5 text-[11.5px] text-neutral-500">Every 2 Hours, Daily 10 Pins</p></div><button type="button" role="switch" aria-label="Full Auto Mode" aria-checked={Boolean(current.enabled && user)} disabled={Boolean(busy) || authLoading || loading} onClick={toggleMode} className={`relative ml-auto h-8 w-14 shrink-0 rounded-full outline-none transition-colors focus-visible:ring-4 focus-visible:ring-brand-100 disabled:cursor-not-allowed disabled:opacity-50 ${current.enabled && user ? "bg-brand-600" : "bg-neutral-200"}`}><span className={`absolute top-1 h-6 w-6 rounded-full bg-white shadow-sm transition-transform ${current.enabled && user ? "left-0 translate-x-7" : "left-1"}`} /><span className="sr-only">{current.enabled && user ? "Turn OFF" : "Turn ON"}</span></button></div>
+            <div className="p-5 sm:p-6">
+              <div className={`rounded-xl border p-4 ${running ? "border-emerald-200 bg-emerald-50" : "border-neutral-200 bg-neutral-50"}`} data-testid="auto-status" data-state={state.key}><div className="flex items-center gap-2"><span className={`h-2 w-2 shrink-0 rounded-full ${running ? "bg-emerald-500" : "bg-neutral-400"}`} aria-hidden="true" /><h3 className={`text-[12px] font-extrabold tracking-wide ${running ? "text-emerald-800" : "text-neutral-800"}`}>{loading || authLoading ? "Checking server setup…" : state.title}</h3></div><p className="mt-2 text-[11.5px] leading-relaxed text-neutral-600">{state.description}</p></div>
+              <div className="mt-5 grid grid-cols-2 gap-4 text-[11.5px]"><div><p className="text-neutral-500">Next due</p><p className="mt-1.5 font-bold text-neutral-800">{current.enabled && current.nextRunAt ? dateTime(current.nextRunAt, current.timezone) : "Not scheduled"}</p></div><div><p className="text-neutral-500">Daily reset timezone</p><p className="mt-1.5 font-bold text-neutral-800">{current.timezone}</p></div></div>
+              <ol className="mt-6 space-y-3 border-t border-neutral-100 pt-5">{PIPELINE_STEPS.map((step, index) => <li key={step} className="flex items-center gap-3 text-[12px] font-semibold text-neutral-700"><span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-neutral-100 text-[10px] text-neutral-500">{index + 1}</span>{step}{index === 4 && <ArrowUpRight size={13} className="ml-auto text-brand-600" aria-hidden="true" />}</li>)}</ol>
+              <p className="mt-5 rounded-xl bg-neutral-50 px-3 py-3 text-[10.5px] leading-relaxed text-neutral-500">Up to 10 completed pipelines per day; then the server waits for the next day. The worker checks due jobs every 15 minutes. Hosting jitter and provider delays can make a job run later than its due time. No catch-up posting bursts.</p>
+              <p className="mt-3 flex items-start gap-2 text-[10.5px] leading-relaxed text-neutral-500"><ShieldCheck size={14} className="mt-0.5 shrink-0" aria-hidden="true" />{current.heartbeat?.lastSeenAt ? `Last worker heartbeat: ${dateTime(current.heartbeat.lastSeenAt, current.timezone)}. ` : "No server worker heartbeat has been recorded yet. "}Your browser is not the scheduler.</p>
+            </div>
+          </section>
+
+          <section aria-labelledby="topics-heading" className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm sm:p-6">
+            <div className="flex items-start justify-between gap-3"><div><h2 id="topics-heading" className="flex items-center gap-2 text-[18px] font-extrabold tracking-tight"><Settings2 size={18} className="text-brand-600" aria-hidden="true" /> Topics & schedule</h2><p className="mt-1.5 text-[11.5px] leading-relaxed text-neutral-500">{DEFAULT_TOPICS.length} original topic defaults. Choose rotation or a genuine live trend feed.</p></div><span className="shrink-0 rounded-lg bg-neutral-100 px-2 py-1 text-[10px] font-bold text-neutral-600">{parsedTopics.length}/20</span></div>
+            <form className="mt-5 space-y-4" onSubmit={async (event) => { event.preventDefault(); if (await action({ action: "preferences", ...preferences }, "Topic and timezone preferences saved in the cloud. The 2-hour cadence and 10/day limit are unchanged.")) setDirty(false); }}>
+              <Field label="Topic source"><select value={topicSource} onChange={(event) => { setTopicSource(event.target.value); setDirty(true); }} className={`${inputStyle} mt-2`}><option value="rotation">20-topic rotation (not live trends)</option><option value="google_trends">Live Google Trends RSS</option></select></Field>
+              {topicSource === "google_trends" && <div className="rounded-xl border border-brand-100 bg-brand-50 p-3"><Field label="Trend region"><select value={trendRegion} onChange={(event) => { setTrendRegion(event.target.value); setDirty(true); }} className={`${inputStyle} mt-2`}><option value="BD">Bangladesh</option><option value="US">United States</option><option value="GB">United Kingdom</option><option value="IN">India</option><option value="CA">Canada</option><option value="AU">Australia</option></select></Field><p className="mt-2 text-[10.5px] leading-relaxed text-brand-800">Uses fresh search-trend titles from Google’s RSS feed, not Pinterest trend measurements. The 20 saved topics below are used only in rotation mode. If the feed is stale or unavailable, the job retries instead of pretending a fixed topic is trending. AI writes evergreen content, not verified news reporting.</p></div>}
+              <Field label="Rotating topics"><textarea rows={7} value={topics} maxLength={2200} onChange={(event) => { setTopics(event.target.value); setDirty(true); }} className={`${inputStyle} mt-2 resize-y font-normal leading-relaxed`} aria-describedby="topics-help" /></Field>
+              <p id="topics-help" className="!mt-2 text-[10.5px] leading-relaxed text-neutral-500">One topic per line, 1–20 topics. Includes Sad Quotes, Love Quotes, Motivation, Good Morning and Islamic Quotes. Religious content must be original reflections, not fabricated scripture or quotations.</p>
+              <label className="block text-[12px] font-bold text-neutral-700">Timezone<input required value={timezone} maxLength={50} onChange={(event) => { setTimezone(event.target.value); setDirty(true); }} className={`${inputStyle} mt-2`} placeholder="Asia/Dhaka" /></label>
+              <div className="flex flex-wrap items-center justify-between gap-2"><p className="text-[10.5px] text-neutral-500">{dirty ? "Unsaved changes" : "Server preferences"} · Default timezone is editable</p><button type="submit" disabled={Boolean(busy) || !canSave || !dirty} className={`${buttonStyle} border border-neutral-200 bg-white text-neutral-800 hover:border-brand-300 hover:text-brand-700`}>{busy === "preferences" ? <LoaderCircle size={14} className="animate-spin" aria-hidden="true" /> : <Check size={14} aria-hidden="true" />}Save preferences</button></div>
+              {!canSave && <p className="text-[10.5px] leading-relaxed text-neutral-500">Saving requires a verified sign-in and configured cloud database. Nothing is saved to local browser automation settings.</p>}
+            </form>
+          </section>
         </div>
-        <div className="shrink-0 sm:text-right">
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-neutral-200 bg-white px-3 py-1.5 text-[11.5px] font-bold text-neutral-600">
-            <FlaskConical aria-hidden="true" size={13} /> Demo workspace
-          </span>
-          <p className="mt-1.5 text-[11px] text-neutral-500">Sample performance data</p>
+
+        <div className="min-w-0 space-y-6">
+          <section aria-labelledby="connections-heading" className="overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-sm">
+            <div className="border-b border-neutral-100 p-5 sm:p-6"><h2 id="connections-heading" className="flex items-center gap-2 text-[18px] font-extrabold tracking-tight"><Link2 size={19} className="text-brand-600" aria-hidden="true" /> Connections</h2><p className="mt-1.5 text-[11.5px] leading-relaxed text-neutral-500">One secure setup. AI → external blog → Pinterest.</p></div>
+            <div className="p-5 sm:p-6">
+              <div className="space-y-2">{[{ title: "AI provider", detail: current.connections ? `${current.connections.aiProvider === "openai" ? "OpenAI" : "Gemini"} · ${current.connections.model}` : "OpenAI / Gemini not connected", Icon: Sparkles }, { title: "Pinterest", detail: current.connections ? `Board: ${current.connections.boardName}` : "OAuth token + board required", Icon: Pin }, { title: "External blog", detail: current.connections ? current.connections.blogName : "Choose Blogger or your other blog", Icon: FileText }].map(({ title, detail, Icon }) => <div key={title} className="flex items-center gap-3 rounded-xl border border-neutral-100 px-3 py-3"><Icon size={17} className="shrink-0 text-neutral-500" aria-hidden="true" /><div className="min-w-0"><p className="text-[11.5px] font-bold">{title}</p><p className="mt-0.5 truncate text-[10.5px] text-neutral-500" title={detail}>{detail}</p></div><span className={`ml-auto shrink-0 text-[10px] font-bold ${current.connections ? "text-emerald-700" : "text-neutral-400"}`}>{current.connections ? "Verified" : "Pending"}</span></div>)}</div>
+              {current.connections && <p className="mt-3 text-[10.5px] leading-relaxed text-neutral-500">Access checked {dateTime(current.connections.verifiedAt, current.timezone)}. Actual publishing permissions and token validity are checked again by the provider when posting. {current.connections.tokenRefresh ? "Pinterest token refresh is configured." : "Pinterest token refresh is not configured; an expired token will pause Auto Mode."}</p>}
+              <details open={!infrastructure?.ready} className="mt-4 rounded-xl border border-neutral-200"><summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 px-3 text-[11.5px] font-bold text-neutral-700"><span className="flex items-center gap-2"><ShieldCheck size={15} aria-hidden="true" />Server setup checklist</span><ChevronDown size={14} aria-hidden="true" /></summary><ul className="space-y-3 border-t border-neutral-100 px-3 py-4">{infrastructure?.checks?.map((check) => <li key={check.id} className="flex items-start gap-2">{check.ready ? <CheckCircle2 size={14} className="mt-0.5 shrink-0 text-emerald-600" aria-hidden="true" /> : <Clock3 size={14} className="mt-0.5 shrink-0 text-neutral-400" aria-hidden="true" />}<div><p className="text-[11px] font-bold text-neutral-700">{check.label}</p><p className="mt-0.5 text-[10.5px] leading-relaxed text-neutral-500">{check.detail}</p></div></li>)}{!infrastructure && <li className="text-[11px] text-neutral-500">{loading ? "Checking server configuration…" : "Server setup could not be verified. Use Refresh to retry."}</li>}</ul></details>
+              <details className="group mt-4" open={!current.connections}>
+                <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 text-[12px] font-extrabold text-brand-700">{current.connections ? "Reconnect accounts" : "Connect your accounts"}<ChevronDown size={15} className="transition group-open:rotate-180" aria-hidden="true" /></summary>
+                <form onSubmit={connect} className="mt-3 space-y-4" autoComplete="off" data-testid="connection-form">
+                  <div className="grid grid-cols-2 gap-3"><Field label="AI provider"><select value={connections.aiProvider} onChange={(event) => setConnections({ ...connections, aiProvider: event.target.value, model: event.target.value === "openai" ? "gpt-4.1-mini" : "gemini-2.5-flash" })} className={`${inputStyle} mt-2`}><option value="openai">OpenAI</option><option value="gemini">Gemini</option></select></Field><Field label="Model name"><input required value={connections.model} onChange={(event) => setConnections({ ...connections, model: event.target.value })} maxLength={100} className={`${inputStyle} mt-2`} /></Field></div>
+                  <Credential label="Paste Your OpenAI / Gemini API Key Here" name="aiKey" value={connections.aiKey} set={setConnections} hint="Verification makes one small real API request and may use provider credits. Choose a model your account can access." />
+                  <Credential label="Paste Your Pinterest API Key Here" name="pinterestToken" value={connections.pinterestToken} set={setConnections} hint="Pinterest requires an authorized OAuth access token, not an arbitrary API key. Required scopes include boards:read and pins:write; use your approved Pinterest app/account." />
+                  <Field label="Pinterest Board ID"><input required inputMode="numeric" value={connections.pinterestBoardId} maxLength={40} onChange={(event) => setConnections({ ...connections, pinterestBoardId: event.target.value })} className={`${inputStyle} mt-2`} placeholder="Numeric ID of your board" /></Field>
+                  <Credential label="Pinterest refresh token (optional)" required={false} name="pinterestRefreshToken" value={connections.pinterestRefreshToken} set={setConnections} hint={infrastructure?.pinterestRefreshReady ? "Server OAuth client is configured. A valid refresh token can renew access automatically." : "Automatic refresh also needs the server’s Pinterest OAuth client ID and secret. Without it, expiry requires reconnecting."} />
+                  <Field label="External blog provider"><select required value={connections.blogProvider} onChange={(event) => setConnections({ ...connections, blogProvider: event.target.value })} className={`${inputStyle} mt-2`}><option value="">Choose your real blog provider</option><option value="blogger">Blogger</option><option value="webhook">Other blog — HTTPS publisher endpoint</option></select></Field>
+                  <Field label={connections.blogProvider === "webhook" ? "Publishing endpoint URL" : "Blog URL"}><input required type="url" value={connections.blogUrl} maxLength={1000} onChange={(event) => setConnections({ ...connections, blogUrl: event.target.value })} className={`${inputStyle} mt-2`} placeholder={connections.blogProvider === "webhook" ? "https://your-site.com/api/pincraft" : "https://your-blog.blogspot.com"} /></Field>
+                  {connections.blogProvider === "blogger" && <><Field label="Blogger Blog ID"><input required inputMode="numeric" maxLength={40} value={connections.blogId} onChange={(event) => setConnections({ ...connections, blogId: event.target.value })} className={`${inputStyle} mt-2`} /></Field><Credential label="Blogger offline refresh token" name="blogRefreshToken" value={connections.blogRefreshToken} set={setConnections} hint="Use the blogger publishing scope and an owner/admin account. A one-hour access token alone cannot run indefinitely while you are offline." />{!infrastructure?.bloggerOAuthReady && <p className="rounded-xl bg-brand-50 p-3 text-[10.5px] leading-relaxed text-brand-800">Blogger server OAuth setup is pending. BLOGGER_CLIENT_ID and BLOGGER_CLIENT_SECRET must match the application that issued your refresh token.</p>}</>}
+                  {connections.blogProvider === "webhook" && <><Credential label="Publisher bearer token" name="blogToken" value={connections.blogToken} set={setConnections} hint="Your real blog must implement the publisher contract. A website URL by itself does not authorize publishing." /><details className="rounded-xl bg-neutral-50 px-3 py-2"><summary className="cursor-pointer text-[11px] font-bold text-neutral-600">Publisher endpoint contract</summary><p className="mt-2 text-[10.5px] leading-relaxed text-neutral-500">Authenticated GET returns ready, siteUrl and capabilities.idempotency + capabilities.publicationLookup as true. POST accepts idempotencyKey, title, html, excerpt and slug, and must publish once per key, returning id, url and status: published. GET with ?id= must return the published article with the same idempotencyKey. Unsupported blogs stay pending; no fake publication.</p></details></>}
+                  <div className="rounded-xl border border-neutral-200 p-3"><label className="flex cursor-pointer items-start gap-2.5 text-[10.5px] leading-relaxed text-neutral-600"><input type="checkbox" required checked={consent} onChange={(event) => setConsent(event.target.checked)} className="mt-0.5 h-4 w-4 shrink-0 accent-[#e60023]" /><span>I authorize real automated publishing to my blog and Pinterest, up to 10 completed pipelines/day, and the associated provider API usage. API keys are encrypted on the server; generated Pin images are publicly readable through signed URLs.</span></label><label className="mt-3 flex cursor-pointer items-start gap-2.5 border-t border-neutral-100 pt-3 text-[10.5px] leading-relaxed text-neutral-600"><input type="checkbox" checked={activate} onChange={(event) => setActivate(event.target.checked)} className="mt-0.5 h-4 w-4 shrink-0 accent-[#e60023]" /><span>Enable Auto Mode after successful verification</span></label></div>
+                  <button type="submit" disabled={Boolean(busy) || !user || !infrastructure?.ready} className={`${buttonStyle} w-full bg-brand-600 text-white shadow-sm hover:bg-brand-700`}>{busy === "connect" ? <LoaderCircle size={15} className="shrink-0 animate-spin" aria-hidden="true" /> : <Bot size={16} className="shrink-0" aria-hidden="true" />}<span>{busy === "connect" ? "Verifying real connections…" : activate ? "Connect & Activate Full Auto Mode" : "Verify & Save Connections"}</span></button>
+                  {(!user || !infrastructure?.ready) && <p className="text-[10.5px] leading-relaxed text-neutral-500">Setup required. The connection action is unavailable until sign-in and server infrastructure are ready. No keys are stored in this browser and no connections are simulated.</p>}
+                  <p className="flex items-start gap-1.5 text-[10px] leading-relaxed text-neutral-400"><LockKeyhole size={12} className="mt-0.5 shrink-0" aria-hidden="true" />Saved credentials are never returned by the API. Re-enter them when reconnecting. Pin artwork is rendered on the server; no stock-photo or image-generator account is required.</p>
+                </form>
+              </details>
+              {current.connections && <div className="mt-4 border-t border-neutral-100 pt-3"><button type="button" disabled={Boolean(busy)} onClick={() => setRemoveOpen(!removeOpen)} className="inline-flex min-h-11 items-center text-[11px] font-bold text-brand-700">Remove saved connections</button>{removeOpen && <div className="rounded-xl bg-brand-50 p-3 text-[11px] leading-relaxed text-brand-800"><p>This stops Auto Mode and deletes encrypted credentials, not saved content. Pause and let an in-flight request finish first.</p><div className="mt-3 flex flex-wrap gap-2"><button type="button" disabled={Boolean(busy)} onClick={async () => { if (await action({ action: "disconnect", confirm: true }, "Encrypted connections removed. Your cloud content remains saved.")) setRemoveOpen(false); }} className={`${buttonStyle} bg-brand-600 text-white`}>Confirm removal</button><button type="button" onClick={() => setRemoveOpen(false)} className={`${buttonStyle} bg-white text-neutral-700`}>Cancel</button></div></div>}</div>}
+            </div>
+          </section>
         </div>
       </div>
 
-      {/* Performance overview — supplied demo values, not live analytics. */}
-      <section aria-label="Performance overview, sample data" className="mt-6 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-        {DASHBOARD_STATS.map((stat) => {
-          const Icon = STAT_ICONS[stat.key];
-          const accent = stat.key === "earning";
-          return (
-            <div key={stat.key} data-testid={`stat-${stat.key}`} className={`min-w-0 rounded-2xl border p-4 shadow-sm sm:p-5 ${accent ? "border-brand-100 bg-brand-50/60" : "border-neutral-200 bg-white"}`}>
-              <div className="flex items-center justify-between gap-2">
-                <h2 className={`text-[12px] font-semibold sm:text-[13px] ${accent ? "text-brand-800" : "text-neutral-600"}`}>{stat.label}</h2>
-                <span aria-hidden="true" className={`grid h-8 w-8 shrink-0 place-items-center rounded-xl ${accent ? "bg-brand-600 text-white" : "bg-neutral-50 text-neutral-500"}`}>
-                  <Icon size={16} strokeWidth={1.8} />
-                </span>
-              </div>
-              <p className={`mt-4 text-[28px] font-extrabold leading-none tracking-[-0.04em] tabular-nums sm:text-[32px] ${accent ? "text-brand-700" : "text-neutral-900"}`}>{stat.value}</p>
-              <p className={`mt-2.5 text-[10.5px] leading-relaxed sm:text-[11px] ${accent ? "text-brand-800/75" : "text-neutral-500"}`}>{stat.caption}</p>
-            </div>
-          );
-        })}
-      </section>
-
-      {/* Local preferences. Saving does not claim to start a remote scheduler. */}
-      <section aria-labelledby="automation-heading" className="mt-6 rounded-2xl border border-neutral-200 bg-white shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-neutral-100 px-5 py-5 sm:px-6">
-          <div className="flex items-center gap-3">
-            <span aria-hidden="true" className="grid h-10 w-10 place-items-center rounded-xl bg-brand-50 text-brand-600"><SlidersHorizontal size={18} /></span>
-            <div>
-              <h2 id="automation-heading" className="text-[18px] font-extrabold tracking-tight text-neutral-900">Auto Post Settings</h2>
-              <p className="mt-0.5 text-[12px] text-neutral-500">Your content. Your pace.</p>
-            </div>
-          </div>
-          <span data-testid="settings-status" className={`rounded-full px-2.5 py-1.5 text-[11px] font-semibold ${savedSettings && !hasChanges ? "bg-emerald-50 text-emerald-700" : "bg-neutral-100 text-neutral-600"}`}>
-            {settingStatus}
-          </span>
-        </div>
-
-        <div className="grid gap-6 p-5 sm:p-6 lg:grid-cols-[minmax(0,1fr)_300px] lg:gap-8">
-          <form aria-label="Automation preferences" onSubmit={handleSave} className="min-w-0">
-            <div className="flex items-center justify-between gap-4 rounded-xl border border-neutral-200 bg-neutral-50/60 px-4 py-4">
-              <div>
-                <p id="auto-post-label" className="text-[14px] font-bold text-neutral-800">Auto Post</p>
-                <p id="auto-post-description" className="mt-1 text-[11.5px] leading-relaxed text-neutral-500">Enable your daily posting preference.</p>
-              </div>
-              <div className="flex shrink-0 items-center gap-2">
-                <span aria-hidden="true" data-testid="auto-post-state" className={`text-[11px] font-extrabold ${settings.enabled ? "text-brand-600" : "text-neutral-500"}`}>{settings.enabled ? "ON" : "OFF"}</span>
-                <button
-                  type="button"
-                  role="switch"
-                  aria-labelledby="auto-post-label"
-                  aria-describedby="auto-post-description"
-                  aria-checked={settings.enabled}
-                  disabled={!ready}
-                  onClick={() => updateSettings({ enabled: !settings.enabled })}
-                  className="flex h-11 w-14 items-center justify-center rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:ring-offset-2 disabled:opacity-50"
-                >
-                  <span aria-hidden="true" className={`relative block h-7 w-12 rounded-full transition-colors duration-200 ${settings.enabled ? "bg-brand-600" : "bg-neutral-300"}`}>
-                    <span className={`absolute left-1 top-1 h-5 w-5 rounded-full bg-white shadow-sm transition-transform duration-200 motion-reduce:transition-none ${settings.enabled ? "translate-x-5" : "translate-x-0"}`} />
-                  </span>
-                </button>
-              </div>
-            </div>
-
-            <div className="mt-5 grid gap-4 sm:grid-cols-2">
-              <div>
-                <label htmlFor="pins-per-day" className="mb-2 block text-[12px] font-bold text-neutral-700">How many Pins per day?</label>
-                <div className="relative">
-                  <select id="pins-per-day" disabled={!ready} value={settings.pinsPerDay} onChange={(event) => updateSettings({ pinsPerDay: Number(event.target.value) })} className="h-[50px] w-full appearance-none rounded-xl border border-neutral-200 bg-white pl-4 pr-10 text-[16px] font-semibold text-neutral-800 outline-none transition-shadow focus:border-brand-600 focus:ring-4 focus:ring-brand-50 disabled:opacity-50">
-                    {PIN_COUNTS.map((count) => <option key={count} value={count}>{count}</option>)}
-                  </select>
-                  <ChevronDown aria-hidden="true" size={16} className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-neutral-400" />
-                </div>
-                <p className="mt-1.5 text-[11px] text-neutral-500">Choose your daily pin target.</p>
-              </div>
-              <div>
-                <label htmlFor="post-time" className="mb-2 block text-[12px] font-bold text-neutral-700">Post Time</label>
-                <div className="relative">
-                  <select id="post-time" disabled={!ready} value={settings.postTime} onChange={(event) => updateSettings({ postTime: event.target.value })} className="h-[50px] w-full appearance-none rounded-xl border border-neutral-200 bg-white pl-4 pr-10 text-[16px] font-semibold text-neutral-800 outline-none transition-shadow focus:border-brand-600 focus:ring-4 focus:ring-brand-50 disabled:opacity-50">
-                    {POST_TIMES.map((time) => <option key={time} value={time}>{time}</option>)}
-                  </select>
-                  <ChevronDown aria-hidden="true" size={16} className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-neutral-400" />
-                </div>
-                <p className="mt-1.5 text-[11px] text-neutral-500">Your preferred posting window.</p>
-              </div>
-            </div>
-
-            <div className="mt-5 flex flex-col items-start gap-3 xl:flex-row xl:items-center">
-              <button type="submit" disabled={!ready} className="btn-primary w-full gap-2 px-5 text-[13px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand-600 sm:w-auto">
-                <Save aria-hidden="true" size={16} /> Save Automation Settings
-              </button>
-              <p className="flex items-center gap-1.5 text-[10.5px] leading-relaxed text-neutral-500"><Monitor aria-hidden="true" size={13} className="shrink-0" /> Saves to this device</p>
-            </div>
-
-            {feedback && (
-              <p role={feedback.type === "error" ? "alert" : "status"} aria-atomic="true" className={`mt-3 flex items-start gap-2 rounded-xl px-3 py-2.5 text-[12px] font-medium leading-relaxed ${feedback.type === "error" ? "bg-brand-50 text-brand-800" : "bg-emerald-50 text-emerald-800"}`}>
-                {feedback.type === "error" ? <CircleAlert aria-hidden="true" size={15} className="mt-0.5 shrink-0" /> : <CheckCircle2 aria-hidden="true" size={15} className="mt-0.5 shrink-0" />}
-                {feedback.text}
-              </p>
-            )}
-            {savedSettings?.savedAt && (
-              <p className="mt-2.5 text-[10.5px] text-neutral-500">Last saved: {new Date(savedSettings.savedAt).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</p>
-            )}
-          </form>
-
-          <div data-testid="schedule-preview" className="flex min-w-0 flex-col rounded-2xl border border-brand-100 bg-gradient-to-br from-brand-50/70 to-white p-5">
-            <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-brand-800"><Clock3 aria-hidden="true" size={13} /> Schedule preview</div>
-            <div className="mt-4 flex items-baseline gap-2.5">
-              <span data-testid="preview-pin-count" className="text-[48px] font-extrabold leading-none tracking-[-0.05em] tabular-nums text-neutral-900">{settings.pinsPerDay}</span>
-              <span className="text-[13px] font-semibold text-neutral-500">pins / day</span>
-              <ArrowUpRight aria-hidden="true" className="ml-auto text-brand-200" size={26} strokeWidth={1.5} />
-            </div>
-            <div className="mt-5 grid grid-cols-4 gap-1.5" aria-label={`Preferred time: ${settings.postTime}`}>
-              {POST_TIMES.map((time) => {
-                const TimeIcon = TIME_ICONS[time];
-                const active = settings.postTime === time;
-                return (
-                  <div key={time} className={`flex flex-col items-center gap-2 rounded-xl border px-1 py-3 ${active ? "border-brand-100 bg-white text-brand-600 shadow-sm" : "border-transparent text-neutral-500"}`}>
-                    <TimeIcon aria-hidden="true" size={17} strokeWidth={1.7} />
-                    <span className="text-[9px] font-bold">{time}</span>
-                  </div>
-                );
-              })}
-            </div>
-            <p data-testid="preview-description" className="mt-4 text-[12px] leading-relaxed text-neutral-600">{settings.pinsPerDay} pins each day in the <strong className="font-semibold text-neutral-800">{settings.postTime.toLowerCase()}</strong>. Auto post preference is <strong className={settings.enabled ? "font-bold text-brand-700" : "font-bold text-neutral-800"}>{settings.enabled ? "ON" : "OFF"}</strong>.</p>
-            <p className="mt-3 border-t border-brand-100/80 pt-3 text-[10.5px] leading-relaxed text-neutral-500">{hasChanges ? "Save settings to keep this plan on your device." : "Your plan is saved on this device."}</p>
-          </div>
-        </div>
-
-        <div className="flex items-start gap-2 rounded-b-2xl border-t border-neutral-100 bg-neutral-50/60 px-5 py-3.5 sm:px-6">
-          <Info aria-hidden="true" size={14} className="mt-0.5 shrink-0 text-neutral-400" />
-          <p className="text-[11px] leading-relaxed text-neutral-500"><strong className="font-semibold text-neutral-600">Demo mode:</strong> settings are saved in this browser only. Pinterest and a posting scheduler are not connected, so no pins are posted automatically yet.</p>
-        </div>
-      </section>
-
-      <div className="mt-6"><RecentActivity /></div>
-      <div className="mt-6"><ViewsChart /></div>
+      {current.recent.filter((job) => job.state === "attention").map((job) => <Review key={job.id} job={job} busy={Boolean(busy)} action={action} />)}
+      <div className="mt-6 grid items-start gap-6 lg:grid-cols-2">
+        <section aria-labelledby="recent-heading" className="min-w-0 overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-sm"><div className="flex items-center justify-between gap-3 border-b border-neutral-100 px-5 py-5 sm:px-6"><h2 id="recent-heading" className="text-[18px] font-extrabold tracking-tight">Recent pipelines</h2><span className="text-[10px] font-bold text-neutral-400">SERVER DATA</span></div>{current.recent.length ? <ul className="divide-y divide-neutral-100">{current.recent.map((job) => <li key={job.id} className="p-5 sm:px-6"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="text-[12px] font-bold leading-relaxed text-neutral-800">{job.title || job.topic}</p><p className="mt-1 text-[10.5px] text-neutral-500">{job.topic_metadata?.source === "google_trends" ? "Google Trends RSS" : "Topic rotation"} · {dateTime(job.created_at, current.timezone)}</p></div><span className={`shrink-0 rounded-lg px-2 py-1 text-[9px] font-bold ${job.state === "success" ? "bg-emerald-50 text-emerald-700" : "bg-neutral-100 text-neutral-600"}`}>{jobLabels[job.state] || job.state}</span></div>{job.error_message && <p className="mt-2 text-[10.5px] leading-relaxed text-brand-700">{job.error_message}</p>}<div className="mt-2 flex flex-wrap gap-4">{job.blog_url && <a href={job.blog_url} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center gap-1 text-[11px] font-bold text-brand-700">Read article<ArrowUpRight size={12} aria-hidden="true" /></a>}{job.pin_url && <a href={job.pin_url} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center gap-1 text-[11px] font-bold text-brand-700">View Pin<ArrowUpRight size={12} aria-hidden="true" /></a>}</div></li>)}</ul> : <Empty Icon={Cloud} title="Your first pipeline starts here" text="No server jobs have run for this account. Connect your real accounts and enable Auto Mode to begin." />}</section>
+        <section aria-labelledby="logs-heading" className="min-w-0 overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-sm"><div className="flex items-center justify-between gap-3 border-b border-neutral-100 px-5 py-5 sm:px-6"><h2 id="logs-heading" className="text-[18px] font-extrabold tracking-tight">Live activity log</h2><span className="flex items-center gap-1.5 text-[10px] font-semibold text-neutral-400"><Clock3 size={12} aria-hidden="true" />Latest 30 events</span></div>{current.logs.length ? <ol className="max-h-[520px] divide-y divide-neutral-100 overflow-y-auto">{current.logs.map((log) => <li key={log.id} className="flex items-start gap-3 px-5 py-4 sm:px-6"><span className={`mt-1 h-1.5 w-1.5 shrink-0 rounded-full ${log.status === "success" ? "bg-emerald-500" : log.status === "error" || log.status === "warning" ? "bg-brand-600" : "bg-neutral-300"}`} aria-hidden="true" /><div className="min-w-0"><p className="text-[10px] font-medium text-neutral-400"><time dateTime={log.created_at}>{dateTime(log.created_at, current.timezone)}</time> · <span className="capitalize">{log.status}</span></p><p className="mt-1 text-[11.5px] leading-relaxed text-neutral-700">{log.message}</p></div></li>)}</ol> : <Empty Icon={Activity} title="No activity yet" text="Real server and provider events will appear here. There are no sample success messages." />}</section>
+      </div>
+      <p className="mt-5 flex items-start gap-2 text-[10.5px] leading-relaxed text-neutral-500"><Pause size={13} className="mt-0.5 shrink-0" aria-hidden="true" />Turning OFF pauses new work; a request already sent to a provider may finish. If publication cannot be confirmed, the job stops for review instead of risking duplicate posts. Traffic and earnings are not promised or simulated here.</p>
     </div>
   );
+}
+function Field({ label, children }) { const id = useId(); return <div><label htmlFor={id} className="block text-[11.5px] font-bold text-neutral-700">{label}</label>{cloneElement(children, { id })}</div>; }
+function Credential({ label, name, value, set, hint, required = true }) { return <div><label className="block text-[11.5px] font-bold leading-relaxed text-neutral-700">{label}<input type="password" name={name} required={required} value={value} maxLength={6000} autoComplete="new-password" spellCheck={false} onChange={(event) => set((previous) => ({ ...previous, [name]: event.target.value }))} className={`${inputStyle} mt-2`} /></label><p className="mt-1.5 text-[10px] leading-relaxed text-neutral-500">{hint}</p></div>; }
+function Metric({ Icon, title, value, detail, small }) { return <div className="min-w-0 rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm sm:p-5"><div className="flex items-center justify-between gap-2"><p className="text-[10.5px] font-semibold text-neutral-500">{title}</p><Icon size={15} className="shrink-0 text-brand-600" aria-hidden="true" /></div><p className={`mt-4 font-extrabold leading-tight tracking-tight text-neutral-900 ${small ? "text-[19px] sm:text-[22px]" : "text-[28px] sm:text-[32px]"}`}>{value}</p><p className="mt-2 text-[10px] leading-relaxed text-neutral-400">{detail}</p></div>; }
+function Empty({ Icon, title, text }) { return <div className="px-6 py-10 text-center"><Icon size={27} className="mx-auto text-neutral-300" aria-hidden="true" /><h3 className="mt-3 text-[13px] font-bold text-neutral-700">{title}</h3><p className="mx-auto mt-2 max-w-sm text-[11.5px] leading-relaxed text-neutral-500">{text}</p></div>; }
+function Review({ job, action, busy }) {
+  const [externalId, setExternalId] = useState("");
+  const [checked, setChecked] = useState(false);
+  return <section className="mt-6 rounded-2xl border border-brand-200 bg-white p-5 sm:p-6" aria-labelledby={`review-${job.id}`}><h2 id={`review-${job.id}`} className="flex items-center gap-2 text-[17px] font-extrabold"><CircleAlert size={19} className="text-brand-600" aria-hidden="true" />Review uncertain publication</h2><p className="mt-2 text-[12px] leading-relaxed text-neutral-600">{job.title || job.topic}. {job.blog_url ? "The article is saved, but Pinterest did not confirm the final Pin result. Inspect your board." : "The blog did not confirm its result. Inspect your real blog before continuing."} No automatic repost will be attempted.</p><form className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end" onSubmit={(event) => { event.preventDefault(); action({ action: "verify", jobId: job.id, externalId }, "Remote result verified. Auto Mode remains paused until you enable it.", "/api/automation/review"); }}><label className="min-w-0 flex-1 text-[11.5px] font-bold text-neutral-700">{job.blog_url ? "Existing Pinterest Pin ID" : "Existing blog post ID"}<input required value={externalId} maxLength={128} onChange={(event) => setExternalId(event.target.value)} className={`${inputStyle} mt-2`} /></label><button type="submit" disabled={busy} className={`${buttonStyle} shrink-0 bg-neutral-900 text-white`}>Verify remote result</button></form><div className="mt-5 border-t border-neutral-100 pt-4"><label className="flex items-start gap-2 text-[11px] leading-relaxed text-neutral-600"><input type="checkbox" checked={checked} onChange={(event) => setChecked(event.target.checked)} className="mt-0.5 h-4 w-4 shrink-0 accent-[#e60023]" />I checked the remote destination and want to abandon this job without recording success or reposting it.</label><button type="button" disabled={!checked || busy} onClick={() => action({ action: "abandon", jobId: job.id, checkedRemote: true }, "Job abandoned after your inspection. No success was recorded. Auto Mode remains paused.", "/api/automation/review")} className={`${buttonStyle} mt-3 bg-brand-50 text-brand-700`}>Abandon checked job</button></div></section>;
 }

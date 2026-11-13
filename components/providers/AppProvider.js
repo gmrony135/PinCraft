@@ -80,7 +80,7 @@ export default function AppProvider({ children }) {
     setUser(result.user);
     setLoginOpen(false);
     channel.current?.postMessage("refresh");
-    showNotice({ title: `Welcome, ${result.user.name}!`, description: "You are signed in. My Library is ready; this preview still stores content on your device." });
+    showNotice({ title: `Welcome, ${result.user.name}!`, description: "You are signed in. Full Auto results use your private Cloud Library when server setup is ready. Manual tool saves stay on this device." });
   }, [showNotice]);
   const signOut = useCallback(async () => {
     try {

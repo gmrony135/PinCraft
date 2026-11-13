@@ -5,7 +5,7 @@ import AutomationDashboard from "@/components/dashboard/AutomationDashboard";
 export const metadata = {
   title: "Automation Dashboard",
   description:
-    "Your PinCraft workspace: view pin performance, choose daily auto-post preferences, and review recent activity in one clean dashboard.",
+    "Configure real server-side Full Auto Mode: AI content, external blog publication, Pinterest posting and private cloud Library, with setup checks and provider-confirmed logs.",
   alternates: { canonical: "/dashboard" },
 };
 

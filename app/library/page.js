@@ -4,7 +4,7 @@ import MyLibrary from "@/components/library/MyLibrary";
 
 export const metadata = {
   title: "My Library",
-  description: "All your saved PinCraft pins and articles in one place. Copy a pin title, open a full article, or explore six examples in each collection.",
+  description: "Your private Full Auto cloud results, plus separate device-saved Pins and Articles. Read full articles, copy Pin content and open confirmed live publications.",
   alternates: { canonical: "/library" },
 };
 
