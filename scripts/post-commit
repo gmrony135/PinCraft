@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# Auto-push hook: প্রতিবার commit হলেই main ব্র্যাঞ্চে push হবে
+# বসানো হয়েছে .git/hooks/post-commit এ
+BRANCH=$(git rev-parse --abbrev-ref HEAD)
+if [ "$BRANCH" = "main" ]; then
+  git push origin main --quiet 2>/dev/null && echo "🚀 auto-pushed to GitHub main" || echo "⚠️  auto-push failed (চেক করো remote/credentials)"
+fi
