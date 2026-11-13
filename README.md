@@ -1,95 +1,87 @@
-# PinCraft — server-side Full Auto Mode
+# PinCraft — password-free offline auto posting
 
-**Live:** https://pincraftly.vercel.app
-**Repository:** https://github.com/gmrony135/PinCraft
+**Website:** https://pincraftly.vercel.app · **Repository:** https://github.com/gmrony135/PinCraft
 
-Next.js workspace with a real, persistent background automation backend. The old device-only automation switch and fabricated Dashboard analytics have been removed.
+Next.js app with persistent, per-user Pinterest + Blogger OAuth publishing, a cloud Pin queue, optional AI-generated Pin + Article pipelines, and a protected server worker. No account password collection or application-global posting token.
 
-## Current production status: SETUP REQUIRED
+## Production status: SETUP REQUIRED
 
-The backend, provider adapters, server-rendered images, authenticated Dashboard and private cloud Library are implemented. **Production PostgreSQL, Google sign-in, encryption/scheduler secrets, provider authorization and the actual external blog destination have not been supplied/configured. No real Google login, AI generation, blog publication or Pinterest post is claimed as completed.**
+The implementation is deployed separately from configuration. **Production PostgreSQL, Google sign-in/session configuration, encryption/worker secrets, provider OAuth app credentials/approval and genuine owner consent have not been supplied. No real Pinterest/Blogger connection or live publication is claimed.** No paid service or upgrade was provisioned.
 
-The user selected **backend first, credentials later**. No paid infrastructure or upgrade has been provisioned. “AUTO MODE IS RUNNING” requires verified connections, ready infrastructure, an enabled database setting and a healthy recent worker heartbeat—not a browser preference.
+Running status requires ready infrastructure, the account's own saved authorizations/destinations, an enabled server schedule and a fresh worker heartbeat. A browser-local switch or fixture cannot make production Connected/Running/Published.
 
-## Full Auto pipeline
+## Condition 1 workflow
 
-1. Enable once after authenticated connection verification.
-2. A protected server schedule checks persistent due jobs every 15 minutes.
-3. A new pipeline starts no more frequently than **every 120 minutes**, with **at most 10 completed Pin + Article pipelines per local calendar day**. The default timezone is editable `Asia/Dhaka`.
-4. Select the next of **20 configured topics**, or a fresh **Google Trends RSS** title when live-trend mode is selected. Rotation is never labeled live trending; RSS search trends are not Pinterest trend measurements.
-5. Use the configured **OpenAI or Gemini** API to generate a Pin title, description, hashtags and a structured **500–850-word** SEO article.
-6. Persist the content pack in the account-scoped PostgreSQL Library before publishing.
-7. Render and preflight a real **1000×1500 PNG** Pin image on the server; no separate stock-image account is needed.
-8. Publish to the authorized **Blogger** blog or an **other-blog HTTPS publisher endpoint**. An additional WordPress adapter is available in the backend, not preselected in the UI.
-9. Post a real Pinterest Pin linked to the confirmed article URL; store returned IDs/URLs and actual logs.
+1. Sign in with verified Google Identity Services.
+2. Dashboard → Settings → **Connect Pinterest** / **Connect Blogger**. Login/Allow happens on the providers' own pages, never a PinCraft Gmail/password form.
+3. Load and select your owned public Pinterest board and, for generated articles, your owner/admin Blogger blog.
+4. Save a schedule, e.g. **5 Pins/day, 120 minutes apart**, and queue original Pins with public HTTPS images. Or choose automatically generated Pin + Blogger Article mode and verify your OpenAI/Gemini API key.
+5. Confirm real scheduled publishing and enable Full Auto once. Close the browser: a protected **30-minute** server dispatch claims due database work.
+6. Provider-confirmed publication saves the real Pinterest ID/link; confirmed retryable failures wait **1 hour**, up to three automatic attempts. Uncertain external results pause for review rather than risk duplicates.
+7. Dashboard shows **Connected / Not Connected**, **Next Post Time**, **Total Published**, **Failed Posts**, actual logs and published links. Pause or Disconnect stops future work; a request already sent may finish.
 
-The website/browser can be closed. No browser timer generates or publishes automated content. Hosting jitter, API outages, token expiry, quotas and provider permissions can delay or stop work. **10/day is a ceiling, not a delivery guarantee.** No traffic or income is promised.
+Configurable bounds: 1–10 Pins/day, 30–1440 minutes between new posts in 30-minute steps. Default is 10/day, 120 minutes, editable Asia/Dhaka daily-reset timezone. Limits are ceilings, not promised delivery. Hosting jitter (up to 15 minutes), API outages/quotas and revoked/expired consent can delay or stop work. No traffic/income guarantee.
 
-## Safety and persistence
+### What is persisted
 
-- PostgreSQL account row locks, a partial unique open-job index, unique scheduled slots, checkpointed content/remote IDs, and eight-minute leases.
-- Safe retries at least 15 minutes apart, maximum three attempts. Completed article steps are not republished when only Pinterest needs retrying.
-- A timeout, unknown remote result, interrupted publication or uncertain persistence **pauses for review**, rather than blindly duplicating a public post. The owner can verify a real remote ID or explicitly abandon a checked job without recording success.
-- OFF prevents the next step; an already in-flight provider request may finish.
-- Keys/tokens are **AES-256-GCM encrypted with per-user AAD**, never returned by APIs or written to browser storage.
-- Signed HttpOnly Google-verified sessions; same-origin mutation checks; private/no-store API responses; account-isolated reads and pagination.
-- Custom HTTPS destinations reject private/reserved addresses, validate every DNS answer, pin the connection to those addresses and refuse redirects. Remote bodies are bounded; AI HTML is escaped; provider exception bodies are not exposed.
-- TLS certificates are verified for the cloud database. Preview publishing is disabled unless explicitly authorized for an isolated non-production environment.
+- PostgreSQL: owner-isolated schedules, queue/content, checkpoints, actual publication IDs/URLs, retry/error logs and worker heartbeat.
+- Pinterest: per-user, per-provider AES-256-GCM encrypted **access + refresh tokens**, with expiry metadata and background rotation.
+- Blogger: encrypted **refresh token only**. Its access token exists only transiently in server memory, including during callback and refresh.
+- Optional AI key: encrypted separately, never stored in browser storage or returned by APIs.
+- Sign-in stores only stable Google user ID and display name in the signed session, not a Gmail/email address. Google email verification is transient.
+- No account passwords or manually pasted Pinterest/Blogger publishing tokens. Legacy manual/WordPress password-based adapters are removed and migration v2 clears their old encrypted bundle.
 
-See [the complete setup / worker / provider contract reference](docs/full-auto-mode.md). Environment **names only** are in `.env.example`; real secrets must never be committed or pasted into chat.
+### Disconnect limitation, disclosed rather than faked
 
-## Routes and remaining boundaries
+Google revocation is requested after local Blogger token deletion; only a confirmed response is labeled revoked. Pinterest's documented revoke endpoint currently supports system-user tokens, not personal authorization-code grants. Pinterest Disconnect therefore deletes local tokens/stops posting and links to **Pinterest Settings → Security and logins → Apps** for the owner to remove provider consent. Local deletion is never mislabeled as successful remote revocation.
 
-| Route | Current behavior |
-| --- | --- |
-| `/dashboard` | Real server preferences, connections, setup checklist, status, actual job/log history and uncertain-result review |
-| `/library` | Private auto-generated cloud content **separate from** manual device saves and labeled examples |
-| `/pin-generator` | Existing browser-local manual drafting/copy/save tool; not silently converted into a paid API call |
-| `/article-writer` | Existing local manual drafts and explicitly labeled **demo** publication; distinct from real Full Auto publishing |
-| `/adsterra-income` | Labeled sample ad reports and inert device-local snippet editor; no live income API |
-| `/login` | Verified Google sign-in foundation; genuinely unavailable until its OAuth/session setup is supplied |
-| `/`, `/about`, `/contact` | Existing landing, integration overview and working feedback links |
+## Safety and existing tools
 
-Old `pincraft.automation.v1` values are ignored. Old manual Library saves remain on their device; they are not silently uploaded to an account or misrepresented as provider-published results. The previous UI-first release is recorded in [docs/final-step.md](docs/final-step.md); its automation scope has been superseded.
+- Session-owner + provider + HttpOnly browser nonce + ten-minute, single-use state; Google PKCE S256; fixed registered HTTPS callback URLs.
+- Same-origin bounded JSON mutations, private/no-store responses, account-isolated reads and pagination. OAuth codes/tokens are not written to application logs or client storage.
+- Versioned token refresh leases prevent rotation races and resurrection after Disconnect/new authorization.
+- Per-account row locks, one active job, eight-minute leases, quota by actual completion/local day, saved target snapshots and cadence with no catch-up bursts.
+- Network-ambiguous publication or DB failure after remote acceptance stops for explicit inspection. There is no false exactly-once guarantee spanning two providers and PostgreSQL.
+- Public HTTPS image validation, pinned all-public DNS, no redirects/private-network SSRF, bounded PNG/JPEG/WebP bytes. Generated mode renders/preflights actual signed **1000×1500 PNGs** after saving the article pack.
+- Generated mode retains 20 editable topic defaults or fresh **Google Trends RSS** titles, not mislabeled Pinterest trend measurements. Structured 500–850-word articles, escaped HTML and respectful original religious reflections; no invented scripture/quotations.
 
-## Development
+`/library` separates private cloud Pins/Articles from device saves and labeled examples; queued Pins never masquerade as generated articles. `/pin-generator` and `/article-writer` remain browser-local manual tools with explicitly labeled demo publication. `/adsterra-income` remains a labeled sample report/snippet editor. None proves live automation or earnings.
 
-Node **20.18+** (local verification: 20.20.2), Next **15.5.29**, React **18.3.1**, Tailwind, `jose`, PostgreSQL/`pg`, `undici`, `ipaddr.js`. White surfaces, Pinterest red **#E60023**, black text, English UI, mobile-first rounded controls.
+## Operator setup
+
+See **[the full OAuth, migration, scheduler, disconnect and verification reference](docs/full-auto-mode.md)**. `.env.example` lists non-secret variable names only. Never commit secrets or paste them into chat.
+
+Register the exact app callbacks:
+
+```text
+https://pincraftly.vercel.app/api/integrations/pinterest/callback
+https://pincraftly.vercel.app/api/integrations/blogger/callback
+```
+
+After securely supplying authorized infrastructure/app configuration, the operator/agent applies both migrations, deploys with the worker secret, verifies an actual scheduled heartbeat, and the owner grants consent/selects destinations. One genuine publication and offline follow-up remain the final operating checks. Code cannot invent a provider app approval or account's Allow decision.
+
+## Development and tests
+
+Node 20.18+, Next 15.5.29, React 18.3.1, PostgreSQL/pg, jose, undici and ipaddr.js. English UI; white surfaces, Pinterest red **#E60023**, black text, rounded responsive controls.
 
 ```bash
 npm ci
 npm run dev -- --hostname 0.0.0.0
-# Stop dev before build; both use .next:
+# Stop dev first; dev/build share .next.
 npm run build
 npm run start -- --hostname 0.0.0.0
+
+# With an authorized database environment supplied securely:
+npm run db:migrate          # v1 then v2, idempotent, no sample successes
+npm run automation:worker   # ONE invocation, not a permanent daemon
+npm run test:automation
+npm run test:automation:ui
 ```
 
-With the database environment supplied securely by the operator:
+Production uses the static Vercel **Schedules Beta** POST entry in `vercel.json` (`*/30 * * * *`), not browser execution or legacy daily-only Hobby Cron. Alternative hosts need their own reliable server scheduler. Preview publishing is blocked by default.
 
-```bash
-npm run db:migrate          # transactional/idempotent; no demo success rows
-npm run automation:worker   # one bounded server invocation; not a daemon
-```
+**Verification: 427/427 local checks passed**, production build passed, 0 known dependency vulnerabilities, zero browser runtime/console errors. Exact qualified results are in [docs/automation-verification.json](docs/automation-verification.json). Backend tests use real isolated PostgreSQL and explicit provider doubles; configured browser tests exercise actual start/callback routes, schedules, queue, images, Library, Disconnect and a worker run with Chromium fully closed. Sessions, provider authorization/publication responses and test content are **fixtures, not real account consent or public posts**. Public HTTPS PNG, signed PNG rendering and Google Trends RSS are actually exercised.
 
-Production uses the static **Vercel Schedules Beta** entry in `vercel.json`, not legacy daily-only Hobby Cron Jobs. No paid upgrade is assumed. The scheduler secret must be captured by a redeployment; a production scheduler heartbeat is still required to confirm execution.
+Fixtures refuse non-loopback/non-`_test` databases. The HTTP double is an explicit local test-process preload, never imported or activated by production application/API input. Retained public/manual/auth suites cover setup honesty, session/CSRF guards, responsive navigation/dialogs and regression safety. Reports are saved in ignored `.shots/`; selected non-secret release evidence is in `docs/`.
 
-## Verification of this release
-
-**373/373 local checks passed**, including:
-
-| Suite | Checks | What it proves |
-| --- | ---: | --- |
-| `npm run test:automation` | 44 | Real isolated PostgreSQL; locking/cap/leases/retries; provider payload/error/security contracts using explicit test doubles; one real public Google Trends RSS read |
-| `npm run test:automation:ui` | 38 | Actual Next production-build APIs/browser + isolated PostgreSQL; signed test-session/content fixtures; real rendered PNG, cloud pagination, persistent switch, review and responsive UI |
-| `node scripts/check-dashboard.js` | 34 | Public setup-required state, no fake Active/Success, CSRF/auth protection, old local ON ignored, 320–1440px layouts |
-| `node scripts/check-auth.js` | 35 | Offline generated-key signature/session/nonce guards, **not live Google OAuth** |
-| Existing home / Pin / Article / Step 5 suites | 148 | Retained manual tools, copy/save/reader, income demo safety and responsive regressions |
-| `node scripts/check-final.js` | 74 | Updated shared/manual workflow, login/setup, navigation, dialogs, storage denial, all nine public routes |
-
-`npm run build` passes; dependency audit: **0 known vulnerabilities** at verification. Browser suites reported **zero console/runtime errors**.
-
-**Important:** Isolated test sessions, provider doubles and seeded database fixtures are not production identities, genuine provider authorizations or live publication evidence. A live end-to-end run remains pending the real account/site setup. The test scripts refuse to seed fixtures against a non-loopback or non-`_test` database.
-
-The public browser suites support `BASE_URL=https://pincraftly.vercel.app`. The configured API/browser suite uses `AUTOMATION_TEST_BASE` and explicitly authorized local-only environment values. Local reports are in ignored `.shots/`; release notes and selected non-secret screenshots are in `docs/`.
-
-The existing post-commit hook automatically pushes commits to GitHub `main`. The agent also handles and verifies the Vercel deployment; no manual Git/deployment step is required from the user.
+The existing post-commit hook automatically pushes changes to GitHub `main`; the agent handles and verifies deployment. No manual user Git/deployment steps are required.

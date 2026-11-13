@@ -24,10 +24,12 @@ async function run(){fs.mkdirSync(OUT,{recursive:true});const browser=await chro
   check('Live source explicitly identifies Google RSS, not Pinterest measurements',await page.getByText(/not Pinterest trend measurements/).isVisible()&&await page.getByLabel('Trend region',{exact:true}).inputValue()==='BD');
   check('Guest preferences cannot be saved as fake server settings',await page.getByRole('button',{name:'Save preferences',exact:true}).isDisabled());
   await page.getByLabel('Topic source',{exact:true}).selectOption('rotation');
-  check('Pinterest field explains real OAuth requirements',await page.getByLabel('Paste Your Pinterest API Key Here',{exact:true}).isVisible()&&await page.getByText(/authorized OAuth access token, not an arbitrary API key/).isVisible());
-  check('AI credential is a password field',await page.getByLabel('Paste Your OpenAI / Gemini API Key Here',{exact:true}).getAttribute('type')==='password');
-  check('Unspecified external blog is not pre-connected',await page.getByLabel('External blog provider',{exact:true}).inputValue()==='');
-  check('Connect and Activate is unavailable until real setup',await page.getByRole('button',{name:'Connect & Activate Full Auto Mode',exact:true}).isDisabled());
+  check('Pinterest uses its own OAuth consent button, not pasted tokens',await page.getByRole('button',{name:'Connect Pinterest',exact:true}).isVisible()&&await page.getByLabel('Paste Your Pinterest API Key Here',{exact:true}).count()===0);
+  check('Dashboard has no account email or password collection fields',await page.locator('main input[type=password],main input[type=email]').count()===0);
+  check('Blogger connection has a real OAuth action and honest status',await page.getByRole('button',{name:'Connect Blogger',exact:true}).isVisible()&&await page.getByTestId('connection-blogger').getByText('Not Connected',{exact:true}).isVisible());
+  check('Queue save is unavailable until sign-in and cloud setup',await page.getByRole('button',{name:'Save Pin to cloud queue',exact:true}).isDisabled());
+  check('Thirty-minute worker and one-hour retries are disclosed',(await page.locator('main').innerText()).includes('checks every 30 minutes')&&(await page.locator('main').innerText()).includes('retry after 1 hour'));
+  check('Requested status metrics are visible',await page.getByText('Next Post Time',{exact:true}).isVisible()&&await page.getByText('Total Published',{exact:true}).isVisible()&&await page.getByText('Failed Posts',{exact:true}).isVisible());
   check('No sample activity or success log entries',await page.getByText('No activity yet',{exact:true}).isVisible()&&await page.getByText('Your first pipeline starts here',{exact:true}).isVisible());
   const toggle=page.getByRole('switch',{name:'Full Auto Mode',exact:true});await toggle.click();const dialog=page.getByRole('dialog');await dialog.waitFor();
   check('Guest switch opens sign-in rather than enabling locally',await toggle.getAttribute('aria-checked')==='false'&&await dialog.getByText('Google Login needs setup',{exact:true}).isVisible());

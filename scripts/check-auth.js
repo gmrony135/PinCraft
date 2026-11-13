@@ -48,10 +48,10 @@ async function run() {
 
     const payload = { sub: "offline-test-subject", name: "Test Creator", email: "creator@example.test", email_verified: true, nonce: firstNonce };
     const profile = auth.publicProfile(payload);
-    check("Public profile includes only ID, name and verified email", Object.keys(profile).sort().join("|") === "email|id|name" && profile.name === "Test Creator");
+    check("Public profile returns only ID/name, never a Gmail/email address", Object.keys(profile).sort().join("|") === "id|name" && profile.name === "Test Creator");
     check("Unverified email claims cannot create an account", await rejects(() => auth.publicProfile({ ...payload, email_verified: false })));
     check("Incomplete identity claims are rejected", await rejects(() => auth.publicProfile({ ...payload, sub: null })));
-    check("Blank Google display names fall back to the email prefix", auth.publicProfile({ ...payload, name: "   " }).name === "creator");
+    check("Blank display names use Creator without saving an email prefix", auth.publicProfile({ ...payload, name: "   " }).name === "Creator");
 
     const { privateKey, publicKey } = await jose.generateKeyPair("RS256");
     async function identity(claims = payload, options = {}) {
@@ -69,7 +69,8 @@ async function run() {
     check("Credential verification is disabled without real configuration", await rejects(() => auth.verifyGoogleCredential(credential, firstNonce, { configured: false }, publicKey)));
     check("Oversized credentials are rejected", await rejects(() => auth.verifyGoogleCredential("x".repeat(12001), firstNonce, config, publicKey)));
 
-    const session = await auth.createSession(profile, config);
+    const session = await auth.createSession({ ...profile, email: payload.email }, config);
+    check("Signed session claims never persist an email/Gmail address", !Object.hasOwn(jose.decodeJwt(session), "email"));
     check("Server-signed sessions round-trip to the verified profile", JSON.stringify(await auth.readSession(session, config)) === JSON.stringify(profile));
     const parts = session.split(".");
     parts[1] = Buffer.from(JSON.stringify({ sub: "spoof", name: "Forged account" })).toString("base64url");

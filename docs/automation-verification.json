@@ -1,22 +1,23 @@
 {
   "date": "2026-11-13",
-  "scope": "Local production build; isolated PostgreSQL with explicit provider and signed-session fixtures; one real public Google Trends RSS read; no live account authorization or external publishing verified.",
+  "feature": "Password-free Pinterest + Blogger OAuth / Condition 1 offline publishing",
+  "scope": "Local Next production build and real isolated PostgreSQL. Explicit signed-session and provider OAuth/AI/publication HTTP fixtures; not genuine owner consent or external publishing. Actual public HTTPS PNG and Google Trends RSS fetched, actual signed PNG generated, and protected worker route invoked with Chromium fully closed.",
   "suites": {
     "automation-backend": {
-      "passed": 44,
-      "total": 44
+      "passed": 75,
+      "total": 75
     },
     "automation-api-ui": {
-      "passed": 38,
-      "total": 38
+      "passed": 58,
+      "total": 58
     },
     "dashboard": {
-      "passed": 34,
-      "total": 34
+      "passed": 36,
+      "total": 36
     },
     "auth": {
-      "passed": 35,
-      "total": 35
+      "passed": 36,
+      "total": 36
     },
     "final": {
       "passed": 74,
@@ -39,9 +40,26 @@
       "total": 25
     }
   },
-  "totalPassed": 373,
-  "totalChecks": 373,
-  "productionStatus": "Setup required; permanent database/auth/provider configuration not supplied",
+  "totalPassed": 427,
+  "totalChecks": 427,
+  "productionStatus": "Setup required; production env list empty. No permanent DB/auth/vault/scheduler/app credentials configured, no genuine provider authorization/publication verified.",
+  "scheduler": {
+    "pollMinutes": 30,
+    "retryMinutes": 60,
+    "maxAutomaticAttempts": 3,
+    "hostingJitterMinutes": 15
+  },
+  "privacy": {
+    "gmailEmailPersisted": false,
+    "accountPasswordsPersisted": false,
+    "bloggerAccessTokenPersisted": false,
+    "pinterestAccessAndRefreshEncrypted": true
+  },
+  "revocation": "Pinterest personal OAuth remote revoke unsupported by the documented API: local deletion + manual provider Apps removal disclosed; Google revocation only marked confirmed on provider success.",
   "audit": "0 known vulnerabilities",
-  "browserRuntimeErrors": 0
+  "browserRuntimeErrors": 0,
+  "notes": [
+    "Parallel-heavy browser execution exceeded workspace resources; sequential reruns of the complete release suites passed.",
+    "Production scheduler execution and genuine OAuth consent cannot be proven without authorized infrastructure and account-owner setup."
+  ]
 }

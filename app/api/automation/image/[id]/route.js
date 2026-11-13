@@ -21,7 +21,7 @@ export async function GET(request, { params }) {
         <div style={{ display: "flex", flex: 1, alignItems: "center", fontSize: job.title.length > 75 ? 86 : 102, fontWeight: 700, lineHeight: 1.12, letterSpacing: -3, maxWidth: 840 }}>{job.title}</div>
         <div style={{ display: "flex", height: 8, width: 100, background: "#e60023", marginBottom: 55 }} />
         <div style={{ display: "flex", fontSize: 24, lineHeight: 1.5, maxWidth: 700, color: dark ? "#d2c5c8" : "#5b4b4f" }}>A fresh perspective. A little inspiration.<br />Read the full story.</div>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", borderTop: `1px solid ${dark ? "#48343a" : "#e1c9ce"}`, marginTop: 75, paddingTop: 35, fontSize: 20, color: dark ? "#d2c5c8" : "#5b4b4f" }}><span>Ideas worth saving</span><span style={{ color: "#e60023", fontWeight: 700 }}>READ MORE →</span></div>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", borderTop: `1px solid ${dark ? "#48343a" : "#e1c9ce"}`, marginTop: 75, paddingTop: 35, fontSize: 20, color: dark ? "#d2c5c8" : "#5b4b4f" }}><span>Ideas worth saving</span><span style={{ color: "#e60023", fontWeight: 700 }}>READ MORE</span></div>
       </div>,
       { width: 1000, height: 1500, headers: { "Cache-Control": "public, max-age=86400, immutable", "X-Content-Type-Options": "nosniff", "X-Robots-Tag": "noindex" } }
     );
