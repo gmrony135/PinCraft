@@ -37,6 +37,7 @@ export default function Footer() {
                 <li key={l.href}>
                   <Link
                     href={l.href}
+                    prefetch={false}
                     className="flex min-h-[42px] items-center text-[13.5px] font-semibold text-neutral-600 transition-colors hover:text-brand-600"
                   >
                     {l.label}
@@ -60,6 +61,7 @@ export default function Footer() {
                 <li key={l.href}>
                   <Link
                     href={l.href}
+                    prefetch={false}
                     className="flex min-h-[42px] items-center text-[13.5px] font-semibold text-neutral-600 transition-colors hover:text-brand-600"
                   >
                     {l.label}

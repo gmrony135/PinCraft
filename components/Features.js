@@ -84,6 +84,7 @@ export default function Features() {
 
               <Link
                 href={f.href}
+                prefetch={false}
                 className="mt-3 inline-flex min-h-[44px] items-center gap-1.5 text-[13.5px] font-bold text-brand-600 transition-transform group-hover:gap-2.5"
               >
                 {f.cta} <ArrowRight size={15} />

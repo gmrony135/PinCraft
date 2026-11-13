@@ -49,6 +49,7 @@ export default function Navbar() {
             <li key={l.href}>
               <Link
                 href={l.href}
+                prefetch={false}
                 className={`rounded-lg px-3.5 py-2 text-[14.5px] font-semibold transition-colors ${
                   l.href === "/"
                     ? "text-neutral-900"
@@ -62,7 +63,7 @@ export default function Navbar() {
         </ul>
 
         <div className="flex items-center gap-2">
-          <Link href="/login" className="btn-primary btn-sm hidden sm:inline-flex">
+          <Link href="/login" prefetch={false} className="btn-primary btn-sm hidden sm:inline-flex">
             Login
           </Link>
           <button
@@ -84,6 +85,7 @@ export default function Navbar() {
               <Link
                 key={l.href}
                 href={l.href}
+                prefetch={false}
                 onClick={() => setOpen(false)}
                 className="flex min-h-[46px] items-center rounded-xl px-3 text-[15.5px] font-semibold text-neutral-800 active:bg-neutral-50"
               >
@@ -92,6 +94,7 @@ export default function Navbar() {
             ))}
             <Link
               href="/login"
+              prefetch={false}
               onClick={() => setOpen(false)}
               className="btn-primary mt-2"
             >

@@ -154,7 +154,7 @@ export default function Hero() {
           </p>
 
           <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:items-center">
-            <Link href="/pin-generator" className="btn-primary w-full sm:w-auto">
+            <Link href="/pin-generator" prefetch={false} className="btn-primary w-full sm:w-auto">
               Generate Viral Pin <ArrowRight size={18} />
             </Link>
             <a href="#how-it-works" className="btn-outline w-full sm:w-auto">

@@ -92,11 +92,12 @@ export default function IncomeFormula() {
         </div>
 
         <div className="relative mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
-          <Link href="/pin-generator" className="btn-primary w-full sm:w-auto">
+          <Link href="/pin-generator" prefetch={false} className="btn-primary w-full sm:w-auto">
             Start creating free <ArrowRight size={18} />
           </Link>
           <Link
             href="/dashboard"
+            prefetch={false}
             className="btn w-full border-2 border-white/20 bg-transparent text-white hover:bg-white/10 sm:w-auto"
           >
             View dashboard
