@@ -10,14 +10,16 @@ PinCraft's existing AI text/artwork generation and private Library are retained.
 
 The guide includes the exact Google callback, GitHub Secrets/Variables ↔ website environment mapping, reconnect/retry/inspection procedures, free-tier limitations and reproducible local tests. `.env.example` contains names/placeholders only.
 
-**Final local validation:** 49/49 reviewed backend + 31/31 production-build API/browser checks; 211/211 existing regression checks; production build passed. [Evidence and live-activation boundary](docs/reviewed-publishing-validation.md). All provider receipts are synthetic.
+**Publishing entry fix:** `/publish` accepts an existing complete article or an owner-scoped Cloud Library draft without regenerating it. Connector and Library link directly to review. A sole ready owned destination is selected automatically; an explicit checklist explains every disabled publish button. Bengali/combining-mark hashtags are supported with the same strict client/server rules. See [the fix and validation boundary](docs/publishing-entry-fix.bn.md).
 
-This replacement has **not** installed production publishing credentials, enabled the new scheduler, performed genuine owner Blogger consent, pushed/deployed this worktree or published a real article. Local emulator/mocked-provider tests and a production build do not prove live provider access. Do not redispatch the historical legacy verification as a test of this new runner.
+**Production activation already recorded:** the canonical website, real owner Blogger consent and verified website are configured. The reviewed Actions gate is enabled; [actual run 43581615296](https://github.com/gmrony135/PinCraft/actions/runs/43581615296) succeeded with zero due jobs and a matching production heartbeat. The legacy workflow remains disabled. This proves runner execution, **not** a published article or per-owner Google refresh. No production publishing job existed at the entry-fix preflight. An actual reviewed article must still be submitted and verified LIVE/public; connecting or saving alone is not publication.
+
+**Historical local validation:** 49/49 backend, 31/31 API/browser and 211/211 existing regression checks predate this fix. [Historical evidence](docs/reviewed-publishing-validation.md) uses explicit synthetic provider replies, not real publication receipts. Do not redispatch the legacy or activation workflow as a substitute for inspecting a real job.
 
 ## Publishing contract
 
 1. A currently verified PinCraft user separately connects Blogger with Google offline OAuth, browser/state binding and PKCE, then verifies their administrator blog.
-2. Article Writer reviews one specific HTML article, Pin title/description/hashtags, image reference/download and UTC schedule. Review is unchecked initially and invalidated by edits. Generation/Library saves alone never queue a job.
+2. Publish article (or the retained Article Writer/Library reader) reviews one specific HTML article, Pin title/description/hashtags, image reference/download and UTC schedule. Review is unchecked initially and invalidated by edits. Generation/Library saves alone never queue a job.
 3. The server creates an owner-scoped, idempotent Firestore job. It inserts a **draft**, saves the real post ID, then publishes/schedules **that same ID** with `posts.publish` and optional `publishDate`.
 4. `SCHEDULED` is not `LIVE`. Only a due `LIVE` admin result plus a separate unauthenticated matching public page releases its URL into the dependent **manual Pin task**.
 5. Jobs supplies copy controls and a local ZIP export. Optionally attach downloaded artwork for a browser-only PNG+copy ZIP; image bytes never enter Firestore/publishing APIs. Existing public image hosting is optional and unchanged.
@@ -58,7 +60,8 @@ Official scheduling/free-tier references and limits are linked in the Bengali se
 | Route | Purpose |
 | --- | --- |
 | `/pin-generator`, `/article-writer`, `/content-studio` | Existing generation/edit/download tools; Article Writer adds reviewed publishing |
-| `/connector` | Blogger consent, owned website verification, reconnect/disconnect; Pinterest manual instructions |
+| `/connector` | Blogger consent, owned website verification, direct per-site Publish article link, reconnect/disconnect; Pinterest manual instructions |
+| `/publish` | Paste a complete existing article or load an owner-scoped saved article; explicit HTML/Pin/artwork review and visible readiness blockers |
 | `/jobs` | Actual reviewed Blogger checkpoints/results and separate manual Pin packs |
 | `/dashboard`, `/automation` | Current publishing overview/setup in default manual-Pinterest mode |
 | `/library` | Private owner cloud drafts; guests' device-only saves remain device-only |
@@ -86,6 +89,7 @@ npm run firebase:emulators  # separate terminal
 # In a second terminal:
 set -a; . .cache/firebase-test.env; set +a
 PINCRAFT_PUBLISHING_MODE=blogger_manual_pin npm run test:publishing
+npm run test:publishing:entry  # pure review-entry/Unicode regressions; no cloud calls
 
 # Stop server/emulators before building on small-memory machines.
 NODE_OPTIONS='--max-old-space-size=768' npm run build

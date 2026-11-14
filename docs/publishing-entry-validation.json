@@ -1,0 +1,39 @@
+{
+  "kind": "publishing-entry-fix-local-validation",
+  "scope": "Explicit isolated local fixtures only; no production post/consent/secrets/billing mutation. Current live acceptance is recorded separately.",
+  "selectedMode": "blogger_manual_pin",
+  "pureEntry": {
+    "passed": 12,
+    "total": 12
+  },
+  "backend": {
+    "passed": 50,
+    "total": 50
+  },
+  "productionBuildAPIAndChromium": {
+    "passed": 37,
+    "total": 37
+  },
+  "retainedWorkspaceCapacityBilling": {
+    "passed": 55,
+    "total": 55
+  },
+  "managedAuthentication": {
+    "passed": 39,
+    "total": 39
+  },
+  "productionBuildPassed": true,
+  "allChecksPassed": true,
+  "newProductionPostCreated": false,
+  "workflowRedispatched": false,
+  "actualOwnerSubmissionFailureCauseProven": false,
+  "reproducedBug": "Valid combining-mark Bengali/Indic hashtags were rejected by the previous letters/numbers-only regex.",
+  "fixes": [
+    "Direct /publish entry with existing pasted or owner-scoped saved content; no regeneration",
+    "Owned-destination default selection and stale/reconnected verification guard",
+    "Specific visible blockers before create/publish",
+    "Shared strict client/server HTML and Unicode hashtag validation",
+    "Actual immutable Job ID displayed after save"
+  ],
+  "historicalValidation": "reviewed-publishing-validation.json"
+}

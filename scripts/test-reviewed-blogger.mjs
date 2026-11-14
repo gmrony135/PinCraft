@@ -97,7 +97,18 @@ check('UTC ordering and IANA/DST validation reject reversed targets and ambiguou
 check('Pin copy preserves plain description newlines while invalid UTC calendar dates fail closed', () => {
   const raw=reviewedRequest();raw.pin.description='A short reviewed description.\nWith a second plain-text line.';
   assert.equal(reviewedInput(raw).pin.description,raw.pin.description);
+  raw.pin.hashtags=['#বাংলা','#রেসিপি','#cafe\u0301'];assert.deepEqual(reviewedInput(raw).pin.hashtags,raw.pin.hashtags);
+  for(const tag of ['#\u09be','#not-valid','#hello\u200bworld'])assert.throws(()=>reviewedInput({...raw,pin:{...raw.pin,hashtags:[tag]}}));
   assert.throws(()=>reviewedInput({...raw,blogPublishAtUTC:'2027-02-31T12:00:00Z',pinReadyAtUTC:'2027-03-04T12:00:00Z'},Date.parse('2027-02-01T00:00:00Z')));
+});
+check('Status exposes disconnected/stale site readiness without returning provider grants', async () => {
+  const f = await reviewedFixture();
+  let status = await publishingStatus(db, f.uid);
+  assert.equal(status.websites[0].connected, true); assert.equal(status.websites[0].authorizationChanged, false);
+  await connectionRef(db, f.uid, 'blogger').update({ revision: randomUUID() });
+  status = await publishingStatus(db, f.uid);
+  assert.equal(status.websites[0].connected, true); assert.equal(status.websites[0].authorizationChanged, true);
+  assert(!JSON.stringify(status).includes('encrypted_tokens')); assert(!JSON.stringify(status).includes('refreshToken'));
 });
 check('Creation is owner-scoped, idempotent and does not call any publishing provider', async () => {
   const f = await reviewedFixture(), raw = reviewedRequest(); const first = await createPublishingJob(db, f.uid, raw), again = await createPublishingJob(db, f.uid, raw);

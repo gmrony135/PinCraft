@@ -2,6 +2,10 @@
 
 Current flow is `blogger_manual_pin`. See [owner setup, বাংলা](blogger-manual-pinterest-setup.bn.md) for secrets, callback and activation. Old Worker bridge endpoints/Pinterest API contracts are not this API.
 
+## Browser entrypoints
+
+`/publish` loads only the current session owner’s existing Cloud Library article drafts, or accepts pasted complete text. It formats/escapes plain text and simple Markdown locally; opening review never creates a job. `/connector` links each ready owned site to this screen. The `website` and `draft` URL parameters are hints, not authorization; the session-scoped status/Library response must resolve them. A sole ready destination may be preselected, but artwork and final publication consent remain unchecked. Client/server share strict article HTML/plain-copy/hashtag validation; Unicode combining marks inside letter/number-started hashtags support normal Bengali/Indic spelling without permitting markup, format controls or a mark-only tag. The saved receipt displays its immutable Job ID.
+
 ## Authentication and input boundary
 
 All `/api/publish/*` routes require a currently valid managed-user PinCraft session. Mutation routes additionally require a same-origin JSON request; body limit is 145,000 bytes. No UID, provider token, session, transport adapter, remote result URL, raw image bytes or already-published flag can be supplied by the client.

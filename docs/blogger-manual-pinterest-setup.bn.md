@@ -5,7 +5,7 @@
 আপনার নির্বাচিত পথ: **Blogger automatic → Pinterest manual/native scheduler**। আগের AI লেখা, ছবি, হ্যাশট্যাগ তৈরি এবং private Library বজায় আছে। নতুন VPS, Firebase Blaze, Firebase Functions, Cloud Scheduler, Cloudflare Worker বা পেইড image-storage service লাগানো হয়নি। বর্তমান ওয়েবসাইট `https://pincraftly.vercel.app`-এই থাকবে।
 
 ```text
-Article Writer-এ নির্দিষ্ট লেখা/Pin copy/artwork review ও অনুমোদন
+Publish article / Article Writer-এ নির্দিষ্ট লেখা/Pin copy/artwork review ও অনুমোদন
        ↓
 Owner-scoped Firestore job + idempotent requestId
        ↓
@@ -24,9 +24,9 @@ Jobs-এ manual Pin pack: title / description / hashtags / artwork reference / r
 
 **এটি Pinterest অটো-পোস্টার নয়।** কোনো Pinterest API, headless login/click, session-cookie সংগ্রহ বা কৃত্রিম Pin receipt নেই। Pin-এর public visibility, reach বা প্রথম দিনেই দেখা যাওয়ার নিশ্চয়তা নেই।
 
-> স্থানীয় পরীক্ষা ও production build আলাদা evidence। এই পরিবর্তনের জন্য production secrets ইনস্টল, GitHub cron চালু, আসল Google consent বা আসল Blogger পোস্ট করা হয়নি। নিচের owner-side setup ও সচেতন activation এখনও প্রয়োজন।
+> Production activation update: canonical website, আসল Blogger consent ও verified site নিশ্চিত হয়েছে। Reviewed Actions gate চালু; actual run `43581615296` সফল এবং production heartbeat মিলে গেছে। তবে তখন queue খালি ছিল—এটি real article publication বা owner-token refresh-এর প্রমাণ নয়। Entry-fix preflight-এও publishing job ছিল ০টি। নিচের setup নতুন installation-এর reference; বর্তমান owner-কে অকারণে consent/secret setup পুনরায় করতে হবে না। [সরাসরি publishing fix](publishing-entry-fix.bn.md)।
 
-**Final local validation:** backend **৪৯/৪৯**, production-build API/Chromium **৩১/৩১**, existing regression **২১১/২১১** এবং build পাস। [পরীক্ষার বিবরণ ও live-activation সীমা](reviewed-publishing-validation.md)। Provider receipts সব synthetic—real publishing acceptance নয়।
+**Historical local validation (entry fix-এর আগে):** backend **৪৯/৪৯**, production-build API/Chromium **৩১/৩১**, existing regression **২১১/২১১** এবং build পাস। [পরীক্ষার বিবরণ ও live-activation সীমা](reviewed-publishing-validation.md)। Provider receipts সব synthetic—real publishing acceptance নয়।
 
 ## ১. মূল কোড ও workflow
 
@@ -164,9 +164,17 @@ Workflow-তে:
 
 ## ৭. প্রতিটি article ও manual Pin কীভাবে ব্যবহার করবেন
 
-### Article Writer
+### সরাসরি Publish article — generate আবার করতে হবে না
 
-1. আগের মতো লেখা generate/open করুন।
+1. `https://pincraftly.vercel.app/publish` খুলুন, অথবা Connector-এর verified website-এর **Publish article** চাপুন। Website connect করলেই কোনো লেখা queue হয় না।
+2. নিজের আসল title ও সম্পূর্ণ article paste করুন এবং **Review this article** চাপুন। চাইলে **Saved Cloud Library** থেকে নিজের saved article খুলুন; Library-তেও **Review & publish** আছে। অন্য owner-এর draft URL দিয়ে খোলা যায় না।
+3. একটিমাত্র connected/ready owned blog থাকলে সেটি আগে থেকে নির্বাচিত থাকবে। একাধিক blog হলে নিজে বেছে নিন। Reconnect-এর পরে stale verification হলে re-verify করতে হবে।
+4. নিচের review সম্পূর্ণ করুন। Publish disabled থাকলে checklist-এ ঠিক কোন field/checkbox/HTML/Pin copy/artwork বাকি আছে দেখাবে—কোনো নীরব submission ধরে নেওয়া হবে না। বাংলা hashtag-এর স্বরচিহ্ন বৈধ; `#বাংলা`, `#রেসিপি` সমর্থিত।
+5. সেভ হলে **Job ID** দেখাবে। সেটি নিয়ে Jobs-এ actual checkpoint/error দেখুন; connection সফল হওয়াকে article প্রকাশ বলা হবে না।
+
+### Article Writer / Library reader-এর review
+
+1. আগের মতো লেখা generate/open করুন, অথবা নিজের saved article reader খুলুন।
 2. **Publish to Blogger · prepare your Pin** খুলুন।
 3. connected Blogger account এবং verified blog বেছে নিন।
 4. HTML preview, article title, Pin title/description/hashtags review করুন। পরিবর্তন করলে review checkbox আবার uncheck হয়।
@@ -246,6 +254,7 @@ JAVA_TOOL_OPTIONS='-Xms64m -Xmx256m -XX:ActiveProcessorCount=2' \
 set -a; . .cache/firebase-test.env; set +a
 export PINCRAFT_PUBLISHING_MODE=blogger_manual_pin
 npm run test:publishing
+npm run test:publishing:entry
 ```
 
 Build আগে emulators stop করলে কম মেমরি লাগে:
