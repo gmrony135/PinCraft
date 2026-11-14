@@ -6,7 +6,10 @@
 
 - আলাদা URL: Home, Pin Generator, Article Writer, **Content Studio**, Connector, Automation, Dashboard, My Library ও Subscription।
 - Email/Password signup/login/verification/reset এবং Google—শুধু Google দিয়ে প্রতিস্থাপন নয়। স্থানীয় real Firebase SDK/emulator-এ account flow পরীক্ষা করা হয়েছে। Read-only production config-এ Email/Password/Google enabled, signup allowed এবং `pincraftly.vercel.app` authorized পাওয়া গেছে; **এটি বাস্তব inbox delivery বা আপনার production login-এর প্রমাণ নয়**।
-- আগের ১৬টি Production variable অক্ষত। GitHub workload scheduler-এর ৩টি non-secret Production setting connected Vercel দিয়ে যোগ করা হয়েছে। নতুন deployment ছাড়া নতুন env চালু হয় না।
+- আগের ১৬টি Production variable অক্ষত। GitHub workload scheduler-এর ৩টি non-secret Production setting connected Vercel দিয়ে যোগ করে নতুন **READY/PROMOTED production deployment-এ চালু করা হয়েছে**। এগুলি আবার বসাতে হবে না।
+- Live সাইট **https://pincraftly.vercel.app**। নতুন application source `1c7af7d`; **৩৪২/৩৪২ local** এবং **২১/২১ public production** পরীক্ষা পাস করেছে। Local full-pipeline পরীক্ষায় external OAuth/AI/publication/wallet response স্পষ্ট test double—প্রকৃত public post নয়।
+- [বাস্তব GitHub OIDC worker run](https://github.com/gmrony135/PinCraft/actions/runs/43561574146) সফল; Production database-এ একই execution ID ও `ok` finished heartbeat স্বাধীনভাবে পড়া হয়েছে। পরীক্ষার আগে কোনো enabled schedule/connected Pinterest authorization ছিল না; বাস্তব post হয়নি। এটি manual workload dispatch-এর প্রমাণ, ভবিষ্যৎ cron exact সময়ে চলার গ্যারান্টি নয়।
+- Live Email/Password form-এর বাস্তব Firebase SDK-তে reserved `.invalid` address দিয়ে একটি প্রত্যাশিত ব্যর্থ-login পরীক্ষা হয়েছে: সঠিক credential error, কোনো fake session বা PinCraft-এ password storage নয়। এটি সফল ব্যক্তিগত signup/login বা inbox delivery-এর বিকল্প নয়।
 - অনুমোদিত index setup আগেই READY; আবার deploy করা হয়নি। Production Firestore Rules read-only পরীক্ষা করা হয়েছে; পরিবর্তন করা হয়নি।
 - সর্বোচ্চ ৬ Pin/account/day-এর global server cap; uncertain request, concurrent worker, reconnect ও legacy setting দিয়েও cap বাড়ানো যায় না।
 - সাইটের `/privacy` ও `/terms` public policy পেজ; প্রকৃত মালিক/ব্যবসার তথ্য এবং প্রয়োজনীয় আইনগত policy নিজে যাচাই করে নিন। Google/Pinterest এই policy গ্রহণ করেছে বলে দাবি করা হচ্ছে না।
@@ -79,7 +82,7 @@ Project: **`pincraft-ly`**; নতুন paid project বা billing upgrade দ
 
 ## ৫. Scheduler: paid Firebase upgrade নয়
 
-Repository public থাকলে `.github/workflows/pincraft-automation.yml` public-hosted Actions থেকে স্বল্পমেয়াদি signed OIDC identity দিয়ে existing Vercel worker-এ best-effort ৩০ মিনিট পরপর call করে। Browser বন্ধ থাকলেও এটি আলাদা server কাজ। কোনো long-lived GitHub/provider secret লাগে না। Repository private করলে free allowance/permissions নতুন করে যাচাই না করে চালু করবেন না। Native Firebase Functions/Scheduler deploy করা হয়নি।
+Repository-তে `.github/workflows/pincraft-automation.yml` **active**, Production-এর scheduler settings-ও deployed। একটি বাস্তব manual OIDC delivery এবং matched database heartbeat যাচাই হয়েছে; natural cron-triggered delivery এখনো আলাদাভাবে পর্যবেক্ষণ করা হয়নি। Repository public থাকলে public-hosted Actions থেকে স্বল্পমেয়াদি signed OIDC identity দিয়ে existing Vercel worker-এ best-effort ৩০ মিনিট পরপর call হয়। Browser বন্ধ থাকলেও এটি আলাদা server কাজ। কোনো long-lived GitHub/provider secret লাগে না। Repository private করলে free allowance/permissions নতুন করে যাচাই না করে চালু করবেন না। Native Firebase Functions/Scheduler deploy করা হয়নি।
 
 ## ৬. Billing reviewer পরে
 

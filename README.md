@@ -23,7 +23,7 @@ Old `/ai-studio` and income links permanently redirect. Simulated publications, 
 
 ## Setup and operational boundaries
 
-- The existing **16 Vercel Production variables** (including Admin, session/vault and generation configuration) are preserved. The three additional non-secret GitHub workload-scheduler settings were installed through the connected Vercel account. New environment settings take effect only in a new deployment.
+- The existing **16 Vercel Production variables** (including Admin, session/vault and generation configuration) are preserved. The three additional non-secret GitHub workload-scheduler settings were installed through the connected Vercel account and are active in the released Production deployment.
 - The authorized index-only deployment is complete: **10 composite indexes + 10 field overrides READY**, TTL policy preserved. Do not redeploy/delete indexes or change Rules/IAM as a routine code release.
 - Read-only production checks confirmed Email/Password is enabled, signup is not disabled, the canonical domain is authorized, Google sign-in has a configured client, and the deployed Firestore rules contain a deny-all browser-access rule. These configuration reads are **not a genuine production signup, email-delivery or login round trip**.
 - **Pinterest/Blogger OAuth app credentials remain owner-portal prerequisites.** Vercel access does not grant access to those developer consoles or consent on behalf of a user. No fake client ID, grant or connected state is installed.
@@ -91,6 +91,10 @@ npm run test:workspace:ui
 
 The fixture website must never be exposed as the production service or deployed with test flags. `scripts/ai-http-fixtures.mjs` and `scripts/automation-http-fixtures.mjs` require the explicit `demo-pincraft-local` project and loopback emulators and cannot be activated by HTTP input. The new workspace suite exercises real APIs, Chromium, consent switches, owner isolation, billing administration, auth-transition guards, responsive layouts and a complete Node22 worker run with Chromium closed. External responses and wallet receipts are explicitly synthetic.
 
-A release verification report records current results. Older `docs/*verification.json` files are historical evidence for their named revisions, not proof of the redesigned flows. SQL-era material is archived under `docs/legacy-postgresql/`; there is no automatic migration of provider grants or old identities.
+Current released application source: **`1c7af7d65d7ca49ed3271f204f1f9fcd1056a013`**, deployed READY/PROMOTED to **https://pincraftly.vercel.app** on Node24. Local suites passed **342/342**, public production browser/API smoke **21/21**, and both dependency audits reported zero vulnerabilities. These are different evidence classes, not 363 genuine external operations.
+
+The actual [GitHub manual OIDC delivery](https://github.com/gmrony135/PinCraft/actions/runs/43561574146) succeeded; an independent Production Firestore read matched its exact `github:43561574146:1` execution ID and finished `ok`. Preflight confirmed zero enabled schedules/connected Pinterest authorizations; no external post was attempted. The workflow schedule is active; this manual delivery does **not** prove that a future cron run will execute at an exact time. A separate real production Firebase SDK negative-login probe produced the expected credential error and no session; genuine owner signup, inbox delivery and successful login remain unverified.
+
+The [release verification report](docs/automation-first-verification.json) records these results and boundaries. Older `docs/*verification.json` files are historical evidence for their named revisions, not proof of the redesigned flows. SQL-era material is archived under `docs/legacy-postgresql/`; there is no automatic migration of provider grants or old identities.
 
 Private attachments, `.env*` except `.env.example`, caches and test artifacts are ignored. Never commit/bundle an Admin credential or user upload. The post-commit auto-push hook is preserved; stage release files explicitly, not with an indiscriminate `git add -A`.

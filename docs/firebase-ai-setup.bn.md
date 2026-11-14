@@ -4,7 +4,7 @@
 
 ## কী প্রস্তুত, আর কী বাকি
 
-**বর্তমান অবস্থা:** আগের ১৬টি Production variable/Admin setup অক্ষত; no-paid-upgrade GitHub scheduler-এর ৩টি non-secret setting connected Vercel দিয়ে যোগ হয়েছে। Owner-এর সর্বশেষ manual signup/login সমস্যার জন্য আলাদা account পেজ, nonce refresh এবং verification-delivery outcome handling আপডেট ও local real Firebase SDK-তে পরীক্ষা করা হয়েছে। Read-only production config-এ Email/Password/Google enabled, signup allowed এবং canonical domain authorized; এটি genuine production login/email delivery-এর প্রমাণ নয়। অনুমোদিত index-only deployment-এর ১০ composite + ১০ field override READY—আবার deploy/import নয়। Pinterest/Blogger developer-app credentials ও owner consent এখনো প্রয়োজন।
+**বর্তমান অবস্থা:** আগের ১৬টি Production variable/Admin setup অক্ষত; no-paid-upgrade GitHub scheduler-এর ৩টি non-secret setting connected Vercel দিয়ে যোগ করে নতুন production deployment-এ চালু করা হয়েছে। Owner-এর সর্বশেষ manual signup/login সমস্যার জন্য আলাদা account পেজ, nonce refresh এবং verification-delivery outcome handling আপডেট ও local real Firebase SDK-তে পরীক্ষা করা হয়েছে। Read-only production config-এ Email/Password/Google enabled, signup allowed এবং canonical domain authorized; এটি genuine production login/email delivery-এর প্রমাণ নয়। অনুমোদিত index-only deployment-এর ১০ composite + ১০ field override READY—আবার deploy/import নয়। Pinterest/Blogger developer-app credentials ও owner consent এখনো প্রয়োজন।
 
 **User-facing privacy:** সাইটে AI provider/model/API settings দেখানো হয় না; public status, result, settings, পুরোনো logs ও Library receipts-এও implementation identity বাদ দেওয়া হয়েছে। ব্যবহারকারী শুধু PinCraft AI এবং AI-generated disclosure দেখেন। এই owner-only প্রযুক্তিগত গাইডে backend-এর বিস্তারিত রয়েছে।
 
@@ -113,7 +113,7 @@ Private text results স্বল্পমেয়াদি idempotency receipt �
 
 ## Primary scheduler এবং undeployed native বিকল্প
 
-Primary workflow `.github/workflows/pincraft-automation.yml` public repository থেকে best-effort ৩০ মিনিট অন্তর signed OIDC দিয়ে existing Vercel worker-এ call করে। Declared configuration এবং actual healthy heartbeat আলাদা; genuine provider consent/publication-ও আলাদাভাবে যাচাই করতে হবে। Native Functions/Scheduler code শুধু বিকল্প হিসেবে আছে, deploy করা হয়নি। Billing upgrade চাইলে নতুন অনুমতি ছাড়া এগোবেন না।
+Primary workflow `.github/workflows/pincraft-automation.yml` active এবং public repository থেকে best-effort ৩০ মিনিট অন্তর signed OIDC দিয়ে existing Vercel worker-এ call করে। [বাস্তব manual workflow delivery](https://github.com/gmrony135/PinCraft/actions/runs/43561574146) সফল এবং Production database-এর finished `ok` heartbeat-এর execution ID স্বাধীনভাবে মেলানো হয়েছে। Natural cron-triggered delivery এই checkpoint-এ পর্যবেক্ষিত হয়নি; exact সময়ের গ্যারান্টি নয়। Declared configuration এবং actual healthy heartbeat আলাদা; genuine provider consent/publication-ও আলাদাভাবে যাচাই করতে হবে। Native Functions/Scheduler code শুধু বিকল্প হিসেবে আছে, deploy করা হয়নি। Billing upgrade চাইলে নতুন অনুমতি ছাড়া এগোবেন না।
 
 পরবর্তীতে অনুমোদিত deploy-এ native worker-এর Secret Manager bindings পাঁচটি:
 

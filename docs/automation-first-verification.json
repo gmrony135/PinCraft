@@ -72,7 +72,10 @@
     "releaseCredentialScan": {
       "existingChangedOrNewFiles": 89,
       "suppliedPrivateValueMatches": 0,
-      "uploadsAndPrivateEnvExcluded": true
+      "uploadsAndPrivateEnvExcluded": true,
+      "trackedExistingFiles": 229,
+      "trackedSuppliedPrivateValueMatches": 0,
+      "gitCredentialAlsoCheckedInMemory": true
     }
   },
   "remoteSetup": {
@@ -109,7 +112,119 @@
     "Local Firebase Auth/Firestore and browser tests use a demo project, synthetic identities and explicit external OAuth/AI/publishing/image-fetch/wallet doubles.",
     "Full Node22 article-and-Pin pipeline completes locally with Chromium closed; this is not a live provider publication or deployed timer.",
     "Configuration reads are not genuine production signup, email delivery, owner sign-in or provider consent.",
-    "A real scheduled OIDC delivery and the new deployment public smoke are release follow-up checks and are not preclaimed here.",
+    "The 21 public production checks, one expected failed production SDK login and the actual manual OIDC/Firestore heartbeat are separate from successful owner authentication, email delivery, natural cron-triggered delivery and external publication.",
     "No real wallet transfer, production payment reference/approval, external test post, new paid plan, Rules/IAM/index redeployment or native Cloud Scheduler activation."
-  ]
+  ],
+  "applicationSourceRevision": "1c7af7d65d7ca49ed3271f204f1f9fcd1056a013",
+  "deployment": {
+    "id": "dpl_EFJyeKjTNN9HVHgMt5FQnmkvH9Kx",
+    "state": "READY",
+    "readySubstate": "PROMOTED",
+    "canonicalUrl": "https://pincraftly.vercel.app",
+    "immutableUrl": "https://pincraft-mvkmtf1qu-gmrony135-9877s-projects.vercel.app",
+    "runtime": "24.22.3",
+    "environment": "production",
+    "plan": "hobby",
+    "threeSchedulerVariablesActive": true
+  },
+  "publicProductionSmoke": {
+    "sourceRevision": "1c7af7d65d7ca49ed3271f204f1f9fcd1056a013",
+    "checkedAt": "2026-11-14T05:25:37.709Z",
+    "passed": 21,
+    "total": 21,
+    "browserErrors": [],
+    "limitations": [
+      "No real production sign-in, account creation, email, provider consent, inference, payment, cloud content save or external publication.",
+      "Configured flags do not establish a healthy scheduled invocation. OIDC heartbeat is verified independently.",
+      "Local authenticated Firebase SDK / private Library / scheduled pipeline / payment review checks use guarded emulators and explicit HTTP/wallet doubles.",
+      "No paid upgrade, Rules/IAM/index redeployment or native Functions/Cloud Scheduler provisioning."
+    ],
+    "source": "scripts/check-production-workspace.mjs",
+    "resultNames": [
+      "The deployed server uses Node24 with ready bootstrap and configured account access",
+      "Production retains Email/Password and Google, secure nonce and no private server credential fields",
+      "All seventeen distinct public routes return 200 with no supplied secrets or AI integration branding",
+      "Retired Studio/income URLs permanently redirect to their distinct replacements",
+      "Every loaded product script excludes private credentials and AI service/model identities",
+      "Public AI capability status is neutral and exposes no implementation keys/models",
+      "Guest workspace contains no other user data or fabricated accounts, jobs, activity or metrics",
+      "The confirmed 99 BDT/30-day/total-two-and-two plan is visible while payment collection remains closed",
+      "Private Library, AI usage, subscription and billing administration reject guests",
+      "Guest/foreign-origin requests cannot start inference, publishing consent, payment submission or workspace mutation",
+      "Missing/forged workload identity cannot run the production background worker",
+      "Email sign-in, separate registration, password reset and Google controls are enabled without opening a real consent flow",
+      "Content Studio exposes artwork, SEO, plan and review tools without personal API/service settings",
+      "Dashboard is monitoring only; Connector and Automation do not duplicate the manual content tools",
+      "The public subscription page shows confirmed terms but no payment instructions, receiving number or reference form",
+      "Guest Pin → device save → Article → device draft flow works without simulated publication",
+      "All seventeen public pages fit a 320px viewport",
+      "All seventeen public pages fit a 390px viewport",
+      "All seventeen public pages fit a 768px viewport",
+      "The mobile registration page has readable usable Email/Password/Google controls",
+      "Production browser checks have no uncaught JavaScript or unexpected console errors"
+    ],
+    "evidence": ".shots/automation-first-production-smoke.json"
+  },
+  "productionWorker": {
+    "workflowPublishedAndActive": true,
+    "schedulerExpression": "7,37 * * * *",
+    "githubActionsEnabled": true,
+    "manualOidcDeliveryVerified": true,
+    "naturalCronDeliveryObserved": false,
+    "run": {
+      "id": 43561574146,
+      "run_attempt": 1,
+      "event": "workflow_dispatch",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "1c7af7d65d7ca49ed3271f204f1f9fcd1056a013",
+      "html_url": "https://github.com/gmrony135/PinCraft/actions/runs/43561574146",
+      "created_at": "2026-11-14T05:26:56Z",
+      "updated_at": "2026-11-14T05:27:13Z"
+    },
+    "independentHeartbeat": {
+      "exists": true,
+      "status": "ok",
+      "executionId": "github:43561574146:1",
+      "lastStartedAt": "2026-11-14T05:27:10.611Z",
+      "lastFinishedAt": "2026-11-14T05:27:11.265Z"
+    },
+    "preflight": {
+      "enabledAutomationAccounts": 0,
+      "connectedPinterestAuthorizations": 0,
+      "projectedConnectionRows": 0,
+      "priorHeartbeat": {
+        "exists": false
+      },
+      "mode": "Read-only aggregate count, bounded provider/status projection and operational heartbeat; no owner profiles, tokens or content read. No index mutation."
+    },
+    "externalPublicationAttempted": false,
+    "evidence": ".shots/automation-first-production-worker-oidc.json",
+    "limitations": [
+      "This is an actual production GitHub workflow_dispatch/OIDC/HTTPS/Firestore heartbeat, not an emulator or forged token.",
+      "No active schedule or Pinterest authorization existed in the guarded aggregate preflight; no real external post was attempted.",
+      "A manual workload dispatch proves the delivery path, not that a future cron delivery will occur at an exact time. GitHub scheduling remains best effort.",
+      "This is not a genuine production signup, inbox/email delivery, owner sign-in, provider consent, AI inference or payment receipt."
+    ]
+  },
+  "productionEmailNegativePath": {
+    "passed": true,
+    "sourceRevision": "1c7af7d65d7ca49ed3271f204f1f9fcd1056a013",
+    "mode": "One expected failed Email/Password production SDK sign-in using a unique reserved .invalid address; no account creation, email, successful login, token exchange or content write.",
+    "result": {
+      "realFirebaseSdkRequests": 1,
+      "productionCredentialRejection": "INVALID_LOGIN_CREDENTIALS",
+      "status": 400,
+      "expectedReadableErrorShown": true,
+      "controlsRecoverAfterFailure": true,
+      "appSessionCreated": false,
+      "passwordOrEmailInPinCraftBodiesOrLocalStorage": false,
+      "runtimeErrors": 0
+    },
+    "evidence": ".shots/automation-first-production-email-negative.json",
+    "limitations": [
+      "A genuine live negative-path SDK check, not a mock, but not a successful registration/login or inbox delivery.",
+      "Reserved address and random non-account password are not saved, logged, included in screenshots or sent to PinCraft APIs."
+    ]
+  }
 }
