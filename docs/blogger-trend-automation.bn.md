@@ -96,15 +96,21 @@ Blogger draft/schedule response-এ কখনো non-public editor/preview URL �
 
 আগে তৈরি job নিজে থেকে approve/migrate হবে না। `/jobs`-এ **Job ID** ও **Blogger post ID** মিলিয়ে সঠিক saved job-এর **Inspect result** খুলুন। Blogger-এ সত্যিকারের post পরীক্ষা করার পরেই inspection checkbox/প্রয়োজনে original-account reconfirmation দিয়ে **Verify existing post** দিন। Marker মিললে একই ID publish checkpoint-এ ফেরে; **Run due step** একই post-এ পরের কাজ করে। এই recovery আরেকটি নতুন submission নয়। পরপর নতুন Publish চেপে duplicate draft বানাবেন না। অন্য saved attempts থামানোও explicit owner inspection-এর সিদ্ধান্ত; app remote post delete করে না।
 
-### Verify existing post-এ 404 এলে
+### Verify existing post-এ 404 এলে: অনুসন্ধান অথবা স্পষ্টভাবে থামিয়ে লেখা উদ্ধার
 
-একই generic error দিয়ে quota শেষ বা post মুছে গেছে ধরে নেওয়া হয় না। Explicit owner inspection এখন প্রথমে original blog-এ Google administrator access যাচাই করে, তারপর exact post ID-র ADMIN read করে। শুধু ওই post lookup-এ 404 হলেই একই ব্লগের সর্বোচ্চ ২৫টি Draft, ২৫টি Scheduled এবং ২৫টি Live post-এ এই job-এর exact marker খোঁজে। সীমিত তালিকায় কিছু না পাওয়া exhaustive deletion proof নয়।
+একই generic error দিয়ে quota শেষ বা post মুছে গেছে ধরে নেওয়া হয় না। `/jobs` → **Inspect result** → **Find existing post — read only** দিয়ে শুরু করুন। পোস্ট খুঁজে পেয়েছেন—এমন checkbox দাবি না করেই এই search করা যায়।
 
-- **একই ID + একই blog + marker** মিললে existing checkpoint উদ্ধার হতে পারে; inspection নিজে draft/publish করে না।
-- **ভিন্ন ID-তে exact marker** মিললে Jobs-এ শুধু candidate দেখাবে। **Use matched existing ID — still requires Verify** কেবল input পূরণ করে এবং inspection checkbox পরিষ্কার করে; নতুন করে প্রকৃত post দেখে confirmation/Verify দিতে হবে। পুরোনো saved ID/attempt/target নিঃশব্দে বদলায় না।
-- Marker না মেলা, একাধিক match, authorization failure বা অসম্পূর্ণ read হলে job blocked-ই থাকে। Original account-এর access মেয়াদোত্তীর্ণ হলে reconnect/re-verify করতে বলে; denial ঘুরিয়ে পাশ কাটায় না।
-- Jobs-এ **Last inspection**-এ same-blog admin HTTP, direct post HTTP এবং checked-post count দেখায়। অন্য post-এর লেখা/title, preview/page token, private URL বা raw provider body save/expose হয় না।
-- Pause/reconnection/recurring authority bypass হয় না। Final ADMIN LIVE + public-page verification-এ এই list fallback ব্যবহার হয় না।
+- Original Google identity এবং একই verified blog-এর administrator access যাচাই হয়। Saved post ID থাকলে আগে তার exact ADMIN read হয়; শুধু post-404 হলেই তালিকা খোঁজা হয়। Lost receipt-এ কোনো ID না থাকলে search শুধু নিজের job marker খোঁজে, ID বানায় না।
+- এবার প্রথম পাতা নয়: Draft, Scheduled ও Live প্রতিটিতে সর্বোচ্চ **১০ পাতা × ২৫ পোস্ট**, মোট সর্বোচ্চ **৭৫০ পোস্ট / ৩০ request**, ৪২-সেকেন্ডের scan deadline। Provider cursor শুধু server memory-তে থাকে। প্রতি status-এর page/post count ও coverage Jobs-এ দেখা যায়।
+- **All returned pages checked** মানে ওই মুহূর্তে API-র ফেরত দেওয়া তালিকা শেষ হয়েছে; **More posts may remain unchecked** মানে সীমা/অসম্পূর্ণতা আছে। কোনোটিই post deletion-এর নিশ্চয়তা নয়। পুরোনো first-page-only ফলকে নতুন complete-search প্রমাণ বানানো হয় না।
+- Search কোনো ID বদলায় না, job resume করে না এবং draft/publish করে না। Marker মেলা ID শুধু candidate। Candidate বেছে নিলে inspection checkbox পরিষ্কার হয়; প্রকৃত পোস্ট দেখে নতুন করে **Verify existing post** দিতে হয়। একাধিক match হলে স্বয়ংক্রিয় নির্বাচন নয়।
+- Generic HTTP 403 দেখেই reconnect বা quota-failure দাবি নয়; 401/প্রকৃত OAuth reconnect error হলে original account reconnect/re-verify করতে বলে। অন্য post-এর লেখা/title/ID, preview/page token, private URL বা raw provider body save/expose হয় না।
+
+**Blogger-এ খুঁজেও না পেলে:** একই ID বারবার Verify নয়। Actual blog দেখে সিদ্ধান্ত নিলে inspection checkbox দিয়ে **Stop this job — keep saved article** চাপুন। এটি শুধু ওই local job বন্ধ করে; remote post delete করে না, পুরোনো ID/attempt মুছে না এবং publication success দাবি করে না।
+
+তারপর ওই row-তে **Review saved article again** পাওয়া যায়। Protected owner-only read থেকে original safe HTML/title/optional featured image ফেরে; নতুন লেখা generate বা নতুন job তৈরি হয় না। পুরোনো schedule/consent বহন করা হয় না—fresh review-এর checkbox খালি থাকে। Search অসম্পূর্ণ হলে সেটিকে absence proof ধরে replacement করা যাবে না। অন্য একই-লেখার unresolved job থাকলে সেটিও পরীক্ষা/স্পষ্টভাবে stop না করা পর্যন্ত নতুন request ID দিয়েও duplicate submission আটকে যায়।
+
+Pause/reconnection/recurring authority bypass হয় না। Final ADMIN LIVE + public-page verification-এ এই list fallback ব্যবহার হয় না। Provider-read-only search-এ OAuth renewal ও safe diagnostic checkpoint-এর local write হতে পারে; এটি database-read-only দাবি নয়।
 
 ## ৭. Free Actions + existing Vercel generator
 

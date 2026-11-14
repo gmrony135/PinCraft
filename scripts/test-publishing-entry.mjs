@@ -80,3 +80,10 @@ test('Opting into a Pin pack restores its strict independent review gates',()=>{
  const check=publishingReadiness({...valid,includePin:true,pinTitle:'',imageReviewed:false,reviewed:false}).filter(row=>!row.ready);
  assert.deepEqual(check.map(row=>row.id),['pin-copy','artwork','review']);
 });
+
+test('A stopped job’s exact reviewed HTML is preserved, not reformatted or replaced with a blank draft',()=>{
+ const recovered={title:'The actual original article',reviewedHTML:'<h2>Original heading</h2>\n<p>The saved owner article keeps its exact <strong>formatting</strong> and original text for a separate fresh review.</p>'};assert.equal(articleToHTML(recovered),recovered.reviewedHTML);
+});
+test('Recovered HTML has the same strict boundary and cannot inject a script or publication marker',()=>{
+ for(const reviewedHTML of [html+'<script>alert(1)</script>',html+'<!-- pincraft-reviewed-job:injected -->',html+'<p class="unsafe">attributes</p>'])assert.throws(()=>articleToHTML({title:'Unsafe recovered content',reviewedHTML}));
+});

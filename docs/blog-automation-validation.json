@@ -2,62 +2,62 @@
   "feature": "Independent Blogger publishing + explicit category-trend recurring generation",
   "scope": "Existing generator reused; optional manual Pins only; no live activation invented",
   "localValidation": {
-    "passed": 336,
-    "total": 336,
+    "passed": 355,
+    "total": 355,
     "suites": [
       {
         "name": "Recurring article orchestration, evidence, consent, limits, retries and OIDC",
         "passed": 45,
         "total": 45,
-        "evidence": ".shots/blogger-404-inspection-automation-tests.log"
+        "evidence": ".shots/blogger-missing-recovery-automation.log"
       },
       {
         "name": "Reviewed Blogger checkpoints / optional Pin contract",
-        "passed": 69,
-        "total": 69,
-        "evidence": ".shots/blogger-404-inspection-publishing-tests.log"
+        "passed": 83,
+        "total": 83,
+        "evidence": ".shots/blogger-missing-recovery-publishing.log"
       },
       {
         "name": "Publishing entry and shared formatting",
-        "passed": 14,
-        "total": 14,
-        "evidence": ".shots/blog-automation-entry-regression.log"
+        "passed": 16,
+        "total": 16,
+        "evidence": ".shots/blogger-missing-recovery-entry.log"
       },
       {
         "name": "Built Next actual owner APIs + Chromium",
-        "passed": 47,
-        "total": 47,
-        "evidence": ".shots/blogger-404-inspection-ui.log"
+        "passed": 50,
+        "total": 50,
+        "evidence": ".shots/blogger-missing-recovery-ui.log"
       },
       {
         "name": "Existing workspace/security/billing/legacy boundaries",
         "passed": 55,
         "total": 55,
-        "evidence": ".shots/blog-automation-regression-workspace.log"
+        "evidence": ".shots/blogger-missing-recovery-workspace.log"
       },
       {
         "name": "Existing Firebase auth",
         "passed": 39,
         "total": 39,
-        "evidence": ".shots/blog-automation-regression-auth.log"
+        "evidence": ".shots/blogger-missing-recovery-auth.log"
       },
       {
         "name": "Existing AI safety/budgets/idempotency",
         "passed": 50,
         "total": 50,
-        "evidence": ".shots/blog-automation-regression-ai.log"
+        "evidence": ".shots/blogger-missing-recovery-ai.log"
       },
       {
         "name": "Public AI privacy contracts",
         "passed": 17,
         "total": 17,
-        "evidence": ".shots/blog-automation-regression-public-ai.log"
+        "evidence": ".shots/blogger-missing-recovery-public-ai.log"
       }
     ],
     "productionBuild": {
       "outcome": "passed",
       "next": "15.5.29",
-      "evidence": ".shots/blogger-404-inspection-build.log"
+      "evidence": ".shots/blogger-missing-recovery-build.log"
     },
     "lint": {
       "outcome": "not_configured",
@@ -71,14 +71,16 @@
       768,
       1440
     ],
-    "browserRuntimeErrors": []
+    "browserRuntimeErrors": [],
+    "allSuitesRerunForThisSource": true,
+    "legacyRegressionBoundary": "The 55-check retained legacy-module workspace suite runs only under explicitly isolated demo legacy_api configuration. Production stays blogger_manual_pin; the current publishing/API suites verify that old Pinterest/API routes cannot publish. An initial run in manual mode correctly blocked legacy operations (33/55); rerun in its intended isolated mode passed 55/55."
   },
   "liveReadOnlyEvidence": {
     "file": ".shots/blog-automation-live-feed-readonly.json",
     "result": "Actual public RSS available and a fresh category-news signal selected. Not a live AI call, measured popularity, verified full-text reporting or post."
   },
   "productionAcceptanceAtSourceRelease": {
-    "deployment": "Previous receipt-hardening release 46f62a07031424582f49b96baed659eec252f1c0 was READY/PROMOTED and passed 17 real anonymous browser + 20 HTTP checks. This subsequent owner-404 inspection follow-up is pending deployment when this source ledger is written.",
+    "deployment": "Previous owner-404 inspection release 9fdd99d72af14909bfa8da512461add85581b708 was READY/PROMOTED. This paginated search plus owner-stop/exact-article recovery follow-up is pending deployment when this source ledger is written.",
     "ownerRecurringSettingsSaved": false,
     "ownerRecurringConsentGiven": false,
     "realArticleGeneratedByNewAutomation": false,
@@ -94,7 +96,7 @@
       "ownerInspectionStillRequired": true,
       "privateJobOrBlogIdentifiersPublishedInSource": false
     },
-    "ownerReportedExistingPostInspection": "Verify existing post returned Blogger HTTP 404; existing jobs remain blocked. No real provider root cause, recovery or publication is invented."
+    "ownerReportedExistingPostInspection": "Owner confirms the post is not visible in Blogger. Actual stored previous-release inspection confirms admin HTTP200, saved post HTTP404, 3 list reads / 25 checked posts and limited coverage. No real deletion, initial-insert root cause, repair, new consent or publication is invented."
   },
   "preservedBoundaries": {
     "perOwnerOAuthEncrypted": true,
@@ -123,27 +125,44 @@
     "newOwnerConsentInvented": false
   },
   "owner404Inspection": {
-    "testsAdded": {
-      "publishing": 12,
-      "recurringAuthority": 1,
+    "testsAddedInThisFollowup": {
+      "publishing": 14,
+      "reviewEntry": 2,
       "actualOwnerAPIAndBrowser": 3
     },
-    "firstAttempt": "67/69 due to missing final owner projection and success diagnostic checkpoint; corrected before release and full rerun 69/69 passed",
-    "scope": "Explicit existing-job inspection only. Verify original same-blog admin access; only a post 404 permits three bounded ADMIN lists (25 posts/status).",
-    "automaticMutation": false,
-    "differentIDIsCandidateOnly": true,
+    "scope": "Owner-only paginated inspection plus explicit stop-to-fresh-review, never a blind replacement",
+    "limits": {
+      "pagesPerStatus": 10,
+      "postsPerPage": 25,
+      "statuses": 3,
+      "maxListReads": 30,
+      "maxPosts": 750,
+      "scanDeadlineSeconds": 42
+    },
+    "cursorStorage": "Memory only, fixed original-blog Google path; no cursor accepted from browser or persisted",
+    "ownerSearchDoesNotAttestOrResume": true,
     "candidateSelectionClearsAttestation": true,
-    "ambiguousMissingIncompleteStayBlocked": true,
-    "neutralDiagnosticCheckpointOnly": true,
-    "unrelatedContentOrTokensPersisted": false,
+    "generic403NotMisclassifiedAsReconnectOrQuota": true,
+    "completeVsLimitedVsIncomplete": true,
+    "oldPartialDiagnosticCannotBecomeComplete": true,
+    "stoppedOriginalHTMLRecoveryOwnerOnly": true,
+    "recoveryReadCreatesNoReplacement": true,
+    "freshReviewConsentRequired": true,
+    "unresolvedExactArticleDuplicateGuard": true,
+    "oldJobIDAttemptsAndContentPreserved": true,
     "strictFinalLiveChanged": false,
-    "newRealInspectionResultRequired": true
+    "newRealOwnerSearchStillRequired": true,
+    "initialLocalEvidenceFailures": {
+      "publishing": "80/81; old sequential failure-count expectation corrected for 3 parallel status streams; final 83/83 passed",
+      "UI": "49/50; synthetic pagination trigger was tied to a fixture post that had moved to SCHEDULED; fixture corrected, final 50/50 passed",
+      "workspace": "33/55 in manual mode; legacy operations correctly denied, intended demo-only legacy-mode rerun 55/55 passed"
+    }
   },
   "additionalOperationalAudits": {
     "positiveSuccessiveReservations": {
       "passed": 11,
       "total": 11,
-      "evidence": ".shots/blogger-404-inspection-positive-lifecycle.log",
+      "evidence": ".shots/blogger-missing-recovery-positive-lifecycle.log",
       "conclusion": "Six successive real-emulator Timestamp-backed reservations generate/schedule/verify distinct synthetic posts on one local day, seventh same-day blocked, next-day exact 24-hour boundary allowed. data() recursively unpacks timestamps; no production policy change needed. Not real AI/Blogger acceptance."
     },
     "TTLPolicyRead": {

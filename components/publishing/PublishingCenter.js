@@ -4,7 +4,7 @@ import {useCallback,useEffect,useRef,useState} from 'react';
 import Link from 'next/link';
 import {useSearchParams} from 'next/navigation';
 import {ArrowRight,BookOpen,CheckCircle2,Clock3,FileText,Loader2,ShieldCheck} from 'lucide-react';
-import {usePublisher} from './usePublisher';
+import {usePublisher,publishRequest} from './usePublisher';
 import PublishComposer from './PublishComposer';
 import {articleToHTML} from '@/lib/publishing/review-content.mjs';
 import {articleHTML} from '@/lib/publishing/article-format.mjs';
@@ -14,9 +14,10 @@ import {WorkspaceFrame,Panel,Feedback,fieldClass,primaryClass,secondaryClass,for
 // Loading a draft, pasting text and opening review NEVER save/publish a job.
 export default function PublishingCenter(){
  const publisher=usePublisher(),{user,data}=publisher,params=useSearchParams();
- const requestedDraft=params.get('draft')||'',preferredWebsiteId=params.get('website')||'';
+ const requestedDraft=params.get('draft')||'',requestedJob=params.get('recoverJob')||'',preferredWebsiteId=params.get('website')||'';
  const owner=useRef(null),sequence=useRef(0);owner.current=user?.id||null;
  const [source,setSource]=useState(requestedDraft?'library':'paste');
+ const [recoveryBusy,setRecoveryBusy]=useState(false),[recoveryError,setRecoveryError]=useState('');
  const [input,setInput]=useState(null),[chosen,setChosen]=useState(null),[prepared,setPrepared]=useState(null),[error,setError]=useState('');
  const [library,setLibrary]=useState(null),[libraryBusy,setLibraryBusy]=useState(false),[libraryError,setLibraryError]=useState('');
  const form=user&&input?.owner===user.id?input:{title:'',body:''};
@@ -37,11 +38,22 @@ export default function PublishingCenter(){
  },[]);
  useEffect(()=>{sequence.current++;setInput(null);setChosen(null);setPrepared(null);setLibrary(null);setError('');setLibraryError('');setLibraryBusy(false);if(!publisher.authLoading&&user)loadLibrary();return()=>{sequence.current++;};},[publisher.authLoading,user?.id,loadLibrary]);
  useEffect(()=>{
+  const uid=user?.id,controller=new AbortController();setRecoveryError('');setRecoveryBusy(false);
+  if(!requestedJob||publisher.authLoading||!uid)return()=>controller.abort();
+  setPrepared(null);setRecoveryBusy(true);
+  publishRequest(`jobs/${encodeURIComponent(requestedJob)}/article`,{signal:controller.signal}).then(result=>{
+   if(controller.signal.aborted||owner.current!==uid)return;
+   if(result.accountId!==uid||result.sourceJobId!==requestedJob||result.sourceStatus!=='cancelled')throw new Error('The stopped article could not be confirmed in your account.');
+   articleToHTML(result.article);setPrepared({owner:uid,article:result.article,recoveredJob:result.sourceJobId,websiteId:result.websiteId});
+  }).catch(issue=>{if(!controller.signal.aborted&&owner.current===uid)setRecoveryError(issue.message||'Your saved article could not be loaded.');}).finally(()=>{if(!controller.signal.aborted&&owner.current===uid)setRecoveryBusy(false);});
+  return()=>controller.abort();
+ },[publisher.authLoading,user?.id,requestedJob]);
+ useEffect(()=>{
   // Only the signed-in owner's fetched Library response can resolve this hint.
-  if(!requestedDraft||article||!user||library?.owner!==user.id)return;
+  if(requestedJob||!requestedDraft||article||!user||library?.owner!==user.id)return;
   const row=drafts.find(item=>item.id===requestedDraft);if(!row)return;
   try{articleHTML(articleToHTML(row.content));setPrepared({owner:user.id,article:{...row.content,id:row.id}});setSource('library');}catch(issue){setError(issue.message);}
- },[requestedDraft,library,article,user?.id]);
+ },[requestedDraft,requestedJob,library,article,user?.id]);
  function prepare(event){
   event.preventDefault();setError('');if(!user)return publisher.openLogin();
   try{
@@ -66,6 +78,7 @@ export default function PublishingCenter(){
    <section className="rounded-2xl border border-neutral-200 bg-white p-4"><CheckCircle2 size={19} className="text-brand-600"/><h2 className="mt-3 text-[12px] font-extrabold">Verified publishing website</h2><p className="mt-2 text-[11px] leading-relaxed text-neutral-600">{data?`${sites.length} ready website(s)`:'No connection state assumed.'}</p><Link href="/connector" prefetch={false} className="mt-2 inline-flex min-h-11 items-center text-[11px] font-bold text-brand-700">{sites.length?'View connection':'Connect or re-verify Blogger'}</Link></section>
    <section className="rounded-2xl border border-neutral-200 bg-white p-4"><Clock3 size={19} className="text-brand-600"/><h2 className="mt-3 text-[12px] font-extrabold">Background runner</h2><p className="mt-2 text-[11px] leading-relaxed text-neutral-600">{seen?`Last check: ${formatWhen(seen)} (${data.cron.lastOutcome}).`:'No actual runner heartbeat confirmed.'}</p><p className="mt-2 text-[10.5px] leading-relaxed text-neutral-500">{runnerRecent?'Recent check observed.':'A stale or absent check is not proof that cron is running.'} Saved jobs can continue with the browser closed; GitHub cron is best effort.</p></section>
   </div>
+  {requestedJob&&<div className="mt-6" data-testid="recovered-job-review-status">{recoveryBusy?<p role="status" className="text-[12px] text-neutral-600">Loading only your stopped job’s original article…</p>:recoveryError?<Feedback error>{recoveryError}</Feedback>:prepared?.owner===user?.id&&prepared?.recoveredJob&&<p data-testid="recovered-job-review-notice" className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-[12px] leading-relaxed text-amber-950">The original saved article was recovered from your stopped job. No post was created. Its old schedule, publisher attempts and consent were not transferred. Check Blogger and other unresolved Jobs before considering another submission. Publication requires a separate fresh review and command below.</p>}</div>}
   {!article?<Panel className="mt-6" title="1. Choose the actual article" description="Paste existing text or load a private saved draft. The next screen is review only; nothing is published yet.">
    <div className="mt-5 flex flex-wrap gap-2" role="group" aria-label="Article source"><button type="button" aria-pressed={source==='paste'} onClick={()=>{setSource('paste');setError('');}} className={source==='paste'?primaryClass:secondaryClass}><FileText size={15}/>Paste existing article</button><button type="button" aria-pressed={source==='library'} onClick={()=>{setSource('library');setError('');}} className={source==='library'?primaryClass:secondaryClass}><BookOpen size={15}/>Saved Cloud Library</button></div>
    <form onSubmit={prepare} className="mt-5 space-y-4">
@@ -81,7 +94,7 @@ export default function PublishingCenter(){
    </form>
   </Panel>:<>
    <p className="mt-6 rounded-xl border border-neutral-200 bg-white p-4 text-[12px] leading-relaxed text-neutral-600"><strong className="text-neutral-900">2. Review & authorize your content.</strong> Your article is loaded below. A single available owned blog is selected for you, but publication still requires your explicit review. Pin artwork stays on your own device. <Link href="/jobs" prefetch={false} className="font-bold text-brand-700 underline">Check existing Jobs before starting another submission.</Link></p>
-   <PublishComposer key={`${user?.id}:${article.id}`} article={article} initialOpen preferredWebsiteId={preferredWebsiteId}/>
+   <PublishComposer key={`${user?.id}:${article.id}`} article={article} initialOpen preferredWebsiteId={prepared?.websiteId||preferredWebsiteId}/>
   </>}
  </WorkspaceFrame>;
 }

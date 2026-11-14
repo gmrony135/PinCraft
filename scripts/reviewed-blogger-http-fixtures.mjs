@@ -20,6 +20,7 @@ let sequence = 12345678901234n; const posts = new Map();
 blogger.intercept({ path: '/blogger/v3/blogs/123456789012/posts?isDraft=true', method: 'POST' }).reply(options => {
   const input = JSON.parse(options.body), id = String(sequence++), post = { id, blog: { id: blog.id }, title: input.title, content: input.content, url: 'https://example.com/post-' + id, status: 'DRAFT', published: new Date().toISOString() };
   posts.set(id, post);
+  if (input.title.includes('Synthetic missing saved ID')) return { statusCode: 200, data: { ...post, status: 'UNCONFIRMED' } };
   if (input.title.includes('Synthetic uncertain receipt')) return { statusCode: 503, data: { error: 'Explicit lost mutation receipt fixture' } };
   return { statusCode: 200, data: post };
 }).persist();
@@ -31,11 +32,13 @@ blogger.intercept({ path: /^\/blogger\/v3\/blogs\/123456789012\/posts\/\d+\/publ
 }).persist();
 blogger.intercept({ path: /^\/blogger\/v3\/blogs\/123456789012\/posts\?/, method: 'GET' }).reply(options => {
   const url = new URL(options.path, 'https://www.googleapis.com'), status = url.searchParams.get('status')?.toUpperCase();
-  return { statusCode: 200, data: { items: [...posts.values()].filter(post => post.status === status).slice(0,25) } };
+  const ownPosts = [...posts.values()].filter(post => post.status === status && !post.title.includes('Synthetic missing saved ID'));
+  if (status === 'DRAFT' && [...posts.values()].some(post => post.title.includes('Synthetic later page lookup')) && !url.searchParams.get('pageToken')) return { statusCode: 200, data: { nextPageToken: 'isolated-private-page-cursor', items: Array.from({length:25},(_,i)=>({id:String(8000000+i),blog:{id:blog.id},status:'DRAFT',content:'isolated-unrelated-private-post-content'})) } };
+  return { statusCode: 200, data: { items: ownPosts.slice(0,25) } };
 }).persist();
 blogger.intercept({ path: /^\/blogger\/v3\/blogs\/123456789012\/posts\/\d+\?/, method: 'GET' }).reply(options => {
   const id = /\/posts\/(\d+)\?/.exec(options.path)[1], post = posts.get(id);
-  if (!post || post.status === 'DRAFT' && post.title.includes('Synthetic 404 lookup')) return { statusCode: 404, data: {} };
+  if (!post || post.title.includes('Synthetic missing saved ID') || post.status === 'DRAFT' && post.title.includes('Synthetic 404 lookup')) return { statusCode: 404, data: {} };
   if (post.status === 'SCHEDULED' && Date.parse(post.published) <= Date.now()) post.status = 'LIVE';
   return { statusCode: 200, data: post };
 }).persist();
