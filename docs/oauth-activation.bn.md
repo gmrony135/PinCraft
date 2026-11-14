@@ -6,7 +6,7 @@
 
 ## ১. ইতিমধ্যে যা সেটআপ/যাচাই হয়েছে
 
-- আলাদা URL: Home, Pin Generator, Article Writer, **Content Studio**, Connector, Automation, Dashboard, My Library ও Subscription।
+- আলাদা URL: Home, Pin Generator, Article Writer, **Content Studio**, Connector, Dashboard, My Library ও Subscription।
 - Email/Password signup/login/verification/reset এবং Google—শুধু Google দিয়ে প্রতিস্থাপন নয়। স্থানীয় real Firebase SDK/emulator-এ account flow পরীক্ষা করা হয়েছে। Read-only production config-এ Email/Password/Google enabled, signup allowed এবং `pincraftly.vercel.app` authorized পাওয়া গেছে; **এটি বাস্তব inbox delivery বা আপনার production login-এর প্রমাণ নয়**।
 - আগের ১৬টি Production variable অক্ষত। GitHub workload scheduler-এর ৩টি non-secret Production setting connected Vercel দিয়ে যোগ করে নতুন **READY/PROMOTED production deployment-এ চালু করা হয়েছে**। এগুলি আবার বসাতে হবে না।
 - Live সাইট **https://pincraftly.vercel.app**। নতুন application source `1c7af7d`; **৩৪২/৩৪২ local** এবং **২১/২১ public production** পরীক্ষা পাস করেছে। Local full-pipeline পরীক্ষায় external OAuth/AI/publication/wallet response স্পষ্ট test double—প্রকৃত public post নয়।

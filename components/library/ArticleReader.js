@@ -5,7 +5,6 @@ import useDialog from "../useDialog";
 import Link from "next/link";
 import { BookOpen, Clock3, FileText, Info, X } from "lucide-react";
 import ContentCopyButton from "./ContentCopyButton";
-import PublishComposer from "../publishing/PublishComposer";
 
 function RichText({ value }) {
   return String(value || "").split(/(\*\*[^*]+\*\*)/g).map((part, index) => part.startsWith("**") && part.endsWith("**") ? <strong key={index} className="font-bold text-neutral-900">{part.slice(2, -2)}</strong> : part);
@@ -65,7 +64,7 @@ export default function ArticleReader({ article, onClose }) {
             ) : (
               <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4"><p className="flex items-start gap-2 text-[13px] leading-relaxed text-neutral-600"><Info aria-hidden="true" size={16} className="mt-0.5 shrink-0" />This saved item contains a title, but no article body. You can write the full post in Article Writer.</p><Link href={`/article-writer?title=${encodeURIComponent(article.title)}`} prefetch={false} className="mt-4 inline-flex min-h-11 items-center rounded-xl bg-brand-600 px-4 text-[12px] font-bold text-white">Write this article</Link></div>
             )}
-            {(article.structured || article.plainText) && <PublishComposer key={article.id} article={article} />}
+            {(article.structured || article.plainText) && <div className="mt-7 rounded-xl border border-neutral-200 bg-neutral-50 p-4"><p className="text-[12px] leading-relaxed text-neutral-600">Publishing has one separate review step. Opening it does not authorize a post.</p><Link href={'/publish?' + (article.storage === 'cloud' ? 'draft=' : 'deviceDraft=') + encodeURIComponent(article.id)} prefetch={false} onClick={onClose} className="mt-3 inline-flex min-h-11 items-center rounded-xl bg-brand-600 px-4 text-[12px] font-bold text-white">Open publishing review</Link></div>}
           </article>
         </div>
       </div>

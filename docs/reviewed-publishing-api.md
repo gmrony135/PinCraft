@@ -98,7 +98,7 @@ Production-only runner dependencies are checked separately from the website/dev 
 
 ## Recurring category-trend generation API
 
-The discoverable `/automation` route is `BlogAutomationSetup` in the selected mode, not the old Pinterest API automation. [Full behavior/limits, বাংলা](blogger-trend-automation.bn.md).
+The one recurring editor is embedded in `/connector#blogger-recurring`, alongside Blogger permissions and verified websites. `/automation` is only a permanent redirect, not another setup page. Content Studio is a selection hub; auxiliary creation tools have unique `/content-studio/*` destinations. [Full behavior/limits, বাংলা](blogger-trend-automation.bn.md).
 
 | Method / path | Input / result |
 | --- | --- |

@@ -1,3 +1,5 @@
+> **Current UI:** the selected Blogger/manual-Pinterest product uses Connector for recurring settings, and `/automation` redirects there. The Pinterest-API workflow below is legacy documentation, not the active navigation or an instruction to enable it.
+
 # Automation-first architecture and safe operation
 
 > **Historical / superseded publishing instructions.** Current selected path: Blogger automatic + Pinterest manual, Firestore Spark + direct GitHub Actions runner. Follow [the current বাংলা setup guide](blogger-manual-pinterest-setup.bn.md). Do not activate the Pinterest API, old OIDC workflow or deferred Worker from this document. Historical results below are not evidence that the new runner or real owner publication is live.

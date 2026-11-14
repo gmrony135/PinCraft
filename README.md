@@ -6,10 +6,17 @@ The existing Next.js website remains **https://pincraftly.vercel.app**. Existing
 
 ## Start here
 
-- **[নতুন Automation setup ও Blogger-only fix — বাংলা](docs/blogger-trend-automation.bn.md)**
+- **[Connector-এর recurring posts ও Blogger-only publishing — বাংলা](docs/blogger-trend-automation.bn.md)**
 - [Full OAuth, Secrets, free-tier and recovery setup — বাংলা](docs/blogger-manual-pinterest-setup.bn.md)
 - [Owner API, durable records and checkpoints](docs/reviewed-publishing-api.md)
 - [Local validation and production acceptance boundary](docs/blog-automation-validation.json)
+
+## A focused workspace
+
+- **Connector** owns Blogger authorization, owned-blog verification and the single recurring-post editor. Account connection and recurring authorization remain separate. There is no standalone Automation setup page or menu; old `/automation` bookmarks redirect to `/connector#blogger-recurring`.
+- **Content Studio** is a tool-selection hub. Article Writer and Pin Generator stay separate. Artwork, SEO/hashtags, the 7-day plan and editorial review each have one canonical tool page under `/content-studio/`.
+- Article/Pin results link to the artwork tool in a new tab instead of embedding duplicate image forms, so an unsaved draft stays open.
+- **Publish article** is the single reviewed publishing form, with Publish now and custom-date Schedule. Article Writer explicitly saves a private draft and hands it to that same review instead of duplicating the form; **Jobs** retains actual checkpoints, inspection/recovery and optional manual Pin packs. No existing private jobs or drafts are removed by this UI change.
 
 ## Two explicit authorization paths
 
@@ -21,7 +28,7 @@ Open **`/publish`**, paste the complete actual article or select an owned Cloud 
 
 ### Recurring current-topic generation — separate consent
 
-Open **`/automation` → Automation setup**. Select your verified blog, 1–3 categories, optional narrowing topic, English/Bengali, trend region, IANA timezone, daily ceiling **1–6**, and each editable time. Defaults for six slots are **08:00, 10:30, 13:00, 15:30, 18:00, 20:30** in the chosen timezone. They are suggestions, not measured or universal “perfect” times.
+Open **`/connector` → Blogger → Recurring Blogger posts** and expand **Set up recurring posts** (or **Edit recurring posts**). Select your verified blog, 1–3 categories, optional narrowing topic, English/Bengali, trend region, IANA timezone, daily ceiling **1–6**, and each editable time. New schedules start at one daily slot; selecting six suggests **08:00, 10:30, 13:00, 15:30, 18:00, 20:30** in the chosen timezone. They are suggestions, not measured or universal “perfect” times.
 
 Saving paused settings or connecting Blogger starts nothing. A separate unchecked authorization explains that future AI articles can publish **without individual owner review**, using the existing AI quota. Saving new active settings requires fresh recurring consent. Pause stops new generation/unsent Blogger mutations; already in-flight calls may finish, and schedules already registered in Blogger must be managed there.
 
@@ -90,6 +97,7 @@ set -a; . .cache/firebase-test.env; set +a
 PINCRAFT_PUBLISHING_MODE=blogger_manual_pin npm run test:publishing
 PINCRAFT_PUBLISHING_MODE=blogger_manual_pin npm run test:publishing:automation
 npm run test:publishing:entry
+node --test scripts/test-ui-consolidation.mjs
 npm run build
 ```
 

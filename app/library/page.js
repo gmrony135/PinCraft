@@ -4,7 +4,7 @@ import MyLibrary from "@/components/library/MyLibrary";
 
 export const metadata = {
   title: "My Library",
-  description: "Your private Full Auto cloud results, plus separate device-saved Pins and Articles. Read full articles, copy Pin content and open confirmed live publications.",
+  description: "Your private saved articles and Pins, separate device drafts, and confirmed Blogger publication links.",
   alternates: { canonical: "/library" },
 };
 

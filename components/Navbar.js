@@ -49,14 +49,15 @@ export default function Navbar() {
 
   function login() { setOpen(false); setAccountOpen(false); openLogin(); }
   async function logout() { setSigningOut(true); const ok = await signOut(); if (ok) setAccountOpen(false); setSigningOut(false); }
-  const linkClass = (href, mobile = false) => `${mobile ? "flex min-h-11 items-center gap-2 rounded-xl px-3 text-[14px]" : "inline-flex min-h-11 items-center gap-1.5 rounded-lg px-2.5 text-[12px]"} font-semibold outline-none transition-colors focus-visible:ring-2 focus-visible:ring-brand-600 ${pathname === href ? "bg-brand-50 text-brand-700" : user && href === "/library" ? "text-brand-700 hover:bg-brand-50" : "text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900"}`;
+  const activeLink = href => pathname === href || href === "/content-studio" && pathname.startsWith("/content-studio/");
+  const linkClass = (href, mobile = false) => `${mobile ? "flex min-h-11 items-center gap-2 rounded-xl px-3 text-[14px]" : "inline-flex min-h-11 items-center gap-1.5 rounded-lg px-2.5 text-[12px]"} font-semibold outline-none transition-colors focus-visible:ring-2 focus-visible:ring-brand-600 ${activeLink(href) ? "bg-brand-50 text-brand-700" : user && href === "/library" ? "text-brand-700 hover:bg-brand-50" : "text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900"}`;
 
   return (
     <header className={`sticky top-0 z-50 w-full border-b transition-colors ${scrolled ? "border-neutral-200/80 bg-white/95 backdrop-blur-xl" : "border-transparent bg-white"}`}>
       <nav aria-label="Main navigation" className="container-x flex h-16 items-center justify-between gap-2 sm:gap-3">
         <Logo size={28} className="shrink-0 !gap-1.5 [&>span]:!text-[18px] sm:!gap-2.5 sm:[&>span]:!text-[21px]" />
         <ul className="hidden items-center gap-0.5 xl:flex">
-          {NAV_LINKS.map((link) => <li key={link.href}><Link href={link.href} prefetch={false} aria-current={pathname === link.href ? "page" : undefined} className={linkClass(link.href)}>{link.label}{user && link.href === "/library" && <CheckCircle2 aria-hidden="true" size={12} />}</Link></li>)}
+          {NAV_LINKS.map((link) => <li key={link.href}><Link href={link.href} prefetch={false} aria-current={activeLink(link.href) ? "page" : undefined} className={linkClass(link.href)}>{link.label}{user && link.href === "/library" && <CheckCircle2 aria-hidden="true" size={12} />}</Link></li>)}
         </ul>
         <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
           {user ? <div ref={account} className="relative">
@@ -66,7 +67,7 @@ export default function Navbar() {
           <button ref={menuButton} type="button" onClick={() => { setOpen((value) => !value); setAccountOpen(false); }} aria-label={open ? "Close menu" : "Open menu"} aria-expanded={open} aria-controls="mobile-navigation" className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-neutral-200 text-neutral-700 outline-none hover:bg-neutral-50 focus-visible:ring-2 focus-visible:ring-brand-600 xl:hidden">{open ? <X aria-hidden="true" size={20} /> : <Menu aria-hidden="true" size={20} />}</button>
         </div>
       </nav>
-      {open && <div id="mobile-navigation" className="max-h-[calc(100dvh-4rem)] overflow-y-auto border-t border-neutral-100 bg-white xl:hidden"><div className="container-x flex flex-col gap-1 py-3">{NAV_LINKS.map((link) => <Link key={link.href} href={link.href} prefetch={false} onClick={() => setOpen(false)} aria-current={pathname === link.href ? "page" : undefined} className={linkClass(link.href, true)}>{link.label}{user && link.href === "/library" && <CheckCircle2 aria-hidden="true" size={13} />}</Link>)}{!user && <Link href="/register" prefetch={false} onClick={() => setOpen(false)} className="btn-primary mt-2 text-[14px]">Create account</Link>}</div></div>}
+      {open && <div id="mobile-navigation" className="max-h-[calc(100dvh-4rem)] overflow-y-auto border-t border-neutral-100 bg-white xl:hidden"><div className="container-x flex flex-col gap-1 py-3">{NAV_LINKS.map((link) => <Link key={link.href} href={link.href} prefetch={false} onClick={() => setOpen(false)} aria-current={activeLink(link.href) ? "page" : undefined} className={linkClass(link.href, true)}>{link.label}{user && link.href === "/library" && <CheckCircle2 aria-hidden="true" size={13} />}</Link>)}{!user && <Link href="/register" prefetch={false} onClick={() => setOpen(false)} className="btn-primary mt-2 text-[14px]">Create account</Link>}</div></div>}
     </header>
   );
 }

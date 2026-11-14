@@ -14,11 +14,11 @@
 
 Pin pack চাইলে আলাদাভাবে সেটি চালু করে নিজের copy/artwork review করতে হবে। কিন্তু pack না চাওয়ার জন্য Blogger প্রকাশ আটকে থাকবে না, এবং server কোনো ফাঁকা manual Pin task বানাবে না। Pinterest সবসময় নিজের native UI-তে manual।
 
-## ২. নতুন Automation setup ব্যবহার
+## ২. Connector থেকে recurring posts চালু করা
 
-Navigation/Connector থেকে **Automation setup**, অথবা সরাসরি:
+**Connector → Blogger → Recurring Blogger posts → Set up recurring posts** খুলুন। Saved settings থাকলে **Edit recurring posts**। সরাসরি:
 
-**https://pincraftly.vercel.app/automation**
+**https://pincraftly.vercel.app/connector#blogger-recurring**
 
 নিজের verified account দিয়ে sign in করে বেছে নিন:
 
@@ -31,7 +31,7 @@ Navigation/Connector থেকে **Automation setup**, অথবা সরা�
 - দৈনিক ceiling **১–৬টি Blogger post**;
 - প্রতিটি slot-এর editable `HH:MM` সময়, অন্তত ১ ঘণ্টা ব্যবধানে।
 
-৬টি slot-এর initial suggestion: **08:00, 10:30, 13:00, 15:30, 18:00, 20:30**, নির্বাচিত timezone-এ। এগুলো শুরু করার জন্য ছড়ানো সময়; audience analytics ছাড়া universal “perfect time” বলা হয়নি।
+নতুন settings-এ শুরুতে ১টি daily slot থাকে। ৬টি বেছে নিলে suggestion: **08:00, 10:30, 13:00, 15:30, 18:00, 20:30**, নির্বাচিত timezone-এ। এগুলো শুরু করার জন্য ছড়ানো সময়; audience analytics ছাড়া universal “perfect time” বলা হয়নি।
 
 ### দুটি আলাদা save
 
@@ -132,7 +132,7 @@ Firestore Spark/Vercel/AI/Google-এর project-wide quotas থাকে। Bill
 
 ## ৮. কীভাবে যাচাই করবেন
 
-1. Automation setup-এ actual saved status, exact next slot, latest generation heartbeat, quota এবং last outcome দেখুন।
+1. Connector-এর recurring section-এ actual saved status, exact next slot, latest generation heartbeat, quota এবং last outcome দেখুন।
 2. Latest 12 actual slots খুলে source evidence এবং editorial result দেখুন; তৈরি হলে private draft এবং saved Blogger job-এ যান।
 3. Jobs-এ immutable Job ID, checkpoint, actual error/HTTP status এবং সত্যিকারের verified URL দেখুন।
 4. Blogger-এ SCHEDULED post থেকে সময়মতো LIVE/public হয়েছে কি না independent check করুন।

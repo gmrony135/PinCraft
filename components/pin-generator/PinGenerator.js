@@ -11,7 +11,6 @@ import { useAuth } from "../providers/AppProvider";
 import { copyText } from "@/lib/clipboard";
 import { generateWithAI } from "@/lib/ai-client";
 import GenerationMode, { GenerationReceipt, useGenerationMode } from "../ai/GenerationMode";
-import ImageGenerator from "../ai/ImageGenerator";
 import { handoffPin } from "@/lib/publishing/review-content.mjs";
 import {
   Sparkles,
@@ -436,7 +435,7 @@ export default function PinGenerator() {
                           {pack.imageIdea.prompt}
                         </p>
                       </div>
-                      <ImageGenerator initialPrompt={pack.imageIdea.prompt.slice(0, 1700)} useCase="pin" />
+                      <div className="rounded-xl border border-neutral-200 p-4"><p className="text-[11px] leading-relaxed text-neutral-500">Copy this prompt, then open the artwork tool in a new tab. Your Pin stays here.</p><Link href="/content-studio/artwork" target="_blank" rel="noopener noreferrer" prefetch={false} className="mt-2 inline-flex min-h-11 items-center gap-2 text-[12px] font-bold text-brand-700">Create Pin artwork<ArrowRight size={14} aria-hidden="true"/></Link></div>
                     </div>
                   </ResultSection>
 

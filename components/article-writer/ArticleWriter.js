@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import CopyButton from "../CopyButton";
 import ArticleView from "./ArticleView";
 import { generateArticle, countWords } from "@/lib/article";
@@ -11,8 +11,7 @@ import { saveCloudDraft } from "@/lib/cloud-library";
 import { useAuth } from "../providers/AppProvider";
 import { generateWithAI } from "@/lib/ai-client";
 import GenerationMode, { GenerationReceipt, useGenerationMode } from "../ai/GenerationMode";
-import ImageGenerator from "../ai/ImageGenerator";
-import PublishComposer from "../publishing/PublishComposer";
+import { handoffPin } from "@/lib/publishing/review-content.mjs";
 import {
   Sparkles,
   FileText,
@@ -23,7 +22,6 @@ import {
   Check,
   Copy,
   Bookmark,
-  CalendarClock,
   ArrowRight,
   Gauge,
   Clock,
@@ -39,13 +37,13 @@ const EXAMPLES = [
 ];
 
 export default function ArticleWriter() {
-  const params = useSearchParams();
+  const params = useSearchParams(), router = useRouter();
   const { user, authLoading, openLogin } = useAuth();
   const { mode, setMode, status: aiStatus } = useGenerationMode(user);
   const [language, setLanguage] = useState('en');
   const generationRequest = useRef({ sequence: 0, controller: null });
   const [saving, setSaving] = useState(false);
-  const saveRequest = useRef(null), saveSequence = useRef(0);
+  const saveRequest = useRef(null), saveSequence = useRef(0), savePending = useRef(false);
   const [saveError, setSaveError] = useState('');
   const identity = useRef(null);
   identity.current = user?.id || "device";
@@ -118,7 +116,7 @@ export default function ArticleWriter() {
     finally { if (sequence === generationRequest.current.sequence) setLoading(false); }
   }
 
-  useEffect(() => { saveSequence.current++; setSaving(false); setSaved(false); setSaveError(''); saveRequest.current = null; }, [user?.id, article?.id]);
+  useEffect(() => { saveSequence.current++; setSaving(false); setSaved(false); setSaveError(''); saveRequest.current = null; savePending.current = false; }, [user?.id, article?.id]);
   useEffect(() => {
     setLibraryDrop(null);
     if (authLoading) return;
@@ -134,21 +132,31 @@ export default function ArticleWriter() {
     }).catch(() => {});
     return () => { active = false; };
   }, [authLoading, user?.id]);
-  async function handleSave() {
-    if (!article || saving || authLoading) return;
+  async function storeArticle(openReview = false) {
+    if (!article || savePending.current || authLoading) return;
+    if (openReview && !user) { openLogin(); return; }
     const owner = identity.current, contentId = article.id, request = ++saveSequence.current;
-    setSaving(true); setSaveError('');
+    savePending.current = true; setSaving(true); setSaveError('');
     try {
+      let draftId;
       if (user) {
         if (!saveRequest.current) saveRequest.current = crypto.randomUUID();
-        await saveCloudDraft("article", article, saveRequest.current);
+        draftId = await saveCloudDraft("article", article, saveRequest.current);
       } else saveToLibrary({ type: "article", ...article });
       if (identity.current !== owner || currentContent.current !== contentId || request !== saveSequence.current) return;
       setSaved(true);
-      flash(user ? "Saved privately to your Cloud Library." : "Saved to My Library on this device 📚");
-    } catch (issue) { if (identity.current === owner && currentContent.current === contentId && request === saveSequence.current) setSaveError(issue.message || 'Your draft could not be saved. Keep this page open and try again.'); }
-    finally { if (request === saveSequence.current) setSaving(false); }
+      if (openReview) {
+        if (sourcePin) handoffPin(user.id, sourcePin);
+        router.push('/publish?draft=' + encodeURIComponent(draftId));
+      } else flash(user ? "Saved privately to your Cloud Library." : "Saved to My Library on this device 📚");
+    } catch (issue) {
+      if (identity.current === owner && currentContent.current === contentId && request === saveSequence.current) setSaveError(issue.message || 'Your draft could not be saved. Keep this page open and try again.');
+    } finally {
+      if (request === saveSequence.current) { savePending.current = false; setSaving(false); }
+    }
   }
+  function handleSave() { return storeArticle(false); }
+
 
 
   return (
@@ -335,9 +343,13 @@ export default function ArticleWriter() {
                 <GenerationReceipt generation={article.generation} />
                 {saveError && <p role="alert" className="mb-4 rounded-xl border border-brand-100 bg-brand-50 p-3 text-[12px] leading-relaxed text-brand-800">{saveError} Your article is still on this page; use Save to retry.</p>}
                 <ArticleView article={article} />
-                <div className="mt-4"><ImageGenerator initialPrompt={`Editorial photograph illustrating ${article.title}. Thoughtful composition, natural light, a clear central subject, no text or logos.`.slice(0, 1700)} useCase="featured" /></div>
+                <div className="mt-4 flex flex-col justify-between gap-3 rounded-xl border border-neutral-200 bg-neutral-50 p-4 sm:flex-row sm:items-center"><p className="text-[11px] leading-relaxed text-neutral-500">Need a featured image? The artwork tool opens in a new tab, keeping this draft here.</p><Link href="/content-studio/artwork?format=featured" target="_blank" rel="noopener noreferrer" prefetch={false} className="inline-flex min-h-11 shrink-0 items-center gap-2 text-[12px] font-bold text-brand-700">Create featured artwork<ArrowRight size={14} aria-hidden="true"/></Link></div>
 
-                <PublishComposer key={`${user?.id || "device"}:${article.id}`} article={article} sourcePin={sourcePin} />
+                <section className="mt-4 rounded-2xl border border-brand-100 bg-brand-50/30 p-5" data-testid="article-publishing-handoff">
+                  <h2 className="text-[15px] font-extrabold">Ready to publish this article?</h2>
+                  <p className="mt-2 text-[12px] leading-relaxed text-neutral-600">Save a private copy and open the publishing review. Choose your blog, then Publish now or Schedule. No job or recurring permission is created by this step.</p>
+                  <button type="button" disabled={saving || authLoading} onClick={() => storeArticle(true)} className="btn-primary mt-4 !min-h-11 !px-4 !text-[12px]">{saving ? <Loader2 size={15} className="animate-spin" aria-hidden="true"/> : <ArrowRight size={15} aria-hidden="true"/>}{saved ? 'Open publishing review' : 'Save & open publishing review'}</button>
+                </section>
 
                 {/* stats + actions */}
                 <div className="mt-4 rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm sm:p-5">
@@ -408,9 +420,8 @@ export default function ArticleWriter() {
                         </>
                       )}
                     </button>
-                    <Link href="/automation" prefetch={false} className="btn-outline w-full !whitespace-normal !px-3 !text-[14px] sm:col-span-2"><CalendarClock size={17} aria-hidden="true"/>Automation setup</Link>
                   </div>
-                  <p className="mt-3 rounded-xl border border-neutral-200 bg-neutral-50 px-3.5 py-2.5 text-[11.5px] leading-relaxed text-neutral-600">Saving this article creates a private draft, not a publication. To upload this article and its matching Pin, use Review & publish above and approve these specific items.</p>
+                  <p className="mt-3 rounded-xl border border-neutral-200 bg-neutral-50 px-3.5 py-2.5 text-[11.5px] leading-relaxed text-neutral-600">Saving this article creates a private draft, not a publication. To publish this article, use the publishing review above. A manual Pin pack is optional; Pinterest uploads remain yours.</p>
 
                   <button
                     type="button"

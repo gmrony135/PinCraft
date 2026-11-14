@@ -8,13 +8,15 @@ import {usePublisher,publishRequest} from './usePublisher';
 import PublishComposer from './PublishComposer';
 import {articleToHTML} from '@/lib/publishing/review-content.mjs';
 import {articleHTML} from '@/lib/publishing/article-format.mjs';
+import {getLibrary} from '@/lib/library';
+import {partitionLibrary} from '@/lib/library-content';
 import {WorkspaceFrame,Panel,Feedback,fieldClass,primaryClass,secondaryClass,formatWhen} from '../workspace/WorkspaceUI';
 
 // This is only an entrypoint to the existing reviewed publishing contract.
 // Loading a draft, pasting text and opening review NEVER save/publish a job.
 export default function PublishingCenter(){
  const publisher=usePublisher(),{user,data}=publisher,params=useSearchParams();
- const requestedDraft=params.get('draft')||'',requestedJob=params.get('recoverJob')||'',preferredWebsiteId=params.get('website')||'';
+ const requestedDraft=params.get('draft')||'',requestedDevice=params.get('deviceDraft')||'',requestedJob=params.get('recoverJob')||'',preferredWebsiteId=params.get('website')||'';
  const owner=useRef(null),sequence=useRef(0);owner.current=user?.id||null;
  const [source,setSource]=useState(requestedDraft?'library':'paste');
  const [recoveryBusy,setRecoveryBusy]=useState(false),[recoveryError,setRecoveryError]=useState('');
@@ -31,7 +33,7 @@ export default function PublishingCenter(){
    const response=await fetch('/api/library'+(nextCursor?'?cursor='+encodeURIComponent(nextCursor):''),{credentials:'same-origin',cache:'no-store'}),result=await response.json();
    if(owner.current!==uid||sequence.current!==seq)return;
    if(!response.ok||!result.ready)throw new Error(result.error||result.message||'Your private article drafts could not be loaded.');
-   const items=(result.items||[]).filter(row=>row.kind==='article_draft'&&row.content?.title);
+   const items=(result.items||[]).filter(row=>['article_draft','generated'].includes(row.kind)&&row.content?.title);
    setLibrary(previous=>({owner:uid,items:nextCursor&&previous?.owner===uid?[...new Map([...previous.items,...items].map(row=>[row.id,row])).values()]:items,nextCursor:result.nextCursor||null}));
   }catch(issue){if(owner.current===uid&&sequence.current===seq)setLibraryError(issue.message||'Your private drafts could not be loaded.');}
   finally{if(owner.current===uid&&sequence.current===seq)setLibraryBusy(false);}
@@ -54,6 +56,16 @@ export default function PublishingCenter(){
   const row=drafts.find(item=>item.id===requestedDraft);if(!row)return;
   try{articleHTML(articleToHTML(row.content));setPrepared({owner:user.id,article:{...row.content,id:row.id}});setSource('library');}catch(issue){setError(issue.message);}
  },[requestedDraft,requestedJob,library,article,user?.id]);
+ useEffect(()=>{
+  // Device drafts remain explicitly separate from account-owned cloud content.
+  // A URL is only a local selection hint, never article content or authority.
+  if(!requestedDevice||requestedJob||requestedDraft||publisher.authLoading||!user)return;
+  const saved=partitionLibrary(getLibrary()).articles.find(row=>row.id===requestedDevice);
+  try{
+   if(!saved)throw new Error('That article is not in this browser’s device Library. Paste the complete article instead.');
+   articleHTML(articleToHTML(saved));setPrepared({owner:user.id,article:saved,source:'device'});
+  }catch(issue){setError(issue.message);}
+ },[requestedDevice,requestedJob,requestedDraft,publisher.authLoading,user?.id]);
  function prepare(event){
   event.preventDefault();setError('');if(!user)return publisher.openLogin();
   try{
@@ -72,7 +84,7 @@ export default function PublishingCenter(){
  const profiles=(data?.profiles||[]).filter(p=>p.connected),sites=(data?.websites||[]).filter(s=>s.connected!==false&&!s.authorizationChanged);
  const seen=data?.cron?.lastSeenAt,runnerRecent=Boolean(seen&&Date.now()-Date.parse(seen)<45*60000);
  const state={...publisher,refresh:()=>{publisher.refresh();if(user)loadLibrary();}};
- return <WorkspaceFrame state={state} eyebrow="Publish article" title="Connect. Review. Publish." description="Publish your own complete article to your verified Blogger website, now or on a schedule. This page does not generate replacement content or publish just because a website was connected." action={<Link href="/jobs" prefetch={false} className={secondaryClass}>Jobs & manual Pin packs<ArrowRight size={14}/></Link>}>
+ return <WorkspaceFrame state={state} eyebrow="Publish article" title="Review once. Publish your way." description="Publish your own complete article to your verified Blogger website, now or on a schedule. Choose Publish now or your own date and time after review. No recurring permission is needed." action={<Link href="/jobs" prefetch={false} className={secondaryClass}>Jobs & manual Pin packs<ArrowRight size={14}/></Link>}>
   <div className="grid gap-3 sm:grid-cols-3" data-testid="publishing-connection-readiness">
    <section className="rounded-2xl border border-neutral-200 bg-white p-4"><ShieldCheck size={19} className="text-brand-600"/><h2 className="mt-3 text-[12px] font-extrabold">Blogger authorization</h2><p className="mt-2 text-[11px] leading-relaxed text-neutral-600">{data?`${profiles.length} connected account(s)`:'Sign in to check your account.'}</p></section>
    <section className="rounded-2xl border border-neutral-200 bg-white p-4"><CheckCircle2 size={19} className="text-brand-600"/><h2 className="mt-3 text-[12px] font-extrabold">Verified publishing website</h2><p className="mt-2 text-[11px] leading-relaxed text-neutral-600">{data?`${sites.length} ready website(s)`:'No connection state assumed.'}</p><Link href="/connector" prefetch={false} className="mt-2 inline-flex min-h-11 items-center text-[11px] font-bold text-brand-700">{sites.length?'View connection':'Connect or re-verify Blogger'}</Link></section>
@@ -94,6 +106,7 @@ export default function PublishingCenter(){
    </form>
   </Panel>:<>
    <p className="mt-6 rounded-xl border border-neutral-200 bg-white p-4 text-[12px] leading-relaxed text-neutral-600"><strong className="text-neutral-900">2. Review & authorize your content.</strong> Your article is loaded below. A single available owned blog is selected for you, but publication still requires your explicit review. Pin artwork stays on your own device. <Link href="/jobs" prefetch={false} className="font-bold text-brand-700 underline">Check existing Jobs before starting another submission.</Link></p>
+   {prepared?.source==='device'&&<p className="mt-4 text-[11px] leading-relaxed text-neutral-500">Loaded from this browser’s device Library, not from a cloud account. No private draft or publishing job was created by opening this review.</p>}
    <PublishComposer key={`${user?.id}:${article.id}`} article={article} initialOpen preferredWebsiteId={prepared?.websiteId||preferredWebsiteId}/>
   </>}
  </WorkspaceFrame>;
