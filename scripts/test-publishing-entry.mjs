@@ -6,7 +6,7 @@ import {articleToHTML,plainArticleToHTML} from '../lib/publishing/review-content
 import {defaultPublishingDestination,publishingReadiness} from '../lib/publishing/composer-state.mjs';
 const html='<p>A complete actual article must be reviewed by its owner before any publishing command is accepted.</p>';
 const data={providers:{blogger:{configured:true}},profiles:[{id:'blogger',provider:'blogger',connected:true}],websites:[{id:'blogger_123456789012',connectionId:'blogger',connected:true,authorizationChanged:false}]};
-const valid={data,connectionId:'blogger',websiteId:'blogger_123456789012',title:'An article supplied by the owner',html,pinTitle:'A reviewed manual Pin',description:'Keep this useful article for later.',hashtags:'#UsefulArticle',imageReviewed:true,reviewed:true};
+const valid={data,includePin:true,connectionId:'blogger',websiteId:'blogger_123456789012',title:'An article supplied by the owner',html,pinTitle:'A reviewed manual Pin',description:'Keep this useful article for later.',hashtags:'#UsefulArticle',imageReviewed:true,reviewed:true};
 
 test('Empty/loading status never invents a publishing destination',()=>{
  assert.deepEqual(defaultPublishingDestination(null),{connectionId:'',websiteId:''});
@@ -68,4 +68,15 @@ test('Pin copy blockers expose missing descriptions, excess combined copy and in
 test('Exact source content is preserved for structured generated/library articles',()=>{
  const a={title:'Existing generator output',intro:'Its own introductory paragraph long enough for the review boundary.',sections:[{heading:'Original heading',paragraphs:['First original paragraph.','Second **original** paragraph.']}],conclusion:'The owner-written final thought.'};
  const result=articleToHTML(a);assert.equal(result,'<p>Its own introductory paragraph long enough for the review boundary.</p>\n<h2>Original heading</h2>\n<p>First original paragraph.</p>\n<p>Second <strong>original</strong> paragraph.</p>\n<h2>Final thoughts</h2>\n<p>The owner-written final thought.</p>');assert.equal(articleHTML(result),result);
+});
+
+
+test('Blogger-only review needs no Pin copy, artwork or Pin target',()=>{
+ const check=publishingReadiness({...valid,includePin:false,pinTitle:'',description:'',hashtags:'#not-valid',imageReviewed:false});
+ assert(check.every(row=>row.ready));assert(!check.some(row=>['artwork','pin-copy'].includes(row.id)));
+ assert.deepEqual(publishingReadiness({...valid,includePin:false,reviewed:false,imageReviewed:false}).filter(row=>!row.ready).map(row=>row.id),['review']);
+});
+test('Opting into a Pin pack restores its strict independent review gates',()=>{
+ const check=publishingReadiness({...valid,includePin:true,pinTitle:'',imageReviewed:false,reviewed:false}).filter(row=>!row.ready);
+ assert.deepEqual(check.map(row=>row.id),['pin-copy','artwork','review']);
 });

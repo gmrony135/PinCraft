@@ -1,0 +1,107 @@
+{
+  "feature": "Independent Blogger publishing + explicit category-trend recurring generation",
+  "scope": "Existing generator reused; optional manual Pins only; no live activation invented",
+  "localValidation": {
+    "passed": 315,
+    "total": 315,
+    "suites": [
+      {
+        "name": "Recurring article orchestration, evidence, consent, limits, retries and OIDC",
+        "passed": 44,
+        "total": 44,
+        "evidence": ".shots/blog-automation-tests.json"
+      },
+      {
+        "name": "Reviewed Blogger checkpoints / optional Pin contract",
+        "passed": 53,
+        "total": 53,
+        "evidence": ".shots/blog-automation-publishing-regression.log"
+      },
+      {
+        "name": "Publishing entry and shared formatting",
+        "passed": 14,
+        "total": 14,
+        "evidence": ".shots/blog-automation-entry-regression.log"
+      },
+      {
+        "name": "Built Next actual owner APIs + Chromium",
+        "passed": 43,
+        "total": 43,
+        "evidence": ".shots/reviewed-publishing-ui-tests.json"
+      },
+      {
+        "name": "Existing workspace/security/billing/legacy boundaries",
+        "passed": 55,
+        "total": 55,
+        "evidence": ".shots/blog-automation-regression-workspace.log"
+      },
+      {
+        "name": "Existing Firebase auth",
+        "passed": 39,
+        "total": 39,
+        "evidence": ".shots/blog-automation-regression-auth.log"
+      },
+      {
+        "name": "Existing AI safety/budgets/idempotency",
+        "passed": 50,
+        "total": 50,
+        "evidence": ".shots/blog-automation-regression-ai.log"
+      },
+      {
+        "name": "Public AI privacy contracts",
+        "passed": 17,
+        "total": 17,
+        "evidence": ".shots/blog-automation-regression-public-ai.log"
+      }
+    ],
+    "productionBuild": {
+      "outcome": "passed",
+      "next": "15.5.29",
+      "evidence": ".shots/blog-automation-build.log"
+    },
+    "lint": {
+      "outcome": "not_configured",
+      "detail": "Pre-existing next lint script prompts for configuration; no ESLint/config is installed. Not included in passed checks.",
+      "evidence": ".shots/blog-automation-lint.log"
+    },
+    "providerBoundary": "All local mutation/AI/publication receipts are explicitly guarded synthetic transports over real local Auth/Firestore emulator transactions. Not genuine production acceptance.",
+    "browserViewports": [
+      320,
+      390,
+      768,
+      1440
+    ],
+    "browserRuntimeErrors": []
+  },
+  "liveReadOnlyEvidence": {
+    "file": ".shots/blog-automation-live-feed-readonly.json",
+    "result": "Actual public RSS available and a fresh category-news signal selected. Not a live AI call, measured popularity, verified full-text reporting or post."
+  },
+  "productionAcceptanceAtSourceRelease": {
+    "deployment": "Not yet deployed when this source ledger was written. Check the separate release receipt.",
+    "ownerRecurringSettingsSaved": false,
+    "ownerRecurringConsentGiven": false,
+    "realArticleGeneratedByNewAutomation": false,
+    "realAcceptedBloggerJobObserved": false,
+    "realAdminLiveAndMatchingPublicPageObserved": false,
+    "scheduledActionsEventObserved": false,
+    "lastKnownManualRun": "43581615296 — historical empty manual dispatch; not cron proof"
+  },
+  "preservedBoundaries": {
+    "perOwnerOAuthEncrypted": true,
+    "existingGeneratorAndQuotasReused": true,
+    "aiKeysCopiedToActions": false,
+    "pinterestAPIEnabled": false,
+    "legacyWorkflowEnabled": false,
+    "billingIAMRulesTTLChanged": false,
+    "newCompositeIndexRequired": false,
+    "ownerSettingsOrConsentInvented": false
+  },
+  "separateAcceptanceRequired": [
+    "Owner chooses actual categories/topic/language/region/timezone/times and explicitly enables in the live signed-in UI",
+    "Actual private generated article and quality receipt then one durable Blogger job",
+    "Same-ID draft and future publishDate checkpoint if scheduled",
+    "Due Blogger ADMIN LIVE and independent unauthenticated matching public article",
+    "Independently observed GitHub Actions schedule event, not workflow_dispatch"
+  ]
+}

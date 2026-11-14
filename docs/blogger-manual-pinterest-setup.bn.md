@@ -1,11 +1,13 @@
-# PinCraft: Blogger অটো-পাবলিশ + Pinterest ম্যানুয়াল আপলোড
+# PinCraft: Blogger অটো-পাবলিশ + optional ম্যানুয়াল Pinterest
+
+> **নতুন feature:** [Blogger-only fix ও category-trend automation setup](blogger-trend-automation.bn.md)। Pin pack এখন optional; recurring generation-এর জন্য আলাদা owner consent। এই গাইডে OAuth/Secrets/recovery-এর পূর্ণ reference রইল।
 
 ## এই ডেলিভারিতে কী আছে
 
 আপনার নির্বাচিত পথ: **Blogger automatic → Pinterest manual/native scheduler**। আগের AI লেখা, ছবি, হ্যাশট্যাগ তৈরি এবং private Library বজায় আছে। নতুন VPS, Firebase Blaze, Firebase Functions, Cloud Scheduler, Cloudflare Worker বা পেইড image-storage service লাগানো হয়নি। বর্তমান ওয়েবসাইট `https://pincraftly.vercel.app`-এই থাকবে।
 
 ```text
-Publish article / Article Writer-এ নির্দিষ্ট লেখা/Pin copy/artwork review ও অনুমোদন
+Publish article / Article Writer-এ নির্দিষ্ট লেখা/blog review ও অনুমোদন (Pin pack optional)
        ↓
 Owner-scoped Firestore job + idempotent requestId
        ↓
@@ -17,7 +19,7 @@ ADMIN GET: LIVE + প্রকাশের সময় হয়েছে?
        ↓
 টোকেন/কুকি ছাড়া public HTTPS article page যাচাই
        ↓
-Jobs-এ manual Pin pack: title / description / hashtags / artwork reference / real URL
+Jobs-এ verified blog result; Pin pack চেয়ে থাকলেই optional manual task
        ↓
 আপনি Pinterest-এ নিজে upload, board নির্বাচন ও native scheduling করবেন
 ```
@@ -37,7 +39,7 @@ Jobs-এ manual Pin pack: title / description / hashtags / artwork reference / r
 | `lib/publishing/repository.mjs` | Firestore jobs, owner checks, leases, checkpoints, retry/review, manual child task |
 | `app/api/publish/[...path]/route.js` | signed-in owner API; browser-এ provider secrets যায় না |
 | `app/api/blogger/callback/route.js` | canonical Google OAuth callback |
-| `scripts/run-reviewed-blogger.mjs` | সরাসরি Node runner; AI/Pinterest publisher নয় |
+| `scripts/run-reviewed-blogger.mjs` | সরাসরি Blogger Node runner + existing Vercel generator-এ bounded OIDC stage; Pinterest publisher নয় |
 | `.github/workflows/pincraft-reviewed-blogger.yml` | প্রতি দশ মিনিটের best-effort cron; activation gate বন্ধ থাকে |
 | `components/publishing/` | review composer, Jobs, copy/PNG/ZIP download, dashboard/setup |
 | `scripts/test-reviewed-blogger.mjs` | guarded local unit/Firestore/Auth tests |
@@ -119,7 +121,7 @@ Repository **Settings → Secrets and variables → Actions**-এ নিচে�
 - Gemini বা অন্য AI API key
 - Vercel deployment token, GitHub write token, Cloudflare token
 
-Runner কেবল saved reviewed content পড়ে। AI generation-এ তার প্রবেশাধিকার বা কাজ নেই। Service identity-র বর্তমান অনুমোদিত Firestore read/write এবং Firebase managed-user read access লাগবে; এই পরিবর্তন **Rules, IAM, indexes বা billing পরিবর্তনের অনুমতি নয়**। কোনো permission error হলে approved operator সেটি পর্যালোচনা করবেন; browser Rules উন্মুক্ত করে সমাধান করবেন না।
+Direct Node publisher saved authorized content পড়ে। পাশাপাশি reviewed workflow short-lived OIDC দিয়ে existing Vercel generator-এ একটি consented recurring stage চালাতে পারে; AI keys GitHub-এ কপি হয় না। [বিস্তারিত নতুন setup](blogger-trend-automation.bn.md)। Service identity-র বর্তমান অনুমোদিত Firestore read/write এবং Firebase managed-user read access লাগবে; এই পরিবর্তন **Rules, IAM, indexes বা billing পরিবর্তনের অনুমতি নয়**। কোনো permission error হলে approved operator সেটি পর্যালোচনা করবেন; browser Rules উন্মুক্ত করে সমাধান করবেন না।
 
 ## ৫. আগে ব্যক্তিগত Blogger connection তৈরি করুন
 
@@ -148,16 +150,16 @@ Activation-এর শর্ত:
 - সব credentials/project/key/client mapping ঠিক হতে হবে;
 - active job থাকলে সেটি আসল পোস্ট দিতে পারে—queue না দেখে শুধু setup পরীক্ষা করতে dispatch করবেন না।
 
-Workflow-এর `workflow_dispatch` আছে, কিন্তু এই ডেলিভারি কোনো run dispatch করেনি। আগে queue খালি নিশ্চিত করে operator নিজের ইচ্ছায় একবার run করতে পারেন। Queue খালি run-এর summary/heartbeat **শুধু runner execution**, Google account consent বা published article-এর প্রমাণ নয়। এরপর `/jobs`-এ **reviewed Blogger runner**-এর heartbeat দেখুন; পুরোনো OIDC worker heartbeat আলাদা।
+Workflow-এর `workflow_dispatch` আছে। Dispatch/run-এর নির্দিষ্ট প্রমাণ validation ledger-এ আলাদা লিখতে হবে; historical empty run-কে নতুন feature-এর execution বলবেন না। আগে queue খালি নিশ্চিত করে operator নিজের ইচ্ছায় একবার run করতে পারেন। Queue খালি run-এর summary/heartbeat **শুধু runner execution**, Google account consent বা published article-এর প্রমাণ নয়। এরপর `/jobs`-এ **reviewed Blogger runner**-এর heartbeat দেখুন; পুরোনো OIDC worker heartbeat আলাদা।
 
 Workflow-তে:
 
 - standard `ubuntu-24.04`, Node `24.22.3`, production dependencies only;
 - official actions commit SHA-তে pinned;
-- `contents: read`, credential persistence off; কোনো `id-token: write` বা repo write permission নেই;
+- `contents: read` এবং `id-token: write`, credential persistence off; repo write permission নেই। OIDC কেবল exact deployed SHA/main/reviewed workflow/public repository-bound generator endpoint-এর জন্য;
 - এক সময়ে এক workflow; আগের run cancel করে remote request মাঝপথে কাটা হয় না;
 - bounded ৪ candidate / সর্বোচ্চ ১২ checkpoint; runner নতুন step শুরু বন্ধ করে প্রায় ১৮০ সেকেন্ডে; পুরো job timeout ৫ মিনিট;
-- secrets শুধু publishing step-এ; কোনো browser/AI, screenshot, artifact upload বা raw provider object logging নেই;
+- secrets শুধু publishing step-এ; কোনো browser publisher/AI key, screenshot, artifact upload বা raw provider object logging নেই; recurring stage existing Vercel AI service-এ bounded OIDC call;
 - bounded run শেষ হলে Firestore gRPC client বন্ধ হয়, যাতে idle client CI process ধরে না রাখে।
 
 পুরোনো `.github/workflows/pincraft-automation.yml` direct Blogger runner নয়। Source-এ সেটিও এখন আলাদা `LEGACY_PINTEREST_API_SCHEDULER_ENABLED=true` ছাড়া skip করে; এই variable **unset/false** রাখুন। নতুন website release-এর default mode legacy generation worker, API queue/enable ও Pinterest posting আটকে দেয়। আগে থেকে GitHub-এ পুরোনো workflow enable থাকলে rollout-এর আগে সেটি disable/পর্যালোচনা করুন—local source edit remote workflow disable হওয়ার প্রমাণ নয়। নতুন scheduler পরীক্ষা করতে পুরোনো historical verification redispatch করবেন না।
@@ -175,14 +177,14 @@ Workflow-তে:
 ### Article Writer / Library reader-এর review
 
 1. আগের মতো লেখা generate/open করুন, অথবা নিজের saved article reader খুলুন।
-2. **Publish to Blogger · prepare your Pin** খুলুন।
+2. **Publish to Blogger · optional Pin pack** খুলুন।
 3. connected Blogger account এবং verified blog বেছে নিন।
-4. HTML preview, article title, Pin title/description/hashtags review করুন। পরিবর্তন করলে review checkbox আবার uncheck হয়।
-5. Artwork source:
+4. HTML preview, article title এবং chosen blog review করুন। Pin pack ডিফল্টভাবে বন্ধ: text-only Blogger-এর জন্য কোনো Pin copy/artwork লাগে না। পরিবর্তন হলে আগের review সঙ্গে সঙ্গে অকার্যকর।
+5. শুধু optional Pin pack চালু করলে artwork source:
    - **Downloaded to my device:** নিজের downloaded artwork review/save করুন। চাইলে PNG/JPEG/WebP ফাইল local preview করে **Download PNG for Pinterest** করুন। Conversion browser-এর canvas-এ হয়; কোনো image bytes server/Firestore-এ upload হয় না।
    - **Existing public image host:** নিজের existing HTTPS image URL দিন। নতুন hosting service চাপানো হয়নি।
 6. Optional Blogger featured image-এর জন্য নিজের hosted HTTPS URL দিতে পারেন। Local ফাইলকে এই কোড গোপনে Blogger-এ rehost করে না। Blank হলে article text-only হতে পারে।
-7. audience timezone এবং blog time/manual Pin target দিন। Pin target blog-এর আগে হতে পারে না। America/New_York-এর 10:00, 12:00, 14:00, 16:00, 20:00, 21:00 শুধু editable suggestions; delivery guarantee নয়। DST-তে না-থাকা বা দুবার-হওয়া local hour প্রত্যাখ্যাত হয়।
+7. audience timezone এবং blog time দিন। শুধু Pin pack থাকলে manual Pin target লাগবে, যা blog-এর আগে হতে পারে না। America/New_York-এর 10:00, 12:00, 14:00, 16:00, 20:00, 21:00 শুধু editable suggestions; delivery guarantee নয়। DST-তে না-থাকা বা দুবার-হওয়া local hour প্রত্যাখ্যাত হয়।
 8. নির্দিষ্ট কনটেন্টের review/authorization checkbox দিন; **Schedule Blogger post** বা **Publish blog now** বেছে নিন।
 
 User-initiated website requests একই durable checkpoint দিয়ে তাৎক্ষণিক কয়েকটি step চালাতে পারে। বাকি due work ও browser-closed verification Actions runner করে—**যদি সেটি বাস্তবে configured/enabled থাকে**। Schedule অনেক আগে Blogger-এ register হলে due-time publication Blogger করে; URL confirmation/manual task release পরের সফল check-এ হবে।
@@ -191,7 +193,7 @@ Network response হারালে একই submission নিরাপদে r
 
 ### Jobs → Manual Pin pack
 
-Blogger সত্যিই LIVE/public হলে:
+শুধু Pin pack চেয়ে থাকলে, Blogger সত্যিই LIVE/public হওয়ার পরে:
 
 - title, description+hashtags ও real destination URL আলাদা copy controls-এ পাবেন;
 - copy-only ZIP download করতে পারবেন;
@@ -292,3 +294,8 @@ PINCRAFT_PUBLISHING_MODE=blogger_manual_pin BASE_URL=http://127.0.0.1:3001 \
 - [ ] queue দেখে operator জেনে-বুঝে scheduler enable করেছেন; old worker-কে নতুন runner বলা হয়নি।
 - [ ] ছোট, owner-approved real article দিয়েই আলাদা live acceptance করবেন; synthetic receipts-কে real success বলবেন না।
 - [ ] Pinterest upload/schedule আপনি নিজেই করবেন; any saved Pin link user-reported হিসেবে থাকবে।
+
+
+## নতুন recurring setup-এর test boundary
+
+`npm run test:publishing:automation` নতুন category evidence, generator quotas/idempotency, consent, pause, rolling-six cap, DST ও exact-workload OIDC পরীক্ষা করে। এটি শুধু guarded emulator/synthetic provider suite; live publication নয়। Next CLI চালানোর সময় `--conditions=react-server` দেবেন না; সেটি standalone server-module test commands-এর জন্য। নতুন API ও architecture-এর authoritative supplement: [blogger-trend-automation.bn.md](blogger-trend-automation.bn.md)।

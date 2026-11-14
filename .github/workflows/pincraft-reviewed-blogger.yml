@@ -1,4 +1,4 @@
-name: Reviewed Blogger publishing and manual Pin packs
+name: Blogger articles, recurring generation and optional manual Pin packs
 
 on:
   schedule:
@@ -9,6 +9,9 @@ on:
 
 permissions:
   contents: read
+  # Short-lived identity for the existing Vercel generator only. Its endpoint
+  # pins repository ID, public visibility, main, workflow, audience and SHA.
+  id-token: write
 
 concurrency:
   group: pincraft-reviewed-blogger
@@ -32,7 +35,7 @@ jobs:
           node-version: '24.22.3'
       - name: Install locked production dependencies only
         run: npm ci --omit=dev --ignore-scripts --no-audit --no-fund
-      - name: Run bounded Blogger checkpoints
+      - name: Prepare one consented generation stage and run bounded Blogger checkpoints
         env:
           PINCRAFT_PUBLISHING_MODE: blogger_manual_pin
           APP_URL: https://pincraftly.vercel.app

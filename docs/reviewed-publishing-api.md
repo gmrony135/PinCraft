@@ -4,7 +4,7 @@ Current flow is `blogger_manual_pin`. See [owner setup, বাংলা](blogger
 
 ## Browser entrypoints
 
-`/publish` loads only the current session owner’s existing Cloud Library article drafts, or accepts pasted complete text. It formats/escapes plain text and simple Markdown locally; opening review never creates a job. `/connector` links each ready owned site to this screen. The `website` and `draft` URL parameters are hints, not authorization; the session-scoped status/Library response must resolve them. A sole ready destination may be preselected, but artwork and final publication consent remain unchecked. Client/server share strict article HTML/plain-copy/hashtag validation; Unicode combining marks inside letter/number-started hashtags support normal Bengali/Indic spelling without permitting markup, format controls or a mark-only tag. The saved receipt displays its immutable Job ID.
+`/publish` loads only the current session owner’s existing Cloud Library article drafts, or accepts pasted complete text. It formats/escapes plain text and simple Markdown locally; opening review never creates a job. `/connector` links each ready owned site to this screen. The `website` and `draft` URL parameters are hints, not authorization; the session-scoped status/Library response must resolve them. A sole ready destination may be preselected, but final publication consent remains unchecked. The optional Pin pack is OFF by default; no artwork/copy gate exists for Blogger-only publication. Consent is synchronously bound to the exact current review values. Client/server share strict article HTML/plain-copy/hashtag validation; Unicode combining marks inside letter/number-started hashtags support normal Bengali/Indic spelling without permitting markup, format controls or a mark-only tag. The saved receipt displays its immutable Job ID.
 
 ## Authentication and input boundary
 
@@ -55,6 +55,8 @@ Create request shape (IDs below are **synthetic examples**, not production desti
 }
 ```
 
+**Blogger-only request:** omit both `pin` and `pinReadyAtUTC` entirely (or use null for both). The example above opts into a strict manual pack; no Pin content is required otherwise. Final `reviewed:true` is still mandatory for this one-article owner API. An automation object or missing per-article approval cannot inject a recurring job.
+
 `imageSource` is `local_download` or `public_url`. In public URL mode `imageUrl` is required; local upload bytes are never submitted. `pinReadyAtUTC` is **not** the old `pinPublishAtUTC`. No Pinterest connection, board, Trial acknowledgment or mandatory image host is required.
 
 Creation returns `{job, replayed}` with HTTP 201. The raw reviewed request fingerprint is immutable for a request UUID; replay returns that existing owner job even if its original due time has passed. Changed content under the same UUID returns 409. A UUID belonging to another owner returns 404, not its receipt. A new UUID is not a reconciliation strategy for an uncertain remote send.
@@ -68,7 +70,7 @@ Creation returns `{job, replayed}` with HTTP 201. The raw reviewed request finge
 - Existing `connections` and `websites` subcollections: unchanged encrypted per-owner grants and administrator destinations; no new shared refresh-token document.
 - `publisher_system/reviewed_blogger`: summary heartbeat for **this** runner. No owner IDs, content, URLs, grants or provider error objects in CI heartbeat/logs.
 
-Parent fields include `ownerUID`, `type:'blogger'`, `status`, `phase`, `publishAtUTC`, `pinReadyAtUTC`, `timezone`, immutable reviewed payload/account-key/revision/site snapshot, `remoteId`, `draftURL` (private), `resultURL` (LIVE/public only), one predetermined `manualTaskId`, `attempts`, `attemptOpen`, `lease`, `leaseUntilUTC`, `mutationPending`, `reviewedRunAtUTC`, fingerprint and audit timestamps.
+Parent fields include `ownerUID`, `type:'blogger'`, `status`, `phase`, `publishAtUTC`, `pinReadyAtUTC`, `timezone`, immutable reviewed payload/account-key/revision/site snapshot, `remoteId`, `draftURL` (private), `resultURL` (LIVE/public only), an optional predetermined `manualTaskId` (null for Blogger-only/recurring jobs), `attempts`, `attemptOpen`, `lease`, `leaseUntilUTC`, `mutationPending`, `reviewedRunAtUTC`, fingerprint and audit timestamps.
 
 The one due query is `reviewedRunAtUTC <= now`, ordered/limited on that same field. New jobs are due immediately to register future Blogger publication in advance. Terminal rows **omit** that field rather than retain an old due timestamp. Default single-field indexes suffice for the new collections; existing production index/TTL policies are not redeployed here. Browser rules remain deny-all; Admin access must already be authorized.
 
@@ -81,7 +83,7 @@ Manual children contain `type:'manual_pin'`, `bloggerJobId`, reviewed Pin copy/i
 3. **Before mutation:** one transaction reads job/connection/sites/subscription, rechecks lease/context and writes `mutationPending`. A per-connection `reviewed_publish_job` + lease + expiry locks concurrent mutations and OAuth replacement. Token rotation preserves that lock.
 4. **Draft:** POST `posts?isDraft=true`; include `<!-- pincraft-reviewed-job:{uuid} -->`; persist ID before the separate publish checkpoint. Valid ID on an otherwise unexpected accepted result is retained for inspection.
 5. **Publish:** POST the saved ID's `/publish` endpoint; optional future `publishDate`, **no body**. Validate response/ADMIN state; malformed JSON, declared/streamed oversized bodies and unconfirmed acceptance become review, not another publish call.
-6. **Verify:** due ADMIN GET must confirm that post as LIVE with a nonfuture publication timestamp; separate unauthenticated, DNS-pinned HTTPS HTML GET must match this post. Redirects/login-only/private/unmatched pages do not count. Only then atomically complete parent and create its one manual child.
+6. **Verify:** due ADMIN GET must confirm that post as LIVE with a nonfuture publication timestamp; separate unauthenticated, DNS-pinned HTTPS HTML GET must match this post. Redirects/login-only/private/unmatched pages do not count. Only then atomically complete the parent and, if explicitly requested, create its one manual child. Blogger-only jobs complete without a child.
 7. **Failure:** bounded backoff for definite rejections/read-only transport failures; a 429 stops this runner run. Mutation timeout/5xx, lost commit acknowledgement or recovery of an expired mutating lease requires remote inspection. If a successful checkpoint write is rejected, its accepted ID is retained in the failure record where possible. If all post-send writes fail, the durable pre-send marker forces inspection after lease expiry. A lost acknowledgement after a successful checkpoint resumes only its saved next phase. Retry never resets IDs/counter.
 8. **Review:** owner must attest inspection. A supplied existing post ID must return from the selected blog and contain this exact job's marker. DRAFT resumes publish on the same ID; SCHEDULED/LIVE resume read-only verification, not insertion. Abandon records no success and deletes nothing remotely.
 
@@ -92,3 +94,52 @@ OAuth start/save race on the same connection document as mutation locking. Disco
 Reproducible test commands are in the setup guide. New suites exercise real local Auth/Firestore transactions and production-build API/UI code with **explicit synthetic Google/Blogger/public-page replies**. Unit tests inject a synthetic transport; browser integration uses a guarded, process-only preload that denies other external publishers. No request flag can activate those doubles in production.
 
 Production-only runner dependencies are checked separately from the website/dev toolchain. Historical Worker/legacy tests are regression context only, not evidence of genuine owner consent, Google credential configuration, actual Blogger publication, scheduled production execution or Pinterest visibility.
+
+
+## Recurring category-trend generation API
+
+The discoverable `/automation` route is `BlogAutomationSetup` in the selected mode, not the old Pinterest API automation. [Full behavior/limits, বাংলা](blogger-trend-automation.bn.md).
+
+| Method / path | Input / result |
+| --- | --- |
+| `GET /api/publish/automation` | Current owner config, latest 12 actual slots/evidence/editorial outcomes, separate generation heartbeat, existing AI usage and configuration readiness |
+| `POST /api/publish/automation` | `{requestId,expectedRevision,settings,enabled,consent}`; strict same-origin owner JSON. `expectedRevision:null` for first save; otherwise exact returned revision. Explicit `consent:true` required when enabled |
+| `POST /api/publish/automation/pause` | `{requestId,expectedRevision}`; always available to the owner even if AI/OAuth readiness is broken. Invalidates new generation/unsent automated mutations, not already-registered Blogger schedules |
+| `POST /api/internal/blog-automation/tick` | Empty `{}`, no cookies/owner/settings/adapters. Exact reviewed-workflow, public-repo, main-ref, deployed-SHA GitHub OIDC only; one accepted delivery per run/attempt. At most one existing-generator AI stage per invocation |
+
+`settings` fields are exactly:
+
+```text
+bloggerConnectionId: an owned connection ID
+websiteId: an owned verified Blogger website ID
+categoryIds: 1–3 of the product category IDs
+topic: optional narrowing plain text, <=120 characters
+language: en | bn
+trendRegion: BD | US | GB | IN | CA | AU
+timezone: valid IANA timezone
+dailyLimit: integer 1–6
+postingTimes: exactly dailyLimit distinct HH:MM values, >=1 hour apart
+```
+
+Save is immutable by request ID and guarded by settings revision. A paused save creates no slot/job or generation. Enabled saves require real live-text/secure-Blogger/exact-production-scheduler configuration. Website connection alone creates no config. No source/evidence, lease, quota ledger, generated content, existing-post flag, owner UID or provider credentials may be injected by these owner requests. New active settings require renewed consent and skip already-used upcoming instants.
+
+### Records and authorization
+
+- `blog_automations/{sha256(uid)}`: private current settings, destination identity/revision snapshot, consent version/fingerprint/time, rolling publication reservations, recent attempted topics, active slot/lease, next slot/due time and truthful last outcome. Disabled records omit `nextRunAtUTC`.
+- `pincraft_accounts/{sha256(uid)}/blog_automation_slots/{UTC-instant}`: unique scheduled instant, immutable AI/library/job request IDs, evidence, title, article checkpoint, private Library draft ID, editorial result, content fingerprint and outcome. Sources are headlines/dates/links, not independently verified full-text reporting.
+- `publisher_system/blog_automation`: aggregate generation heartbeat. Separate from `publisher_system/reviewed_blogger`, which records direct Blogger checkpoint execution.
+- Existing private AI request/usage receipts enforce budgets and no silent repeat. Generated articles are ordinary owner-scoped Library drafts with metadata `source:recurring_automation`, not fabricated owner-written or per-article-reviewed content.
+
+Generation stages: `select → article → quality → approved → queued`, or finite retry/skip/cancel. Preparation lead 90 minutes, first notice at least 45 minutes, minimum register notice five minutes. One AI task per invocation; article and quality use stable request keys and inputs. A lost checkpoint can retrieve a genuine saved result; spent/uncertain AI requests are not repeated with new keys.
+
+An approved article can enter the publisher only through a server-internal repository function. The transaction verifies live recurring consent, owner, revision, destination, active generation lease, exact slot/UTC instant/job ID, successful editorial receipt and normalized article fingerprint. In the same transaction, it writes the job/owner view, consumes the slot, reserves the daily ceiling and advances the config. Automatic jobs have `reviewedAt:null`, their real `recurringConsentAt`, `source:recurring_automation`, evidence and editorial limitations; no manual Pin child.
+
+The configured local-day ceiling and hard six-in-any-rolling-24-hours ceiling include existing future reservations, across all settings revisions/timezone changes. At least one-hour spacing. Quota and attempted-topic history are not reset by save/pause. Missed slots skip rather than late-publish/backfill.
+
+Immediately before **each** automatic Blogger mutation, the existing lease/site/capacity/connection-lock transaction also rereads the current recurring config and exact queued slot. Pause, changed consent, a new revision or reconnection fails closed. Already-registered schedules may still complete read-only LIVE/public verification after pause; no remote delete/revert/unschedule is claimed.
+
+### Workload security
+
+Issuer `https://token.actions.githubusercontent.com`, RS256, short token age; audience `https://pincraftly.vercel.app/api/internal/blog-automation/tick`; repo `gmrony135/PinCraft`, numeric repository ID `1456649831`, public visibility, `refs/heads/main`, exact `.github/workflows/pincraft-reviewed-blogger.yml@refs/heads/main`, schedule/manual-dispatch event, valid run/attempt/jti and SHA equal to Vercel’s current deployed commit. Wrong audience, forks, PRs, private repo, legacy workflow, old commits, expiry and replay are rejected. Production configuration is not enabled by a browser test flag.
+
+GitHub gets `id-token:write`, not repo write. Existing AI credentials remain solely in the already-configured Vercel generator. The CLI bridge returns allowlisted aggregate counters only. Its failure never bypasses consent or prevents already-authorized specific-article jobs from being processed. No production script imports the legacy worker to implement this feature.

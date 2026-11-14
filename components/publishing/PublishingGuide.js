@@ -1,12 +1,3 @@
 "use client";
-import Link from 'next/link';
-import {ArrowRight,CalendarClock,Pin} from 'lucide-react';
-import {usePublisher} from './usePublisher';
-import {WorkspaceFrame,Panel,primaryClass,secondaryClass} from '../workspace/WorkspaceUI';
-export default function PublishingGuide(){
- const state=usePublisher();
- return <WorkspaceFrame state={state} eyebrow="Publishing setup" title="Blogger automatic. Pinterest by you." description="The selected publishing mode is a reviewed Blogger job followed by a manual Pin pack—not a category-based Pinterest API automation." action={<Link href="/jobs" prefetch={false} className={primaryClass}>Open reviewed jobs<ArrowRight size={14}/></Link>}>
-  <div className="grid items-start gap-6 lg:grid-cols-2"><Panel title="Schedule your Blogger article" description="Paste your existing article, load a saved Cloud Library draft, or use the unchanged generation tools. Explicit review is still required."><CalendarClock size={26} className="mt-5 text-brand-600"/><p className="mt-4 text-[12px] leading-relaxed text-neutral-600">PinCraft saves a Blogger draft, reuses its real post ID and registers a future publication with Blogger. GitHub Actions checks the saved jobs with the browser closed after the runner is configured. Connecting a website alone never queues content. It never generates new unreviewed articles as part of this workflow.</p><div className="mt-5 flex flex-wrap gap-2"><Link href="/connector" prefetch={false} className={secondaryClass}>Connect Blogger</Link><Link href="/publish" prefetch={false} className={primaryClass}>Publish an article<ArrowRight size={14}/></Link></div></Panel><Panel title="Upload or schedule your own Pin" description="No Pinterest API, browser automation, password or session-cookie collection."><Pin size={26} className="mt-5 text-brand-600"/><p className="mt-4 text-[12px] leading-relaxed text-neutral-600">After the Blogger article is genuinely live, Jobs releases a matching manual pack with its real destination URL. Download the artwork/copy, choose your board inside Pinterest and use its native scheduler if available. A target time here does not reserve or execute a Pinterest upload.</p><Link href="/jobs" prefetch={false} className={`${secondaryClass} mt-5`}>Open manual Pin packs<ArrowRight size={14}/></Link></Panel></div>
-  <p className="mt-5 text-[11px] leading-relaxed text-neutral-500">Older API automation records are retained, not migrated into new jobs or silently activated. The default server mode blocks their publication entrypoints. Published Blogger results and any user-reported Pinterest links remain distinctly labeled.</p>
- </WorkspaceFrame>;
-}
+// Retained import compatibility; the old publishing-only guide is superseded.
+export {default} from './BlogAutomationSetup';

@@ -31,7 +31,7 @@ function watch(p) {
 try {
   const health = await request('/api/auth/config', { token: null }); assert.equal(health.status, 200, 'Start the guarded local Next fixture server before this suite.');
   await resetFirebase(); owner = await firebaseIdentity('publishing-ui-owner-' + randomUUID()); foreign = await firebaseIdentity('publishing-ui-foreign-' + randomUUID()); session = await login(owner); foreignSession = await login(foreign);
-  await test('Unauthenticated publishing endpoints reject access instead of returning example jobs', async () => { for (const path of ['status', 'jobs', 'connections/blogger/resources']) assert.equal((await request('/api/publish/' + path, { token: null })).status, 401); });
+  await test('Unauthenticated publishing endpoints reject access instead of returning example jobs', async () => { for (const path of ['status', 'jobs', 'automation', 'connections/blogger/resources']) assert.equal((await request('/api/publish/' + path, { token: null })).status, 401); });
   await test('Cross-origin mutations and old Pinterest/session payloads are rejected by actual API routes', async () => { assert.equal((await request('/api/publish/jobs', { body: reviewedRequest(), headers: { origin: 'https://untrusted.example' } })).status, 403); assert.equal((await request('/api/publish/jobs', { body: { ...reviewedRequest(), pinterestSession: 'must-not-be-collected' } })).status, 400); const tooLarge = await request('/api/publish/jobs', { body: { input: 'x'.repeat(145001) } }); assert.equal(tooLarge.status, 413); });
   await test('Pinterest consent and callback are disabled in manual mode; no API/session connection is required', async () => { const start = await request('/api/integrations/pinterest/start', { body: {}, headers: canonical }); assert.equal(start.status, 409); assert.equal((await request('/api/pinterest/callback?code=not-used')).status, 410); const status = await (await request('/api/publish/status')).json(); assert.equal(status.providers.pinterest.mode, 'manual'); assert.equal(status.providers.pinterest.configured, false); });
   await test('Retained Pinterest queue and automation routes cannot enqueue or enable API publishing in manual mode', async () => {
@@ -55,7 +55,8 @@ try {
   await test('Connector presents Blogger consent and manual Pinterest instructions, with no boards or Trial controls', async () => { await page.goto(BASE + '/connector', { waitUntil: 'networkidle' }); await page.getByRole('heading', { name: 'Pinterest · manual upload', exact: true }).waitFor(); assert(await page.getByRole('button', { name: 'Reconnect Blogger', exact: true }).isEnabled()); assert.equal(await page.getByRole('button', { name: 'Connect Pinterest', exact: true }).count(), 0); const body = await page.locator('main').innerText(); assert(!body.includes('Trial API Pins')); assert(body.includes('No Pinterest API connection required')); });
   const articleTitle = 'A reviewed small balcony garden for everyday living';
   await test('Existing offline article generation still works without activating publishing', async () => { await page.goto(BASE + '/article-writer', { waitUntil: 'networkidle' }); await page.getByRole('button', { name: 'Offline template', exact: true }).click(); await page.getByLabel('Enter your pin title', { exact: true }).fill(articleTitle); const before = (await jobs()).length; await page.getByRole('button', { name: 'Generate Article', exact: true }).click(); await page.getByTestId('reviewed-publish-composer').waitFor(); assert.equal((await jobs()).length, before); });
-  await test('The review composer defaults to local artwork, no Pinterest account/host requirement, with an unchecked consent gate', async () => { await page.getByRole('button', { name: /Publish to Blogger · prepare your Pin/ }).click(); const composer = page.getByTestId('reviewed-publish-composer'); assert(await composer.getByRole('button', { name: 'Publish blog now', exact: true }).isDisabled()); assert.equal(await page.getByLabel('Blogger account', { exact: true }).inputValue(), 'blogger'); assert.equal(await page.getByLabel('Verified blog', { exact: true }).inputValue(), 'blogger_' + BLOG); assert.match(await page.getByTestId('publish-readiness').innerText(), /artwork/); assert.equal(await composer.getByLabel('Public Pin image URL', { exact: true }).count(), 0); assert.equal(await composer.getByText('Trial', { exact: true }).count(), 0); assert.equal(await page.getByRole('checkbox', { name: /^I reviewed this specific HTML article/ }).isChecked(), false); assert.equal(await page.locator('iframe[title="Reviewed HTML article preview"]').getAttribute('sandbox'), ''); });
+  await test('The composer defaults to Blogger-only: no Pin artwork gate, and still requires final authorization', async () => { await page.getByRole('button', { name: /Publish to Blogger · optional Pin pack/ }).click(); const composer = page.getByTestId('reviewed-publish-composer'); assert(await composer.getByRole('button', { name: 'Publish blog now', exact: true }).isDisabled()); assert.equal(await page.getByLabel('Blogger account', { exact: true }).inputValue(), 'blogger'); assert.equal(await page.getByLabel('Verified blog', { exact: true }).inputValue(), 'blogger_' + BLOG); assert.match(await page.getByTestId('publish-readiness').innerText(), /final review/); assert.equal(await composer.getByLabel('Include optional manual Pin pack',{exact:true}).isChecked(),false); assert.equal(await composer.getByLabel('Review downloaded Pin artwork',{exact:true}).count(),0); assert.equal(await composer.getByLabel('Public Pin image URL', { exact: true }).count(), 0); assert.equal(await composer.getByText('Trial', { exact: true }).count(), 0); assert.equal(await page.getByRole('checkbox', { name: /^I reviewed this specific HTML article/ }).isChecked(), false); assert.equal(await page.locator('iframe[title="Reviewed HTML article preview"]').getAttribute('sandbox'), ''); });
+  await test('Final Blogger authorization alone enables both publication commands; opting into a Pin pack restores its review gates',async()=>{const consent=page.getByRole('checkbox',{name:/^I reviewed this specific HTML article/});await consent.check();assert(await page.getByRole('button',{name:'Publish blog now',exact:true}).isEnabled());assert(await page.getByRole('button',{name:'Schedule Blogger post',exact:true}).isEnabled());await page.getByLabel('Include optional manual Pin pack',{exact:true}).check();assert.equal(await consent.isChecked(),false);assert.match(await page.getByTestId('publish-readiness').innerText(),/artwork/);assert(await page.getByRole('button',{name:'Publish blog now',exact:true}).isDisabled());});
   await mkdir('.shots', { recursive: true }); const pngPath = '.shots/reviewed-local-artwork.png'; await sharp({ create: { width: 400, height: 600, channels: 3, background: '#b7cfad' } }).png().toFile(pngPath);
   await test('Local artwork can be previewed and downloaded as a real PNG without uploading its bytes to an API', async () => { await page.getByLabel('Review downloaded Pin artwork', { exact: true }).setInputFiles(pngPath); const downloadPromise = page.waitForEvent('download'); await page.getByRole('button', { name: 'Download PNG for Pinterest', exact: true }).click(); const download = await downloadPromise; assert.equal(download.suggestedFilename(), 'pincraft-pin-image.png'); await download.saveAs('.shots/reviewed-browser-pin.png'); const image = await sharp('.shots/reviewed-browser-pin.png').metadata(); assert.equal(image.format, 'png'); assert.equal(image.width, 400); await page.getByRole('checkbox', { name: /^I reviewed and saved my Pin artwork/ }).and(page.locator('input:checked')).waitFor(); assert(await page.getByRole('checkbox', { name: /^I reviewed and saved my Pin artwork/ }).isChecked()); });
   await test('Editing content invalidates previous review consent before any publication button activates', async () => { const checkbox = page.getByRole('checkbox', { name: /^I reviewed this specific HTML article/ }); await checkbox.check(); assert(await page.getByRole('button', { name: 'Publish blog now', exact: true }).isEnabled()); await page.getByLabel('Reviewed Pin title', { exact: true }).fill('Balcony garden ideas reviewed for manual upload'); assert.equal(await checkbox.isChecked(), false); assert(await page.getByRole('button', { name: 'Publish blog now', exact: true }).isDisabled()); });
@@ -82,20 +83,20 @@ try {
     await page.getByRole('button',{name:'Review this article',exact:true}).click();
     await page.getByLabel('Article publishing title',{exact:true}).waitFor();
     assert.equal(await page.getByLabel('Article publishing title',{exact:true}).inputValue(),pastedTitle);
+    await page.waitForFunction(()=>document.querySelector('[aria-label="Blogger account"]')?.value==='blogger');
     assert.equal(await page.getByLabel('Blogger account',{exact:true}).inputValue(),'blogger');
     assert.equal(await page.getByLabel('Verified blog',{exact:true}).inputValue(),'blogger_'+BLOG);
     assert(await page.getByRole('button',{name:'Publish blog now',exact:true}).isDisabled());
     assert.equal(await page.getByRole('checkbox',{name:/^I reviewed this specific HTML article/}).isChecked(),false);
-    assert.match(await page.getByTestId('publish-blocked-reason').innerText(),/artwork/);
+    assert.match(await page.getByTestId('publish-blocked-reason').innerText(),/final review/);
     assert.equal((await jobs()).length,pastedCount);
   });
-  await test('Direct publishing still requires artwork and final authorization, then shows the saved job ID and actual checkpoint result', async () => {
-    await page.getByRole('checkbox',{name:/^I reviewed and saved my Pin artwork/}).check();
+  await test('Direct Blogger-only publishing needs final authorization but no artwork, then shows the real saved job ID', async () => {
     await page.getByRole('checkbox',{name:/^I reviewed this specific HTML article/}).check();
     await page.getByRole('button',{name:'Publish blog now',exact:true}).click();
     await page.getByText('Blogger confirmed live.',{exact:true}).waitFor();
-    const job=(await jobs()).find(row=>row.type==='blogger'&&row.title===pastedTitle);assert(job);assert.equal(job.status,'completed');
-    assert.equal((await jobs()).length,pastedCount+2);
+    const job=(await jobs()).find(row=>row.type==='blogger'&&row.title===pastedTitle);assert(job);assert.equal(job.status,'completed');assert.equal(job.hasManualPin,false);assert.equal(job.manualTaskId,null);assert(!(await jobs()).some(row=>row.bloggerJobId===job.id));
+    assert.equal((await jobs()).length,pastedCount+1);
     assert.match(await page.getByTestId('saved-publishing-job-id').innerText(),new RegExp(job.id));
   });
   await test('Broken HTML shows a specific visible blocker before any create/publish request is possible', async () => {
@@ -105,11 +106,10 @@ try {
     await page.getByRole('button',{name:'Review this article',exact:true}).click();
     await page.getByText('Review or edit article HTML',{exact:true}).click();
     await page.getByLabel('Article HTML',{exact:true}).fill('<p>A complete paragraph with intentionally invalid closing order for this isolated review test.</h2>');
-    await page.getByRole('checkbox',{name:/^I reviewed and saved my Pin artwork/}).check();
     await page.getByRole('checkbox',{name:/^I reviewed this specific HTML article/}).check();
     assert(await page.getByRole('button',{name:'Publish blog now',exact:true}).isDisabled());
     assert.match(await page.getByTestId('publish-blocked-reason').innerText(),/Close the article formatting tags in order/);
-    assert.equal((await jobs()).length,pastedCount+2);
+    assert.equal((await jobs()).length,pastedCount+1);
   });
   await test('A private saved article opens directly in review without regenerating or queueing it', async () => {
     const content={title:'Private saved article preserved in the publishing entry regression',intro:'An explicit isolated saved article introduction, preserved rather than regenerated.',sections:[{heading:'The actual saved heading',paragraphs:['This is the complete paragraph of the explicit local Library fixture used only by the regression suite.']}],conclusion:'This is its original saved conclusion.',plainText:'An explicit isolated saved article introduction. The actual saved heading. This is the complete saved paragraph and conclusion.',category:'Saved publishing entry regression'};
@@ -119,7 +119,7 @@ try {
     await page.getByLabel('Article publishing title',{exact:true}).waitFor();
     assert.equal(await page.getByLabel('Article publishing title',{exact:true}).inputValue(),content.title);
     assert.equal(await page.getByRole('checkbox',{name:/^I reviewed this specific HTML article/}).isChecked(),false);
-    assert.equal((await jobs()).length,pastedCount+2);
+    assert.equal((await jobs()).length,pastedCount+1);
     await page.goto(BASE+'/library',{waitUntil:'networkidle'});
     const cloud=page.getByTestId('cloud-library');await cloud.getByRole('button',{name:'Cloud Articles',exact:true}).click();
     assert.equal(await cloud.getByRole('link',{name:'Review & publish',exact:true}).getAttribute('href'),'/publish?draft='+savedDraftId);
@@ -133,7 +133,41 @@ try {
       assert.equal((await jobs(foreignSession)).length,0);
     }finally{await context.addCookies([{name:'pincraft.session.v2',value:session,url:origin,httpOnly:true,sameSite:'Lax'}]);}
   });
-  await test('Dashboard and old automation URL explain the selected path rather than requiring a Pinterest API account', async () => { await page.goto(BASE + '/dashboard', { waitUntil: 'networkidle' }); assert(await page.getByRole('heading', { name: 'Reviewed content. Real blog results.', exact: true }).isVisible()); assert.equal(await page.getByText('Pins published', { exact: true }).count(), 0); await page.goto(BASE + '/automation', { waitUntil: 'networkidle' }); assert(await page.getByRole('heading', { name: 'Blogger automatic. Pinterest by you.', exact: true }).isVisible()); assert.equal(await page.getByRole('button', { name: 'Start automation', exact: true }).count(), 0); });
+  await test('Dashboard and Automation setup expose recurring Blogger settings without requiring a Pinterest account', async () => { await page.goto(BASE + '/dashboard', { waitUntil: 'networkidle' }); assert(await page.getByRole('heading', { name: 'Reviewed content. Real blog results.', exact: true }).isVisible()); assert.equal(await page.getByText('Pins published', { exact: true }).count(), 0); await page.goto(BASE + '/automation', { waitUntil: 'networkidle' }); assert(await page.getByRole('heading', { name: 'Your category. Fresh topics. A real schedule.', exact: true }).isVisible()); assert.equal(await page.getByRole('button', { name: 'Start automation', exact: true }).count(), 0); });
+  const automationSettings={bloggerConnectionId:'blogger',websiteId:'blogger_'+BLOG,categoryIds:['home-decor'],topic:'',language:'en',trendRegion:'BD',timezone:'Asia/Dhaka',dailyLimit:6,postingTimes:['08:00','10:30','13:00','15:30','18:00','20:30']};
+  await test('Actual recurring APIs require owner auth, same origin, strict input and separate recurring consent',async()=>{
+    assert.equal((await request('/api/publish/automation',{token:null})).status,401);
+    const raw={requestId:randomUUID(),expectedRevision:null,settings:automationSettings,enabled:true,consent:false};
+    assert.equal((await request('/api/publish/automation',{body:raw,headers:{origin:'https://untrusted.example'}})).status,403);
+    assert.equal((await request('/api/publish/automation',{body:raw})).status,400);
+    assert.equal((await request('/api/publish/automation',{body:{...raw,enabled:false,ownerUID:foreign.id}})).status,400);
+    const workload=await request('/api/internal/blog-automation/tick',{body:{}});assert.equal(workload.status,401);
+    assert.equal((await request('/api/publish/automation',{body:{...raw,consent:true}})).status,503);
+    assert.equal((await (await request('/api/publish/automation')).json()).automation,null);
+  });
+  await test('Paused automation settings persist through the real API without a generation, Pin or publication',async()=>{
+    const before=(await jobs()).length,raw={requestId:randomUUID(),expectedRevision:null,settings:automationSettings,enabled:false,consent:false};
+    const saved=await request('/api/publish/automation',{body:raw});assert.equal(saved.status,200);const result=await saved.json();assert.equal(result.automation.enabled,false);
+    const replay=await request('/api/publish/automation',{body:raw});assert.equal((await replay.json()).automation.revision,result.automation.revision);
+    const current=await (await request('/api/publish/automation')).json();assert.deepEqual(current.slots,[]);assert.equal(current.automation.settings.dailyLimit,6);assert.equal((await jobs()).length,before);
+    const other=await (await request('/api/publish/automation',{token:foreignSession})).json();assert.equal(other.automation,null);assert.deepEqual(other.slots,[]);
+  });
+  await test('Automation setup shows actual paused state, six editable slots and an unchecked recurring authorization',async()=>{
+    await page.goto(BASE+'/automation',{waitUntil:'networkidle'});await page.getByTestId('blog-automation-status').waitFor();
+    assert.match(await page.getByTestId('blog-automation-status').innerText(),/Paused/);assert.equal(await page.getByLabel('Authorize recurring generation and Blogger publication',{exact:true}).isChecked(),false);
+    assert.equal(await page.getByLabel(/Automation posting time [1-6]/).count(),6);assert.equal(await page.getByLabel('Automation audience timezone',{exact:true}).inputValue(),'Asia/Dhaka');
+    assert.equal(await page.getByLabel('Automation Blogger account',{exact:true}).inputValue(),'blogger');assert.equal(await page.getByLabel('Automation verified blog',{exact:true}).inputValue(),'blogger_'+BLOG);
+    assert(await page.getByRole('button',{name:'Enable recurring Blogger automation',exact:true}).isDisabled());assert.match(await page.getByTestId('automation-server-blocker').innerText(),/guarded production scheduler/);
+  });
+  await test('Editing automation clears recurring consent; save-paused persists category, language, region and exact times',async()=>{
+    const consent=page.getByLabel('Authorize recurring generation and Blogger publication',{exact:true});await consent.check();await page.getByLabel('Automation posting time 1',{exact:true}).fill('08:05');assert.equal(await consent.isChecked(),false);
+    await page.getByLabel('Automation article language',{exact:true}).selectOption('bn');await page.getByLabel('Automation trend region',{exact:true}).selectOption('BD');await page.getByLabel('Automation topic focus',{exact:true}).fill('small apartments');
+    await page.getByRole('button',{name:'Save paused settings',exact:true}).click();await page.getByText('Settings saved in paused mode. No recurring generation or publication is authorized.',{exact:true}).waitFor();
+    const saved=await (await request('/api/publish/automation')).json();assert.equal(saved.automation.enabled,false);assert.equal(saved.automation.settings.language,'bn');assert.equal(saved.automation.settings.postingTimes[0],'08:05');assert.equal(saved.automation.settings.topic,'small apartments');assert.deepEqual(saved.slots,[]);
+  });
+  await test('A stale settings revision cannot overwrite the real saved automation',async()=>{
+    const raw={requestId:randomUUID(),expectedRevision:null,settings:automationSettings,enabled:false,consent:false},response=await request('/api/publish/automation',{body:raw});assert.equal(response.status,409);assert.equal((await response.json()).code,'automation_changed');
+  });
   await test('Home, footer and policies clearly describe manual Pinterest rather than promise automatic Pin uploads', async () => {
     await page.goto(BASE + '/', { waitUntil: 'networkidle' }); assert(await page.getByText('Blogger automatic · Pinterest manual', { exact: true }).isVisible()); const footer = await page.locator('footer').innerText(); assert(footer.includes('No Pinterest API, login session or automatic Pin uploads.')); assert(!footer.includes('Maximum six Pins')); assert(!((await page.title()).includes('Pinterest Automation Machine')));
     await page.goto(BASE + '/privacy', { waitUntil: 'networkidle' }); assert((await page.locator('main').innerText()).includes('This mode does not ask for Pinterest authorization, passwords, login sessions or cookies.'));

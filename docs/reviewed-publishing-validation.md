@@ -1,3 +1,5 @@
+> **Superseded scope notice:** optional Pin + explicitly consented recurring generation are now documented in [blogger-trend-automation.bn.md](blogger-trend-automation.bn.md). Historical counts below predate those features.
+
 # PinCraft publishing — final local validation
 
 ## Result

@@ -23,7 +23,8 @@
     "publishing:blogger": "node --conditions=react-server scripts/run-reviewed-blogger.mjs",
     "test:publishing": "node --conditions=react-server --test scripts/test-reviewed-blogger.mjs",
     "test:publishing:ui": "node --conditions=react-server scripts/check-reviewed-publishing-ui.mjs",
-    "test:publishing:entry": "node --test scripts/test-publishing-entry.mjs"
+    "test:publishing:entry": "node --test scripts/test-publishing-entry.mjs",
+    "test:publishing:automation": "node --conditions=react-server --test scripts/test-blog-automation.mjs"
   },
   "dependencies": {
     "firebase": "^13.3.0",

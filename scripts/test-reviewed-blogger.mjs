@@ -324,7 +324,7 @@ check('Legacy entrypoints do not generate, refresh Pinterest or publish in the s
 });
 check('Errors, workflow and CLI guardrails do not disclose credentials or install a browser publisher', async () => {
   const error = new AutomationError('provider_request', 'Bearer ya29.synthetic-very-long-private-access-token'); assert(!redactedError(error).message.includes('ya29.'));
-  const workflow = await readFile('.github/workflows/pincraft-reviewed-blogger.yml', 'utf8'); assert(workflow.includes("github.event.repository.private == false")); assert(workflow.includes("REVIEWED_BLOGGER_SCHEDULER_ENABLED == 'true'")); assert(workflow.includes('contents: read')); assert(!workflow.includes('id-token: write')); assert(!workflow.includes('pull_request:')); assert(!workflow.includes('PINTEREST_SESSION')); assert(!workflow.includes('GOOGLE_REFRESH_TOKEN')); assert(workflow.includes('--omit=dev --ignore-scripts')); assert.equal((workflow.match(/uses: actions\/[^@]+@[a-f0-9]{40}/g) || []).length, 2);
+  const workflow = await readFile('.github/workflows/pincraft-reviewed-blogger.yml', 'utf8'); assert(workflow.includes("github.event.repository.private == false")); assert(workflow.includes("REVIEWED_BLOGGER_SCHEDULER_ENABLED == 'true'")); assert(workflow.includes('contents: read')); assert(workflow.includes('id-token: write')); assert(!/GEMINI_API_KEY|GROQ_API_KEY/.test(workflow)); assert(!workflow.includes('pull_request:')); assert(!workflow.includes('PINTEREST_SESSION')); assert(!workflow.includes('GOOGLE_REFRESH_TOKEN')); assert(workflow.includes('--omit=dev --ignore-scripts')); assert.equal((workflow.match(/uses: actions\/[^@]+@[a-f0-9]{40}/g) || []).length, 2);
   const env = { ...process.env }; delete env.FIREBASE_EMULATORS; delete env.FIRESTORE_EMULATOR_HOST; delete env.FIREBASE_AUTH_EMULATOR_HOST; delete env.GITHUB_ACTIONS; const cli = spawnSync(process.execPath, ['--conditions=react-server', 'scripts/run-reviewed-blogger.mjs'], { env, encoding: 'utf8', timeout: 10000 }); assert.equal(cli.status, 1); assert.match(cli.stderr, /untrusted publishing context/);
 });
 check('Bounded runner records only its own summary heartbeat and never counts manual links as API results', async () => {
@@ -336,6 +336,25 @@ check('Bounded runner records only its own summary heartbeat and never counts ma
 check('Direct Node CLI closes its client and returns only a zero-due summary under explicit local guards', async () => {
   for (const doc of (await db.collection('publish_jobs').get()).docs) if (data(doc).reviewedRunAtUTC) await doc.ref.update({ reviewedRunAtUTC: new Date(Date.now() + 86400000) });
   const cli = spawnSync(process.execPath, ['--conditions=react-server', '--import', './scripts/reviewed-blogger-http-fixtures.mjs', 'scripts/run-reviewed-blogger.mjs'], { env: { ...process.env, REVIEWED_BLOGGER_HTTP_FIXTURES: '1' }, encoding: 'utf8', timeout: 15000 });
-  assert.equal(cli.status, 0, cli.stderr); const summary = JSON.parse(cli.stdout.trim().split('\n').at(-1)); assert.deepEqual(summary, { ok: true, mode: 'blogger_manual_pin', outcome: 'ok', dueCandidates: 0, steps: 0, processed: 0, failed: 0 });
+  assert.equal(cli.status, 0, cli.stderr); const summary = JSON.parse(cli.stdout.trim().split('\n').at(-1)); assert.deepEqual(summary, { ok: true, mode: 'blogger_manual_pin', generation:{outcome:'local_generation_not_invoked'}, outcome: 'ok', dueCandidates: 0, steps: 0, processed: 0, failed: 0 });
   assert(!/refreshToken|encrypted_tokens|Bearer |isolated-reviewed-http-(?:access|refresh)/.test(cli.stdout + cli.stderr));
+});
+
+check('Blogger-only input omits the entire Pin contract but never bypasses final Blogger review',()=>{
+ const raw=reviewedRequest();delete raw.pin;delete raw.pinReadyAtUTC;
+ const result=reviewedInput(raw);assert.equal(result.pin,null);assert.equal(result.pinAt,null);
+ assert.throws(()=>reviewedInput({...raw,reviewed:false}));assert.throws(()=>reviewedInput({...raw,automation:{enabled:true}}));
+ assert.throws(()=>reviewedInput({...raw,pinReadyAtUTC:'now'}));assert.throws(()=>reviewedInput({...raw,pin:false}));
+});
+check('A Blogger-only job verifies live without allocating or creating a manual Pin child',async()=>{
+ const f=await reviewedFixture(),raw=reviewedRequest();delete raw.pin;delete raw.pinReadyAtUTC;
+ const job=(await createPublishingJob(db,f.uid,raw,{now:f.now()})).job;assert.equal(job.manualTaskId,null);assert.equal(job.hasManualPin,false);
+ const result=await complete(f,job.id);assert.equal(result.status,'completed');assert.equal(result.verification,'blogger_live_verified');
+ assert.equal((await listPublishingJobs(db,f.uid)).jobs.length,1);assert.equal(f.calls.draft,1);assert.equal(f.calls.publish,1);
+ assert.equal((await createPublishingJob(db,f.uid,raw)).job.id,job.id);assert.equal((await listPublishingJobs(db,f.uid)).jobs.length,1);
+});
+check('A future Blogger-only publishDate is accepted with no Pin artwork, copy or target',async()=>{
+ const f=await reviewedFixture(),raw=reviewedRequest({blogPublishAtUTC:new Date(f.now()+3600000).toISOString()});delete raw.pin;delete raw.pinReadyAtUTC;
+ const job=(await createPublishingJob(db,f.uid,raw,{now:f.now()})).job;await run(f,job.id);const scheduled=await run(f,job.id);assert.equal(scheduled.job.status,'scheduled');assert.equal(scheduled.job.resultURL,null);
+ f.advance(3600001);const live=await run(f,job.id);assert.equal(live.job.status,'completed');assert.equal((await listPublishingJobs(db,f.uid)).jobs.length,1);
 });
