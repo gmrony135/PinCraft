@@ -1,0 +1,115 @@
+{
+  "release": "Automation-first redesign",
+  "verifiedDate": "2026-11-13",
+  "baseRevision": "7f2c049fed71ad17ba4758a8c9f95419d8b14fa6",
+  "local": {
+    "passed": 342,
+    "total": 342,
+    "suites": [
+      {
+        "suite": "Firebase authentication",
+        "passed": 39,
+        "total": 39,
+        "evidence": ".shots/automation-first-auth-test.log",
+        "source": "scripts/check-auth.js"
+      },
+      {
+        "suite": "AI backend",
+        "passed": 50,
+        "total": 50,
+        "evidence": ".shots/automation-first-ai-test.log",
+        "source": "scripts/check-ai.mjs"
+      },
+      {
+        "suite": "Automation backend",
+        "passed": 89,
+        "total": 89,
+        "evidence": ".shots/automation-first-automation-test.log",
+        "source": "scripts/check-automation.mjs"
+      },
+      {
+        "suite": "Automation-first repository and billing",
+        "passed": 55,
+        "total": 55,
+        "evidence": ".shots/automation-first-workspace-test.log",
+        "source": "scripts/check-workspace.mjs"
+      },
+      {
+        "suite": "Public AI privacy contracts",
+        "passed": 17,
+        "total": 17,
+        "evidence": ".shots/automation-first-public-ai-test.log",
+        "source": "scripts/check-public-ai.mjs"
+      },
+      {
+        "suite": "Native worker, actual Node 22",
+        "passed": 9,
+        "total": 9,
+        "evidence": ".shots/automation-first-functions-test.log",
+        "source": "scripts/check-functions.mjs"
+      },
+      {
+        "suite": "Email/AI browser SDK and private Library",
+        "passed": 31,
+        "total": 31,
+        "evidence": ".shots/automation-first-ai-auth-ui-test.log",
+        "source": "scripts/check-ai-auth-ui.mjs"
+      },
+      {
+        "suite": "Automation-first API/UI and closed-browser pipeline",
+        "passed": 52,
+        "total": 52,
+        "evidence": ".shots/automation-first-workspace-ui-test.log",
+        "source": "scripts/check-workspace-ui.mjs"
+      }
+    ],
+    "productionBuild": "passed, Next 15.5.29 on Node 24.22.3",
+    "nativeBundle": "rebuilt from shared source; actual Node 22 runtime checks passed",
+    "audits": {
+      "websiteVulnerabilities": 0,
+      "functionsVulnerabilities": 0
+    },
+    "releaseCredentialScan": {
+      "existingChangedOrNewFiles": 89,
+      "suppliedPrivateValueMatches": 0,
+      "uploadsAndPrivateEnvExcluded": true
+    }
+  },
+  "remoteSetup": {
+    "vercelExistingProductionVariablesPreserved": 16,
+    "nonSecretSchedulerProductionVariablesAdded": 3,
+    "pinterestOAuthCredentialsInstalled": false,
+    "bloggerOAuthCredentialsInstalled": false,
+    "pinterestStandardAccessConfirmed": false,
+    "billingReviewerConfigured": false,
+    "paymentCollectionEnabled": false,
+    "paidInfrastructureUpgrade": false,
+    "nativeFunctionsOrCloudSchedulerDeployed": false,
+    "rulesIamOrIndexesChanged": false
+  },
+  "readOnlyProductionChecks": {
+    "emailPasswordEnabled": true,
+    "googleSignInEnabled": true,
+    "signupNotDisabled": true,
+    "canonicalDomainAuthorized": true,
+    "deployedDenyClientRulesPresent": true
+  },
+  "confirmedPlan": {
+    "priceBdt": 99,
+    "durationDays": 30,
+    "totalPinterestAccounts": 2,
+    "totalBloggerWebsites": 2,
+    "collectionEnabled": false
+  },
+  "limits": {
+    "selectedDailyPins": "integer 1–6 per Pinterest account",
+    "sharedSafetyCap": "six confirmed Pins or unresolved Pin attempts per immutable account in rolling 24 hours; unresolved holds never automatically expire"
+  },
+  "evidenceLimits": [
+    "Local Firebase Auth/Firestore and browser tests use a demo project, synthetic identities and explicit external OAuth/AI/publishing/image-fetch/wallet doubles.",
+    "Full Node22 article-and-Pin pipeline completes locally with Chromium closed; this is not a live provider publication or deployed timer.",
+    "Configuration reads are not genuine production signup, email delivery, owner sign-in or provider consent.",
+    "A real scheduled OIDC delivery and the new deployment public smoke are release follow-up checks and are not preclaimed here.",
+    "No real wallet transfer, production payment reference/approval, external test post, new paid plan, Rules/IAM/index redeployment or native Cloud Scheduler activation."
+  ]
+}

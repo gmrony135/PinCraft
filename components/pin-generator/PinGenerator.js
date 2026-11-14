@@ -161,10 +161,10 @@ export default function PinGenerator() {
             <Sparkles size={13} /> Offline templates + live AI
           </span>
 
-          <h1 className="h1 mt-4 text-neutral-900">Viral Pin Generator</h1>
+          <h1 className="h1 mt-4 text-neutral-900">Pin Generator</h1>
           <p className="lead mt-3 max-w-2xl">
             Just type your topic, PinCraft will create everything automatically —
-            5 viral titles, an SEO description, 10 hashtags and a pin image idea.
+            5 title ideas, an SEO description, 10 hashtags and a pin image idea.
           </p>
         </div>
       </section>
@@ -256,7 +256,7 @@ export default function PinGenerator() {
                   </>
                 ) : (
                   <>
-                    <Wand2 size={18} /> Generate Viral Pin
+                    <Wand2 size={18} /> Generate Pin
                   </>
                 )}
               </button>
@@ -314,7 +314,7 @@ export default function PinGenerator() {
                   {/* 1 · titles */}
                   <ResultSection
                     step="01"
-                    title="Viral Pin Titles"
+                    title="Pin Title Ideas"
                     meta={`${pack.titles.length} clickable titles`}
                     icon={Type}
                     defaultOpen
@@ -360,7 +360,7 @@ export default function PinGenerator() {
                   {/* 3 · hashtags */}
                   <ResultSection
                     step="03"
-                    title="Viral Hashtags"
+                    title="Hashtags"
                     meta={`${pack.hashtags.length} hashtags`}
                     icon={Hash}
                   >
@@ -501,7 +501,7 @@ export default function PinGenerator() {
                   Nothing generated yet
                 </p>
                 <p className="mx-auto mt-1 max-w-sm text-[12.5px] leading-relaxed text-neutral-400">
-                  Type a topic above and tap <b>Generate Viral Pin</b>. You&apos;ll get
+                  Type a topic above and tap <b>Generate Pin</b>. You&apos;ll get
                   5 titles, an SEO description, 10 hashtags and a pin image idea.
                 </p>
               </div>
@@ -516,9 +516,9 @@ export default function PinGenerator() {
               </h2>
               <ul className="mt-3 space-y-2.5">
                 {[
-                  ["5", "Viral pin titles", "Emotional, clickable, US-style"],
+                  ["5", "Pin title ideas", "Five angles to review and personalize"],
                   ["1", "SEO description", "100–150 words with keywords"],
-                  ["10", "Viral hashtags", "Copy all in one tap"],
+                  ["10", "Hashtags", "Copy all in one tap"],
                   ["1", "Pin image idea", "Design text + AI prompt"],
                 ].map(([n, t, s]) => (
                   <li key={t} className="flex items-start gap-2.5">
@@ -544,8 +544,8 @@ export default function PinGenerator() {
                 Turn this pin into a 500–800 word SEO article
               </p>
               <p className="mt-1.5 text-[12px] leading-relaxed text-neutral-400">
-                Pin traffic only earns when it lands on a blog post with Adsterra
-                ads. PinCraft writes that post for you.
+                Give your Pin a relevant, useful article to link to. Review and
+                personalize your draft before publishing.
               </p>
               <Link
                 href={articleHref}

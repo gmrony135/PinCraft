@@ -8,7 +8,7 @@ import ArticleView from "./ArticleView";
 import { generateArticle, countWords } from "@/lib/article";
 import { getLibrary, saveToLibrary } from "@/lib/library";
 import { saveCloudDraft } from "@/lib/cloud-library";
-import { useAuth, useFeedback } from "../providers/AppProvider";
+import { useAuth } from "../providers/AppProvider";
 import { generateWithAI } from "@/lib/ai-client";
 import GenerationMode, { GenerationReceipt, useGenerationMode } from "../ai/GenerationMode";
 import ImageGenerator from "../ai/ImageGenerator";
@@ -22,7 +22,7 @@ import {
   Check,
   Copy,
   Bookmark,
-  Globe,
+  CalendarClock,
   ArrowRight,
   Gauge,
   Clock,
@@ -39,7 +39,6 @@ const EXAMPLES = [
 
 export default function ArticleWriter() {
   const params = useSearchParams();
-  const { showSuccess } = useFeedback();
   const { user, authLoading, openLogin } = useAuth();
   const { mode, setMode, status: aiStatus } = useGenerationMode(user);
   const [language, setLanguage] = useState('en');
@@ -56,7 +55,6 @@ export default function ArticleWriter() {
   currentContent.current = article?.id;
   const [error, setError] = useState("");
   const [saved, setSaved] = useState(false);
-  const [published, setPublished] = useState(false);
   const [toast, setToast] = useState("");
   const [libraryDrop, setLibraryDrop] = useState(null); // owner-tagged Pin suggestion
   const sourcePin = libraryDrop?.owner === identity.current ? libraryDrop : null;
@@ -102,7 +100,7 @@ export default function ArticleWriter() {
     if (mode === 'ai' && !user) { setError('Sign in with a verified account to use live AI, or choose Offline template.'); openLogin(); return; }
     const owner = identity.current, sequence = ++generationRequest.current.sequence;
     generationRequest.current.controller = new AbortController();
-    setError(''); setSaved(false); setPublished(false); setArticle(null); setLoading(true);
+    setError(''); setSaved(false); setArticle(null); setLoading(true);
     try {
       const topic = params.get('topic')?.slice(0, 160) || undefined;
       let generated;
@@ -151,27 +149,6 @@ export default function ArticleWriter() {
     finally { if (request === saveSequence.current) setSaving(false); }
   }
 
-  function handlePublish() {
-    if (!article) return;
-    try {
-      saveToLibrary({
-        ...article,
-        type: "published",
-        id: `pub_${article.id}`,
-        sourceId: article.id,
-        publishedAt: new Date().toISOString(),
-        publicationMode: "demo",
-      });
-      setPublished(true);
-      setToast("");
-      showSuccess({
-        title: "Local demo saved",
-        description: "This publishing demo was saved to My Library on this device only. Nothing was published online. Use the Dashboard for separate account authorization and real publishing settings.",
-        href: "/library?tab=articles",
-        linkLabel: "View in My Library",
-      });
-    } catch (issue) { flash(issue.message); }
-  }
 
   return (
     <div className="relative">
@@ -428,29 +405,9 @@ export default function ArticleWriter() {
                         </>
                       )}
                     </button>
-                    <button
-                      type="button"
-                      onClick={handlePublish}
-                      disabled={published}
-                      className={`w-full !whitespace-normal !px-3 !text-[14px] sm:col-span-2 ${
-                        published ? "btn-outline border-emerald-200 text-emerald-600" : "btn-primary"
-                      }`}
-                    >
-                      {published ? (
-                        <>
-                          <Check size={17} strokeWidth={3} /> Demo saved locally
-                        </>
-                      ) : (
-                        <>
-                          <Globe size={17} /> Save local demo
-                        </>
-                      )}
-                    </button>
+                    <Link href="/automation" prefetch={false} className="btn-outline w-full !whitespace-normal !px-3 !text-[14px] sm:col-span-2"><CalendarClock size={17} aria-hidden="true"/>Automation setup</Link>
                   </div>
-
-                  <p className="mt-3 rounded-xl border border-brand-100 bg-brand-50/40 px-3.5 py-2.5 text-[11.5px] leading-relaxed text-neutral-600">
-                    <strong className="font-bold text-brand-800">Local preview only:</strong> {published ? "Your demo is saved on this device. Nothing was published online." : "This optional demo does not publish or authorize access to a blog."} <Link href="/dashboard#connections" prefetch={false} className="font-bold text-brand-700 underline underline-offset-2">Real publishing settings</Link>
-                  </p>
+                  <p className="mt-3 rounded-xl border border-neutral-200 bg-neutral-50 px-3.5 py-2.5 text-[11.5px] leading-relaxed text-neutral-600">Saving this article creates a draft, not a publication or queued job. Manage ongoing category-based publishing on the Automations page.</p>
 
                   <button
                     type="button"
@@ -458,7 +415,6 @@ export default function ArticleWriter() {
                       setArticle(null);
                       setTitle("");
                       setSaved(false);
-                      setPublished(false);
                       window.scrollTo({ top: 0, behavior: "smooth" });
                     }}
                     className="mt-3 inline-flex items-center gap-1.5 text-[12.5px] font-bold text-neutral-500 hover:text-brand-600"
@@ -480,7 +436,7 @@ export default function ArticleWriter() {
                 </p>
                 <p className="mx-auto mt-1 max-w-sm text-[12.5px] leading-relaxed text-neutral-400">
                   Paste a pin title above and tap <b>Generate Article</b>. You get
-                  a 500–800 word SEO post ready for your blog and Adsterra ads.
+                  a structured article draft to review before publishing.
                 </p>
               </div>
             )}
@@ -520,11 +476,11 @@ export default function ArticleWriter() {
                 Why it matters
               </p>
               <p className="mt-1.5 text-[14.5px] font-extrabold leading-snug text-white">
-                Pin traffic only earns if the blog post holds attention
+                Give every Pin a useful destination
               </p>
               <p className="mt-1.5 text-[12px] leading-relaxed text-neutral-400">
-                A 600-word post with clear headings keeps readers long enough to
-                see your Adsterra ads — that is where the income comes from.
+                Clear headings and original, useful information help people
+                decide whether to keep reading. Traffic and earnings are not measured or guaranteed here.
               </p>
               <Link
                 href="/pin-generator"

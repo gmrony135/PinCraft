@@ -1,22 +1,4 @@
-import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
-import AutomationDashboard from "@/components/dashboard/AutomationDashboard";
-
-export const metadata = {
-  title: "Automation Dashboard",
-  description:
-    "Configure real server-side Full Auto Mode: AI content, external blog publication, Pinterest posting and private cloud Library, with setup checks and provider-confirmed logs.",
-  alternates: { canonical: "/dashboard" },
-};
-
-export default function DashboardPage() {
-  return (
-    <>
-      <Navbar />
-      <main className="bg-[#fafafa]">
-        <AutomationDashboard />
-      </main>
-      <Footer />
-    </>
-  );
-}
+import PageShell from '@/components/PageShell';
+import WorkspaceDashboard from '@/components/workspace/WorkspaceDashboard';
+export const metadata={title:'Dashboard',description:'Your own confirmed publications, automation schedules, connection health and real activity.',alternates:{canonical:'/dashboard'},robots:{index:false,follow:true}};
+export default function Page(){return <PageShell><WorkspaceDashboard/></PageShell>;}

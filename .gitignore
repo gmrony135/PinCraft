@@ -52,3 +52,6 @@ functions/runtime/
 **/service-account*.json
 **/*-firebase-adminsdk-*.json
 **/firebase-admin*.json
+
+# Private user-provided attachments
+uploads/

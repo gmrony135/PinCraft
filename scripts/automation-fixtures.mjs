@@ -1,5 +1,5 @@
 // EXPLICIT LOCAL TEST FIXTURES. Never imported by app/, lib/ or components/.
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { encryptCredentials } from '../lib/automation/vault.mjs';
 import { BLOGGER_SCOPE,PINTEREST_SCOPES } from '../lib/automation/oauth-config.mjs';
 import { emptyConnection,saveOAuthGrant } from '../lib/automation/oauth-store.mjs';
@@ -13,7 +13,8 @@ export const ai={aiProvider:'openai',aiKey:'isolated-ai-api-key',model:'gpt-4.1-
 export const paragraph='A thoughtful routine begins with a small decision that you can repeat with care. Set aside a quiet moment, notice what matters to you, and write one practical intention for the day. You do not need to solve everything at once. Focus instead on a useful action that fits your situation. Give yourself room to learn, adjust your expectations, and build a steady habit through patient practice. Reflection can help you recognize patterns without judging yourself harshly or comparing your progress with somebody else’s experience. Choose an approach that feels honest, simple, and sustainable. Your next step can be modest while still making your daily life more intentional and grounded.';
 export const raw={title:'Small Habits for a More Intentional Day',description:'Build a thoughtful daily routine with practical, gentle steps.',hashtags:['#DailyHabits','#MindfulLiving','#Motivation','#PersonalGrowth','#SimpleLiving','#Reflection'],intro:paragraph,sections:[{heading:'Choose your focus',paragraphs:[paragraph,paragraph]},{heading:'Make room to reflect',paragraphs:[paragraph]},{heading:'Keep the next step small',paragraphs:[paragraph]}],conclusion:paragraph};
 export const content=validateContent(raw,'Motivation');
-export const grant=(provider,user='test')=>({accessToken:`isolated-${provider}-access-${user}`,refreshToken:`isolated-${provider}-refresh-${user}`,expiresAt:new Date(Date.now()+86400000),refreshExpiresAt:provider==='pinterest'?new Date(Date.now()+60*86400000):null,scopes:provider==='pinterest'?PINTEREST_SCOPES:[BLOGGER_SCOPE]});
+export const fixturePinterestId=user=>(BigInt('0x'+createHash('sha256').update(user).digest('hex').slice(0,16))+100000n).toString();
+export const grant=(provider,user='test')=>({accessToken:`isolated-${provider}-access-${user}`,refreshToken:`isolated-${provider}-refresh-${user}`,expiresAt:new Date(Date.now()+86400000),refreshExpiresAt:provider==='pinterest'?new Date(Date.now()+60*86400000):null,scopes:provider==='pinterest'?PINTEREST_SCOPES:[BLOGGER_SCOPE],identity:{id:fixturePinterestId(user),username:user,name:'Isolated test account'}});
 export function isolatedFirebase(){if(!firebaseEmulatorsAllowed()||firebaseProjectId()!=='demo-pincraft-local'||process.env.VERCEL_ENV==='production')throw new Error('Only the explicit demo Firebase emulators may run these fixtures.');}
 export async function resetFirebase(){isolatedFirebase();for(const url of [`http://${process.env.FIRESTORE_EMULATOR_HOST}/emulator/v1/projects/${firebaseProjectId()}/databases/(default)/documents`,`http://${process.env.FIREBASE_AUTH_EMULATOR_HOST}/emulator/v1/projects/${firebaseProjectId()}/accounts`]){const response=await fetch(url,{method:'DELETE'});if(!response.ok)throw new Error('Local emulator reset failed.');}}
 export async function firebaseIdentity(label=randomUUID()){
@@ -23,7 +24,7 @@ export async function firebaseIdentity(label=randomUUID()){
  const result=await response.json();if(!response.ok||!result.idToken||!result.localId)throw new Error('Explicit local Firebase Auth emulator Google fixture failed: '+JSON.stringify(result));
  return {id:result.localId,idToken:result.idToken};
 }
-export async function fixtureAccount(db,{id=`firebase-test:${randomUUID()}`,activate=true,mode='generated',dailyLimit=10,intervalMinutes=120}={}){
+export async function fixtureAccount(db,{id=`firebase-test:${randomUUID()}`,activate=true,mode='generated',dailyLimit=3,intervalMinutes=120}={}){
  isolatedFirebase();await ensureSettings(db,id);
  for(const provider of ['pinterest','blogger']){const ref=connectionRef(db,id,provider);if(!(await ref.get()).exists)await ref.create(emptyConnection(id,provider));await saveOAuthGrant(db,id,provider,grant(provider,id),data(await ref.get()).revision);}
  const p=data(await connectionRef(db,id,'pinterest').get()),b=data(await connectionRef(db,id,'blogger').get());
@@ -44,7 +45,7 @@ export function providerDouble(options={}){
       return {access_token:`isolated-refreshed-${body.get('refresh_token')||body.get('code')}`,refresh_token:`isolated-rotated-${body.get('refresh_token')||body.get('code')}`,token_type:'bearer',expires_in:3600,scope:provider==='pinterest'?PINTEREST_SCOPES.join(','):BLOGGER_SCOPE,...(provider==='pinterest'?{refresh_token_expires_in:60*86400}:{})};
     }
     if(url.includes('api.openai.com')){calls.ai++;return {status:'completed',output_text:JSON.parse(init.body).input.startsWith('Return a JSON object')?'{"ready":true}':JSON.stringify(raw)};}
-    if(url.includes('/v5/user_account'))return {username:'isolated_owner'};
+    if(url.includes('/v5/user_account'))return {id:'2783136121146311751',username:'isolated_owner'};
     if(url.includes('/v5/boards/'))return {id:BOARD,name:'Isolated test board',privacy:'PUBLIC',owner:{username:'isolated_owner'}};
     if(url.includes('/v5/boards?'))return {items:[{id:BOARD,name:'Isolated test board',privacy:'PUBLIC',owner:{username:'isolated_owner'}},{id:'2222222222',name:'Someone else’s board',privacy:'PUBLIC',owner:{username:'another_owner'}},{id:'3333333333',name:'Private board',privacy:'SECRET',owner:{username:'isolated_owner'}}],bookmark:null};
     if(url.includes('/blogger/v3/users/self/blogs/'))return {blog:{id:BLOG,name:'Isolated test blog',url:'http://example.com'},blog_user_info:{hasAdminAccess:true}};

@@ -17,7 +17,9 @@
     "test:firebase:setup": "node scripts/create-firebase-test-env.mjs",
     "test:ai:public": "node --conditions=react-server scripts/check-public-ai.mjs",
     "test:ai": "node --conditions=react-server scripts/check-ai.mjs",
-    "test:ai:ui": "node --conditions=react-server scripts/check-ai-auth-ui.mjs"
+    "test:ai:ui": "node --conditions=react-server scripts/check-ai-auth-ui.mjs",
+    "test:workspace": "node --conditions=react-server scripts/check-workspace.mjs",
+    "test:workspace:ui": "node --conditions=react-server scripts/check-workspace-ui.mjs"
   },
   "dependencies": {
     "firebase": "^13.3.0",

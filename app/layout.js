@@ -8,19 +8,18 @@ export const metadata = {
     template: "%s · PinCraft",
   },
   description:
-    "Create pin titles and SEO article drafts, save your content, and explore the PinCraft automation workspace. Live posting and Google Login require configuration.",
+    "Connect your own Pinterest and Blogger accounts, choose content categories and 1–6 daily Pins, and manage real scheduled publishing in one private workspace.",
   keywords: [
     "Pinterest automation",
     "viral pin generator",
     "SEO article writer",
-    "Adsterra income",
     "Pinterest traffic Bangladesh",
   ],
   applicationName: "PinCraft",
   openGraph: {
     title: "PinCraft — Your Pinterest Automation Machine",
     description:
-      "A simple workspace for Pinterest pin ideas, SEO articles, and automation planning. Try the free content tools.",
+      "Your own Pinterest and Blogger accounts, categories, schedules and confirmed publication history in one workspace.",
     url: "https://pincraftly.vercel.app",
     siteName: "PinCraft",
     type: "website",
@@ -30,7 +29,7 @@ export const metadata = {
     card: "summary_large_image",
     title: "PinCraft — Your Pinterest Automation Machine",
     description:
-      "Create pin ideas and SEO articles. Explore your library and the automation UI preview.",
+      "Connect accounts, choose categories and build a controlled Pinterest and Blogger publishing schedule.",
     images: ["/brand/pincraft-logo-full-1024.png"],
   },
   appleWebApp: {

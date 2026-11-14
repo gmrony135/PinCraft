@@ -1,10 +1,4 @@
-import Navbar from '@/components/Navbar';
-import Footer from '@/components/Footer';
-import LoginPanel from '@/components/auth/LoginPanel';
-import { LockKeyhole, MailCheck, ShieldCheck } from 'lucide-react';
-export const metadata={title:'Login',description:'Sign in or create a PinCraft account with Email/Password or Google, and keep your Pins and articles in your private Cloud Library.',alternates:{canonical:'/login'},robots:{index:false,follow:true}};
-export default function LoginPage(){return <><Navbar/><main className="bg-[#fafafa]"><div className="container-x py-10 sm:py-16"><LoginPanel/><section id="setup" aria-labelledby="account-help-title" className="mx-auto mt-6 max-w-2xl scroll-mt-24 rounded-2xl border border-neutral-200 bg-white p-6 sm:p-8"><h2 id="account-help-title" className="text-[18px] font-extrabold text-neutral-900">Sign-in help</h2><div className="mt-5 space-y-5">{[
-  [MailCheck,'Verify your email','After creating an email account, open the verification link in your inbox, then return to sign in. Check your spam folder if it is missing. You can request another verification email from the sign-in form.'],
-  [LockKeyhole,'Forgot your password?','Choose “Forgot password?” in the sign-in form. Reset instructions are sent to eligible accounts without revealing whether an address is registered. Google accounts can continue with Google.'],
-  [ShieldCheck,'Your workspace stays private','Signed-in Pins and articles are saved to your own Cloud Library. Guest saves stay on this device. Publishing to Pinterest or Blogger always needs separate authorization on their own consent pages.'],
-].map(([Icon,title,text])=><div key={title} className="flex items-start gap-3"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-neutral-50 text-brand-700"><Icon size={17} aria-hidden="true"/></span><div><h3 className="text-[13px] font-extrabold">{title}</h3><p className="mt-1.5 text-[12px] leading-relaxed text-neutral-500">{text}</p></div></div>)}</div><p className="mt-6 border-t border-neutral-100 pt-4 text-[10.5px] leading-relaxed text-neutral-500">Passwords are handled by Firebase Authentication, not PinCraft’s server or browser storage. PinCraft’s app session stores your user ID and display name, not your email address or password. If sign-in is temporarily unavailable, you can still use the separate guest tools.</p></section></div></main><Footer/></>;}
+import PageShell from '@/components/PageShell';
+import AccountPage from '@/components/auth/AccountPage';
+export const metadata={title:'Sign in',description:'Secure email/password and Google account access for your private PinCraft automation workspace.',alternates:{canonical:'/login'},robots:{index:false,follow:true}};
+export default function Page(){return <PageShell><AccountPage mode='login'/></PageShell>;}

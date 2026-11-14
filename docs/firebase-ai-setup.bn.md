@@ -1,14 +1,14 @@
 # PinCraft: নিরাপদ Firebase + AI সেটআপ
 
-এই গাইডটি `pincraft-ly` → `https://pincraftly.vercel.app`-এর জন্য। **কোনো paid plan, Blaze upgrade, Cloud Function বা Scheduler এই কাজের অংশ হিসেবে চালু করা হয়নি।**
+এই গাইডটি `pincraft-ly` → `https://pincraftly.vercel.app`-এর জন্য। **কোনো paid plan/Blaze upgrade বা native Firebase Functions/Cloud Scheduler deploy করা হয়নি। Primary scheduler এখন GitHub workload identity → existing Vercel worker; [বর্তমান OAuth activation checklist](oauth-activation.bn.md) আগে দেখুন।**
 
 ## কী প্রস্তুত, আর কী বাকি
 
-**বর্তমান অবস্থা:** Vercel Production-এ ১৬টি variable/Admin setup সম্পন্ন; owner login/registration কাজ করার কথা নিশ্চিত করেছেন। অনুমোদিত index-only deployment-এর ১০ composite + ১০ field override সব READY। এগুলো আবার deploy/import করার প্রয়োজন নেই। নিচের setup ধাপগুলো নতুন installation বা maintenance-এর রেফারেন্স। Production Google consent/প্রত্যেক AI request/cloud-save round trip আলাদা বাস্তব account দিয়ে যাচাই করতে হবে। Full Auto Functions/Scheduler deploy বা paid upgrade করা হয়নি।
+**বর্তমান অবস্থা:** আগের ১৬টি Production variable/Admin setup অক্ষত; no-paid-upgrade GitHub scheduler-এর ৩টি non-secret setting connected Vercel দিয়ে যোগ হয়েছে। Owner-এর সর্বশেষ manual signup/login সমস্যার জন্য আলাদা account পেজ, nonce refresh এবং verification-delivery outcome handling আপডেট ও local real Firebase SDK-তে পরীক্ষা করা হয়েছে। Read-only production config-এ Email/Password/Google enabled, signup allowed এবং canonical domain authorized; এটি genuine production login/email delivery-এর প্রমাণ নয়। অনুমোদিত index-only deployment-এর ১০ composite + ১০ field override READY—আবার deploy/import নয়। Pinterest/Blogger developer-app credentials ও owner consent এখনো প্রয়োজন।
 
 **User-facing privacy:** সাইটে AI provider/model/API settings দেখানো হয় না; public status, result, settings, পুরোনো logs ও Library receipts-এও implementation identity বাদ দেওয়া হয়েছে। ব্যবহারকারী শুধু PinCraft AI এবং AI-generated disclosure দেখেন। এই owner-only প্রযুক্তিগত গাইডে backend-এর বিস্তারিত রয়েছে।
 
-প্রস্তুত কোড: Email/Password signup ও login, verification email, password reset, Continue with Google, private server session, Gemini → Groq text fallback, Cloudflare FLUX artwork এবং AI Studio।
+প্রস্তুত কোড: Email/Password signup ও login, verification email, password reset, Continue with Google, private server session, Gemini → Groq text fallback, Cloudflare FLUX artwork এবং Content Studio।
 
 মূল production sign-in/AI configuration এখন উপস্থিত; **নিচের setup instruction ভবিষ্যৎ maintenance-এর জন্য**। Public Firebase configuration কোনো Admin authorization নয়। Server-side credentials উপস্থিত থাকাও প্রকৃত login, Firestore permissions বা quota যাচাই হওয়ার প্রমাণ নয়।
 
@@ -26,15 +26,9 @@
 
 বিদ্যমান default Firestore database ব্যবহার করুন। না থাকলে Console-এ উপযুক্ত free quota/অবস্থান বিবেচনা করে তৈরি করুন; billing upgrade চাইলে এখানে থামুন।
 
-Index deployment সম্পন্ন; Rules আলাদা এবং agent এই কাজের অংশ হিসেবে পরিবর্তন/deploy করেনি। Repository-র **`firestore.rules`** সব browser read/write নিষিদ্ধ করে; অ্যাপের owner-scoped server API-ই data access করে। Rules publish না করে production-এ ব্যক্তিগত drafts/AI receipts/OAuth grants লেখা শুরু করবেন না।
+Index deployment সম্পন্ন; Rules আলাদা এবং agent এই কাজের অংশ হিসেবে পরিবর্তন/deploy করেনি। Repository-র **`firestore.rules`** সব browser read/write নিষিদ্ধ করে; অ্যাপের owner-scoped server API-ই data access করে। নতুন installation-এ Rules যাচাই না করে private content লেখা শুরু করবেন না।
 
-আপনার নিজের Firebase CLI login করা কম্পিউটার থেকে:
-
-```bash
-firebase deploy --only firestore:rules,firestore:indexes --project pincraft-ly
-```
-
-এটি Functions deploy করার command নয়। `firestore.indexes.json`-এর owner/queue indexes-ও প্রয়োজন। Console-এ কোনো পুরোনো “test mode / allow all” rule রেখে দেবেন না।
+Production-এর deployed Rules read-only পড়ে browser read/write deny rule পাওয়া গেছে; এই release-এ Rules পরিবর্তন/deploy করা হয়নি। Index setup-ও আগেই সম্পন্ন। নিয়মিত code release-এর জন্য Rules/IAM/index command আবার চালাবেন না। নতুন installation-এর প্রয়োজন হলে আলাদা authorization ও যাচাই করুন।
 
 ## ৩. Vercel-এ পরিবেশের মান নিরাপদে import করুন
 
@@ -90,7 +84,7 @@ Model listing-এ দেখা গেলেও পুরোনো Gemini 2.5 Fla
 1. `/api/health`-এ `bootstrap: ready` দেখুন। `authentication: configured` কেবল configuration উপস্থিত থাকার তথ্য, genuine login-এর প্রমাণ নয়।
 2. `/login` → Create account → নিজের email/password → verification link → Sign in। Password reset-ও পরীক্ষা করুন।
 3. Sign out করে **Continue with Google**-এ নিজের consent দিন। Agent কোনো genuine Google consent প্রদান করেনি।
-4. `/ai-studio`-তে ছোট একটি keyword request এবং একটি artwork request চালান। Result-এর পাশে নিরপেক্ষ “AI-generated” disclosure থাকবে; provider/model থাকবে না।
+4. `/content-studio`-তে ছোট একটি keyword request এবং একটি artwork request চালান। Result-এর পাশে নিরপেক্ষ “AI-generated” disclosure থাকবে; provider/model থাকবে না।
 5. `/pin-generator` ও `/article-writer`-এ **Live AI + fallback** নির্বাচন করুন। Guest-এর **Offline template** আলাদা engine; সেটিকে live AI বলা হয় না।
 6. Save → My Library-তে শুধু নিজের cloud draft দেখুন। Saving/AI generation কোনো Pinterest/Blog post publish করে না।
 
@@ -117,15 +111,15 @@ Server-side Firestore transactions caps, concurrency ও request-key idempotency
 
 Private text results স্বল্পমেয়াদি idempotency receipt হিসেবে থাকে; image bytes/prompt সংরক্ষিত হয় না। `expires_at` logical result-cache lifetime ২৪ ঘণ্টা; **Firestore TTL deletion স্বয়ংক্রিয়ভাবে enable করা হয়নি**। TTL/billing অনুমোদন বা operator cleanup ছাড়া receipt documents নিজে থেকে মুছে গেছে বলে ধরে নেবেন না।
 
-## Native scheduled publishing এখনো আলাদা, বন্ধ সেটআপ
+## Primary scheduler এবং undeployed native বিকল্প
 
-Browser বন্ধ থাকলেও কাজ করার Functions/Scheduler implementation repository-তে আছে, কিন্তু **production deployment, IAM, real account consent ও heartbeat যাচাই বাকি**। Cloud Functions/Scheduler-এর জন্য billing upgrade চাইলে আপনার নতুন অনুমতি ছাড়া এগোবেন না।
+Primary workflow `.github/workflows/pincraft-automation.yml` public repository থেকে best-effort ৩০ মিনিট অন্তর signed OIDC দিয়ে existing Vercel worker-এ call করে। Declared configuration এবং actual healthy heartbeat আলাদা; genuine provider consent/publication-ও আলাদাভাবে যাচাই করতে হবে। Native Functions/Scheduler code শুধু বিকল্প হিসেবে আছে, deploy করা হয়নি। Billing upgrade চাইলে নতুন অনুমতি ছাড়া এগোবেন না।
 
 পরবর্তীতে অনুমোদিত deploy-এ native worker-এর Secret Manager bindings পাঁচটি:
 
 `AUTOMATION_ENCRYPTION_KEY`, `PINTEREST_CLIENT_SECRET`, `BLOGGER_CLIENT_SECRET`, `GEMINI_API_KEY`, `GROQ_API_KEY`।
 
-Website-এর vault key-ই Functions-এ ব্যবহার করতে হবে। Pinterest ও Blogger-এর নিজস্ব OAuth app/consent/destination selection-ও প্রয়োজন। Worker বর্তমানে public server-rendered Pin image ব্যবহার করে; download-only AI Studio artwork স্বয়ংক্রিয়ভাবে worker image হয়ে যায় না। অনিশ্চিত remote publication হলে review ছাড়া repost করা হয় না।
+Website-এর vault key-ই Functions-এ ব্যবহার করতে হবে। Pinterest ও Blogger-এর নিজস্ব OAuth app/consent/destination selection-ও প্রয়োজন। Worker বর্তমানে public server-rendered Pin image ব্যবহার করে; download-only Content Studio artwork স্বয়ংক্রিয়ভাবে worker image হয়ে যায় না। অনিশ্চিত remote publication হলে review ছাড়া repost করা হয় না।
 
 ## আগে প্রকাশ করা keys rotate করুন
 

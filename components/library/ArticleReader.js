@@ -50,7 +50,7 @@ export default function ArticleReader({ article, onClose }) {
               <span className="inline-flex items-center gap-1 text-neutral-500"><FileText aria-hidden="true" size={12} /> {article.wordCount.toLocaleString("en-US")} words</span>
             </div>
             <h2 id="library-reader-title" className="mt-4 text-[26px] font-extrabold leading-[1.18] tracking-[-0.035em] text-neutral-900 sm:text-[34px]">{article.title}</h2>
-            <p className="mb-6 mt-3 border-b border-neutral-100 pb-5 text-[11px] text-neutral-500">{article.isDemo ? "Demo article · Preview content, not saved to your library" : article.storage === "cloud" ? "From your private Cloud Library · Stored in Firestore" : "From your saved library · Stored on this device"}</p>
+            <p className="mb-6 mt-3 border-b border-neutral-100 pb-5 text-[11px] text-neutral-500">{article.storage === "cloud" ? "From your private Cloud Library · Stored in Firestore" : "From your saved library · Stored on this device"}</p>
 
             {article.structured ? (
               <>

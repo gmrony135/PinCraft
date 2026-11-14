@@ -1,111 +1,96 @@
-# PinCraft — Firebase accounts, AI Studio & offline publishing
+# PinCraft — private content workspace & Pinterest/Blogger automation
 
-Next.js frontend + **Firebase Authentication, Cloud Firestore and a native scheduled Cloud Function**. Email/Password or Google login establishes a verified Firebase UID; Pinterest/Blogger require their own password-free publishing consent. No browser timer is responsible for posting.
+Next.js 15.5.29 / React / Node 24 website; Firebase Authentication and owner-scoped Firestore APIs. Manual content tools and unattended publishing are intentionally separate. The website does not expose AI integration names, models, keys, raw upstream errors or historical provider metadata.
 
-## Operating status
+## Product routes
 
-- Production account configuration is installed in the connected Vercel project: **16 Production variables**, including the private Admin identity. The owner has confirmed that login and registration work. Google consent, email delivery and every real-user AI call are not independently established by that confirmation.
-- The authorized **index-only** deployment completed: **10 composite indexes + 10 field overrides**, all ready. This did not deploy Rules, Functions or Scheduler, alter TTL policies or activate billing.
-- The user-facing workspace is provider-neutral. Status/results/settings/log/error projections do not expose AI vendor/model identities or credentials. Normal users do not select services or enter personal AI keys. Legacy encrypted configurations remain compatible internally until explicitly updated or removed.
-- **Full Auto is not deployed or activated.** Genuine Pinterest/Blogger consent, a healthy deployed background worker and explicit publishing consent are still required. No paid plan or billing upgrade has been activated.
-- Local emulator/browser tests are distinguished from production checks. The authenticated local AI → private Save → fresh-context Cloud Library round trip uses explicit AI HTTP doubles, not production inference or genuine external publication.
+| Route | Purpose |
+| --- | --- |
+| `/` | Product and setup overview, not sample account activity |
+| `/pin-generator` | Generate, copy and save an individual Pin draft |
+| `/article-writer` | Generate, read and privately save a complete article draft |
+| `/content-studio` | Download-only artwork, keyword suggestions, draft plans and editorial reviews |
+| `/connector` | Official Pinterest/Blogger consent, owned website verification, reconnect/disconnect |
+| `/automation` | Categories, daily quantity, language, timezone, slots and explicit publishing consent |
+| `/dashboard` | Only this owner's actual schedules, results, heartbeat, review items and activity |
+| `/library` | Signed-in private cloud records; guest browser saves remain device-only |
+| `/subscription` | Confirmed plan, actual subscription and reviewer-gated manual references |
+| `/admin/billing` | Explicitly allowlisted, currently verified administrator only |
+| `/login`, `/register`, `/forgot-password` | Email/Password **and** Google; verification and password reset |
+| `/privacy`, `/terms`, `/contact` | Public policies and project support |
 
-**Owner setup/maintenance guide (বাংলা): [Firebase + AI secure setup](docs/firebase-ai-setup.bn.md).** The existing private import file is ignored; do not overwrite session/vault secrets or repeat the completed environment/index setup. Never commit an Admin key, personal credential or private environment file.
+Old `/ai-studio` and income links permanently redirect. Simulated publications, injected Library examples, demo income/traffic charts and duplicate dashboard setup controls were removed. Actual legacy article text is retained as a draft, not relabeled as a confirmed publication.
 
-Availability is truthful: saved configuration does not guarantee inference quota, successful provider authorization or a healthy scheduler. Offline templates are explicitly separate from live AI, and errors never fabricate a result.
+## Setup and operational boundaries
 
-## What changed
+- The existing **16 Vercel Production variables** (including Admin, session/vault and generation configuration) are preserved. The three additional non-secret GitHub workload-scheduler settings were installed through the connected Vercel account. New environment settings take effect only in a new deployment.
+- The authorized index-only deployment is complete: **10 composite indexes + 10 field overrides READY**, TTL policy preserved. Do not redeploy/delete indexes or change Rules/IAM as a routine code release.
+- Read-only production checks confirmed Email/Password is enabled, signup is not disabled, the canonical domain is authorized, Google sign-in has a configured client, and the deployed Firestore rules contain a deny-all browser-access rule. These configuration reads are **not a genuine production signup, email-delivery or login round trip**.
+- **Pinterest/Blogger OAuth app credentials remain owner-portal prerequisites.** Vercel access does not grant access to those developer consoles or consent on behalf of a user. No fake client ID, grant or connected state is installed.
+- Pinterest Trial Pins are visible only to their creator. Public scheduled publishing additionally requires actual Standard-access approval and the server-only `PINTEREST_ACCESS_TIER=standard` attestation. Setting client credentials alone does not activate it.
+- Native Firebase Functions/Cloud Scheduler remains an undeployed alternative. **No Firebase/Vercel paid upgrade is authorized or performed.** The primary scheduling path is public-repository GitHub Actions → short-lived OIDC → the existing production worker route.
+- Runtime success is evidence-specific: local emulators and HTTP doubles, public production smoke, real scheduled heartbeat, genuine owner sign-in and external publication are separate checks. Never substitute one for another.
 
-- **Firebase Authentication:** Email/Password signup/login, verification mail, password reset, and Google popup; all identities are verified server-side with Firebase Admin. Passwords go directly to Firebase via its browser SDK, never to PinCraft APIs/storage. The UID—not a caller-supplied owner or localStorage profile—determines ownership. A seven-day signed HttpOnly app cookie contains UID/display name, not email or provider tokens. Disabled, deleted and revoked Firebase identities fail the managed-user session check.
-- **Private Firestore:** owner-specific Pins, complete Articles, schedules, due times, posting states, OAuth envelopes, checkpoints, counters and logs. Browser Firestore reads/writes are denied, including credential reads by their own owner. Only owner-checked server APIs and authorized Admin/IAM access the database.
-- **Manual saves:** when signed in, Save in Pin Generator / Article Writer writes a private Firestore draft. Failed cloud saves never silently fall back to localStorage. Guest saves remain separately labeled device-only tools. Saving a draft never queues or publishes it.
-- **Offline scheduler:** `pincraftAutoPost` uses Firebase Functions v2 `onSchedule`, UTC `*/30 * * * *`, region `asia-south1`, Node 22. It reads due Firestore work and uses that owner's saved provider authorization while their browser/phone is off. Old Vercel schedules and active PostgreSQL dependencies are removed.
-- **AI Studio:** Gemini → Groq text/model failover for Pins, articles, keyword clusters/hashtags, seven-day draft plans and editorial quality reviews. Structured validation, per-user/global Firestore budgets, idempotency and safety-refusal stop rules. Never a silent offline-template fallback.
-- **AI artwork:** Cloudflare FLUX.1 → FLUX.2 klein, actual decoded/resized WebP downloads for Pins and blog featured images. No automatic public upload or publication.
-- **Publishing images:** public HTTPS image links; **Firebase Storage is not required**. Generated mode can serve a signed 1000×1500 PNG from saved Firestore content.
+**Only unavoidable owner-side developer-portal steps:** [OAuth activation checklist, বাংলা](docs/oauth-activation.bn.md). Server/security details: [full automation architecture](docs/full-auto-mode.md). Historical generation setup: [Firebase + AI guide, বাংলা](docs/firebase-ai-setup.bn.md).
 
-The Cloud Library preserves all saved Pin titles, keyword ideas, image guidance and complete article drafts. AI disclosures remain neutral. Image requests lock format/tool controls while in flight, usage meters can be refreshed, Studio reports copy/download as readable text, and save failures remain visible and retryable. The Article Writer’s **Save local demo** action is explicitly not a publication.
+## Automation contract
 
-The Cloud Library separates Pins from Articles and private cloud records from device examples. Dashboard shows waiting work, confirmed published links, Next Post Time, Total Published, Failed Posts, connection status and Disconnect.
+1. The owner signs in with a verified Email/Password or Google identity. Firebase handles passwords directly; PinCraft APIs accept only verified short-lived tokens at exchange. The seven-day HttpOnly app cookie contains UID/display name, not email or publishing tokens. Each private request checks current managed-user enablement/revocation.
+2. Connector separately requests official Pinterest and Blogger consent, reads owned destinations and verifies the selected Blogger administrator site. No provider passwords or manually pasted personal tokens are collected.
+3. Automation chooses one or more of the ten requested categories, English or Bengali, an IANA timezone, **1–6 daily Pins** and editable half-hour posting slots at least an hour apart. Saving leaves publishing paused. One nonarchived workflow per Pinterest identity per user prevents overlapping setups.
+4. Ongoing publishing needs its own explicit consent. The server privately saves generated content, publishes the linked Blogger article and sends the Pin using revocable encrypted grants while the browser is closed.
+5. Provider-confirmed IDs count as published. Ambiguous remote mutations stop for review rather than blind reposting. A definite bounded retry waits an hour, at most three attempts. Missed slots do not cause catch-up bursts, and next work is at least an hour after confirmed publication.
 
-## Password-free publishing workflow
+### Global hard limit, not a per-board setting
 
-1. Sign in with verified Email/Password or Google through Firebase Authentication.
-2. Dashboard → **Connect Pinterest**; Allow is on `https://www.pinterest.com/oauth/`. Connect Blogger separately on Google's consent page for generated articles.
-3. Choose your own authorized public Pinterest board and, for generated mode, a live Blogger blog with administrator permission. Destination save rechecks ownership and leaves posting paused.
-4. Choose a schedule, for example **5 Pins/day, 120 minutes apart**. Queue a Pin with title, description, public HTTPS image and destination URL; or select generated Pin + Blogger Article mode and choose **Verify & enable PinCraft AI** with explicit usage consent. No personal AI key or model selection is exposed in the website.
-5. Confirm publishing consent and enable Full Auto once. Firebase checks due work every **30 minutes**, independently of the browser. Polling/provider delays can make a due post later; this is not an exact-minute guarantee.
-6. A confirmed retryable failure waits **1 hour**, at most three automatic attempts. An ambiguous remote result or database failure after acceptance requires owner review—no blind duplicate repost.
-7. Inspect the actual Pin URL, logs and metrics. Pause or Disconnect stops later steps; a request already sent may still finish.
+An immutable provider numeric account ID is hashed into a shared transactionally protected ledger. Across users of this instance, boards, named/legacy campaigns, reconnects, workers and retries, a Pinterest identity may have at most **six confirmed Pins or unresolved attempts per rolling 24 hours**. Confirmed or conservatively abandoned uncertainty counts from persisted confirmation/review time. Unresolved holds do not automatically expire; definitely rejected requests can release their reservation. Missing identity or malformed ledgers fail closed. Timezone, board and subscription changes cannot raise this ceiling. Manual posting and third-party services outside PinCraft are not under its control.
 
-Bounds: 1–10 Pins/day, 30–1440-minute spacing in 30-minute steps, editable IANA daily-reset timezone. Default: 10/day, 120 minutes, Asia/Dhaka. No catch-up bursts or traffic/income guarantee.
+### Subscriptions and collection
 
-## Credential and queue safety
+Free capacity: **1 Pinterest account + 1 Blogger website**. Owner-confirmed paid terms: **৳99 / 30 days / total 2 Pinterest accounts + 2 Blogger websites**, including the free allowance. Capacity is checked at OAuth, destination save, setup and publication; paid expiry stops extra work without deleting Library drafts.
 
-Pinterest persists per-UID encrypted **access token + refresh token**, expiry metadata and atomic rotation. Blogger persists **refresh token only**; its access token stays transient in server memory. Previously saved legacy AI keys remain encrypted separately; the normal public settings route now accepts managed AI consent only. Publishing consent never collects provider passwords or manually pasted Pinterest/Blogger tokens. PinCraft account passwords are handled only by Firebase Auth.
+The billing reviewer is **not supplied yet**. Confirmed prices can display, but **collection, receiving-number instructions, reference submission and activation remain disabled**. No approver is inferred from GitHub/Vercel ownership. The owner-provided bKash/Nagad receiving number is held server-side for later enablement. An authorized verified administrator must independently verify each exact wallet receipt; a transaction claim alone grants nothing. Full references/payer numbers are encrypted and deduplicated globally. Never collect a wallet PIN, OTP or password.
 
-OAuth uses ten-minute single-use state bound to owner/provider/HttpOnly browser nonce, PKCE for Blogger, fixed HTTPS callbacks, purpose-bound AES-256-GCM, 90-second refresh leases and revision/token-version guards. Firestore transactions protect per-owner eight-minute job leases, quota and queue idempotency. External calls are outside transactions. No exactly-once guarantee is invented across Firestore and external providers.
+## Private data and generation
 
-Public images are validated before queueing/posting: HTTPS, public pinned DNS, no redirects/private-network access, bounded PNG/JPEG/WebP bytes. Twenty editable topics remain, including Sad Quotes, Love Quotes, Motivation, Good Morning and Islamic Quotes. Google Trends RSS is explicitly distinguished from rotation and Pinterest measurements.
+All server queries and public projections enforce Firebase UID ownership. Firestore is accessed through server APIs; credentials, ciphertext, PKCE envelopes, generation service/model names and transient access tokens are not returned to browsers. Pinterest access/refresh grants are encrypted and rotation-guarded. Blogger access tokens remain in memory; only its refresh token is persisted. Disconnect pauses linked schedules and deletes local grants; remote revocation is claimed only when confirmed.
 
-**Disconnect is honest:** Blogger revocation is marked confirmed only after Google's successful response. Pinterest personal OAuth currently needs the user to remove the app in Pinterest settings; local token deletion is never mislabeled as successful provider-side revocation.
+Automatic AI failover is bounded and server-managed. Safety refusals do not fail over. Private usage/idempotency accounting fails closed if the database is unavailable. Defaults: 30 text / 5 image logical requests per verified user per UTC day; 150 text / 20 image site-wide. Provider quotas and infrastructure availability remain separate constraints.
 
-## Scheduled publishing remains separately gated
+Manual AI artwork downloads are real WebP: 1000×1500 Pin / 1200×630 featured. They are not automatically hosted or inserted into an automation. Background publishing instead uses a signed 1000×1500 PNG rendered from the private saved article/Pin. A signed image URL is publicly readable to its holder but does not expose the private Library.
 
-See **[Firebase setup, deployment, IAM, billing and verification](docs/full-auto-mode.md)**. `.env.example` contains variable names only. The agent handles Git and deployment once the owner supplies project details, secure server authorization and any required explicit billing approval. Never put an Admin private key, provider secret or password into chat/Git.
+Editorial angles and keyword ideas are not measured Pinterest/search analytics. No exact-minute delivery, permanent permission, traffic, ranking or income guarantee is made.
 
-Register the exact provider callbacks:
-
-```text
-https://pincraftly.vercel.app/api/integrations/pinterest/callback
-https://pincraftly.vercel.app/api/integrations/blogger/callback
-```
-
-Scheduled Functions/Cloud Scheduler require a billing-enabled Firebase project and can incur charges. No upgrade/provisioning/deployment is authorized merely by adding the code. The approved indexes have already been deployed and verified ready. Rules remain an owner-reported setup item; do not silently redeploy them. The emulator cannot prove genuine provider consent or a deployed scheduled invocation.
-
-## Development & verification
-
-Website/tooling: **Node 24.x ≥24.12**, Next 15.5.29, React 18.3.1, Firebase JS/Admin SDK. Scheduled Functions deliberately use **Node 22** with their own lockfile. Local Firestore emulator requires Java 21. English UI: white, Pinterest red **#E60023**, black text, rounded mobile-friendly controls.
+## Development and validation
 
 ```bash
 npm ci
 npm run dev -- --hostname 0.0.0.0
-# Stop dev before build: they share .next.
+# Stop dev/start before rebuilding: they share .next.
 npm run build
 npm run start -- --hostname 0.0.0.0
-
-# Install the Functions package and build its shared worker bundle:
 npm ci --prefix functions
 npm run build:functions
-
-# Local-only guarded demo emulators and test environment, described in docs:
-npm run firebase:emulators
-npm run test:firebase
-npm run test:auth
-npm run test:ai
-npm run test:ai:public
-# AI browser SDK/UI suite needs the separate guarded AI HTTP preload:
-npm run test:ai:ui
-npm run test:automation:ui
 ```
 
-The provider-neutral API/UI changes have their own **[verification report](docs/provider-neutral-verification.json)**. Historical Firebase-migration results remain in **[docs/automation-verification.json](docs/automation-verification.json)**; the added Email/Password and AI scope has its own **[docs/firebase-ai-verification.json](docs/firebase-ai-verification.json)** report. The configured suite uses real local Auth/Firestore emulators, actual Next APIs and Chromium. Synthetic Google-provider identities and explicit OAuth/AI/posting response doubles are **not genuine consent or live posts**. It also invokes the same native scheduled-function bundle with Chromium fully closed, not a deployed Scheduler job. HTTPS image fetches, PNG rendering and Google Trends reads are actual.
+Website/tooling requires Node 24.x ≥24.12; native worker uses actual Node 22 with its own lockfile. Local Firestore emulator needs Java 21. Firebase Admin remains pinned to 13.10.0 to avoid the reproduced Admin14/JWKS/jose CJS→ESM startup failure. Do not use `audit fix --force` or replace this with an unverified major upgrade.
 
-Historical SQL results/schema are archived under `docs/legacy-postgresql/`; they are **not Firebase verification**. There is no active SQL migration or automatic import/mapping of old Google IDs or provider grants to Firebase UIDs. Fresh provider consent is required.
+```bash
+npm run firebase:emulators
+npm run test:firebase:setup
+# Source only the synthetic .cache/firebase-test.env in the isolated test shell.
+# Reset-dependent suites MUST run sequentially.
+npm run test:auth
+npm run test:ai
+npm run test:automation
+npm run test:workspace
+# Configured browser suites additionally require the guarded HTTP-preload server:
+npm run test:ai:ui
+npm run test:workspace:ui
+```
 
-The post-commit auto-push hook is preserved; the agent commits/pushes and verifies deployment. No manual user Git steps are required.
+The fixture website must never be exposed as the production service or deployed with test flags. `scripts/ai-http-fixtures.mjs` and `scripts/automation-http-fixtures.mjs` require the explicit `demo-pincraft-local` project and loopback emulators and cannot be activated by HTTP input. The new workspace suite exercises real APIs, Chromium, consent switches, owner isolation, billing administration, auth-transition guards, responsive layouts and a complete Node22 worker run with Chromium closed. External responses and wallet receipts are explicitly synthetic.
 
-## Runtime compatibility
+A release verification report records current results. Older `docs/*verification.json` files are historical evidence for their named revisions, not proof of the redesigned flows. SQL-era material is archived under `docs/legacy-postgresql/`; there is no automatic migration of provider grants or old identities.
 
-Firebase Admin is pinned to **13.10.0**. Admin 14’s JWKS dependency synchronously
-requires ESM-only `jose`, which reproduced Vercel’s `ERR_REQUIRE_ESM` when Node’s
-experimental `require(esm)` feature was disabled. Do not blindly restore that
-combination. Root and Functions lockfiles override `uuid` to **11.1.1** and gRPC
-to **1.14.7**; dependency audits and the actual Node 22 worker are rechecked.
-Root tooling also pins patched Glob **14.0.2** and OpenTelemetry Core **2.10.0**;
-Firebase CLI startup, tracing and archive/glob compatibility are checked rather
-than downgrading the CLI to silence development-tool advisories. Functions also
-pins its transitive `@firebase/database-compat` to **2.1.7**: 2.1.8 requires Node
-24, while the worker deliberately remains on Node 22. Its clean install is
-checked with `--engine-strict` under the actual worker runtime.
-Use `NODE_OPTIONS=--no-experimental-require-module` when verifying startup.
+Private attachments, `.env*` except `.env.example`, caches and test artifacts are ignored. Never commit/bundle an Admin credential or user upload. The post-commit auto-push hook is preserved; stage release files explicitly, not with an indiscriminate `git add -A`.

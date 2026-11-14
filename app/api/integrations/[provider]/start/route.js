@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { apiError,sessionUser } from '@/lib/automation/api';
+import { apiError,sessionUser,readBody } from '@/lib/automation/api';
 import { getDatabase } from '@/lib/automation/db.mjs';
 import { AutomationError } from '@/lib/automation/errors.mjs';
 import { startOAuth } from '@/lib/automation/oauth-store.mjs';
@@ -10,7 +10,8 @@ export async function POST(request,{params}){
     const user=await sessionUser(request,true),{provider}=await params;
     await integrationReady(provider);
     if(!canonicalOAuthRequest(request))throw new AutomationError('oauth_origin_required','Open the canonical production website before connecting. OAuth callbacks must return to the same signed-in HTTPS origin.',{status:409});
-    const result=await startOAuth(getDatabase(),user.id,provider);
+    const body=await readBody(request);if(Object.keys(body).some(key=>!['connectionId','addNew'].includes(key))||(body.addNew!==undefined&&typeof body.addNew!=='boolean'))throw new AutomationError('invalid_connection','Choose an account to connect.');
+    const result=await startOAuth(getDatabase(),user.id,provider,{connectionId:body.connectionId||provider,addNew:body.addNew===true});
     return oauthCookie(NextResponse.json({authorizationUrl:result.authorizationUrl},{headers:oauthHeaders}),request,provider,result.browser);
   }catch(error){return apiError(error);}
 }

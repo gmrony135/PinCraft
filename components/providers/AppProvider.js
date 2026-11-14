@@ -3,10 +3,9 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
-import { CheckCircle2, CircleAlert, Sparkles, X } from "lucide-react";
+import { CheckCircle2, CircleAlert, X } from "lucide-react";
 
 const LoginDialog = dynamic(() => import("../auth/LoginDialog"), { ssr: false });
-const DemoSuccessDialog = dynamic(() => import("../DemoSuccessDialog"), { ssr: false });
 const AuthContext = createContext(null);
 const FeedbackContext = createContext(null);
 export const useAuth = () => useContext(AuthContext);
@@ -14,7 +13,7 @@ export const useFeedback = () => useContext(FeedbackContext);
 
 function Notice({ notice, close }) {
   if (!notice) return null;
-  const Icon = notice.tone === "error" ? CircleAlert : notice.badge === "Demo preview" ? Sparkles : CheckCircle2;
+  const Icon = notice.tone === "error" ? CircleAlert : CheckCircle2;
   return (
     <div className="pointer-events-none fixed inset-x-3 top-20 z-[90] sm:left-auto sm:right-6 sm:w-[400px]" data-testid="notification">
       <div role="status" aria-live="polite" aria-atomic="true" className="relative rounded-2xl border border-neutral-200 border-l-4 border-l-brand-600 bg-white p-4 pr-12 shadow-xl shadow-neutral-900/10">
@@ -35,7 +34,6 @@ function Notice({ notice, close }) {
 export default function AppProvider({ children }) {
   const pathname = usePathname();
   const [notice, setNotice] = useState(null);
-  const [success, setSuccess] = useState(null);
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [loginOpen, setLoginOpen] = useState(false);
@@ -71,11 +69,16 @@ export default function AppProvider({ children }) {
 
   useEffect(() => { if (notice?.scope && notice.scope !== pathname) closeNotice(); }, [pathname, notice, closeNotice]);
 
-  const closeSuccess = useCallback(() => setSuccess(null), []);
-  const showSuccess = useCallback((message) => { closeNotice(); setSuccess(message); }, [closeNotice]);
-  const openLogin = useCallback(() => { closeNotice(); setSuccess(null); setLoginOpen(true); }, [closeNotice]);
+  const openLogin = useCallback(() => { closeNotice(); setLoginOpen(true); }, [closeNotice]);
   const closeLogin = useCallback(() => setLoginOpen(false), []);
   const signIn = useCallback(async (idToken, nonce) => {
+    // A verification email or a second tab can outlive/replace the original
+    // nonce. Obtain a fresh cookie-bound nonce immediately before exchange.
+    const settingsResponse = await fetch("/api/auth/config", {credentials:"same-origin",cache:"no-store"});
+    if(!settingsResponse.ok)throw Object.assign(new Error("Sign-in settings could not be refreshed. Please try again."),{appAuthError:true});
+    const latest = await settingsResponse.json();
+    if(!latest.configured||!latest.nonce)throw Object.assign(new Error("Sign-in is temporarily unavailable. Please try again later."),{appAuthError:true});
+    nonce=latest.nonce;
     const response = await fetch("/api/auth/firebase", { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ idToken, nonce }) });
     let result; try { result = await response.json(); } catch { throw new Error("The sign-in server is unavailable. Please try again shortly."); }
     if (!response.ok || !result.user?.id) throw Object.assign(new Error(result.error || "Sign-in could not be completed."), { appAuthError: true });
@@ -84,7 +87,7 @@ export default function AppProvider({ children }) {
     setAuthLoading(false);
     setLoginOpen(false);
     channel.current?.postMessage("refresh");
-    showNotice({ title: `Welcome, ${result.user.name}!`, description: "You are signed in. Your Pin and Article saves use your private Cloud Library; guest saves remain on this device." });
+    showNotice({ title: `Welcome, ${result.user.name}!`, description: "You are signed in. Your private workspace is ready. Connect your accounts and set up an automation from the Dashboard." });
   }, [showNotice]);
   const signOut = useCallback(async () => {
     try {
@@ -100,14 +103,13 @@ export default function AppProvider({ children }) {
   }, [showNotice]);
 
   const auth = useMemo(() => ({ user, authLoading, openLogin, closeLogin, signIn, signOut, refresh }), [user, authLoading, openLogin, closeLogin, signIn, signOut, refresh]);
-  const feedback = useMemo(() => ({ showNotice, closeNotice, showSuccess }), [showNotice, closeNotice, showSuccess]);
+  const feedback = useMemo(() => ({ showNotice, closeNotice }), [showNotice, closeNotice]);
   return (
     <FeedbackContext.Provider value={feedback}>
       <AuthContext.Provider value={auth}>
         {children}
         <Notice notice={notice} close={closeNotice} />
         {loginOpen && <LoginDialog onClose={closeLogin} />}
-        {success && <DemoSuccessDialog {...success} onClose={closeSuccess} />}
       </AuthContext.Provider>
     </FeedbackContext.Provider>
   );

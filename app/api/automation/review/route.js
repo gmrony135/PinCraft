@@ -17,7 +17,7 @@ export async function POST(request){
     else if(body.action==='verify'&&job.state==='attention'&&typeof body.externalId==='string'){
       await reserveVerification(db,user.id);
       const pin=job.kind==='queued_pin'||job.uncertain_step==='pin'||Boolean(job.blog_url);
-      const access=await getAccessToken(db,user.id,pin?'pinterest':'blogger');
+      const access=await getAccessToken(db,user.id,pin?'pinterest':'blogger',{connectionId:pin?(job.pinterest_connection_id||'pinterest'):(job.blogger_connection_id||'blogger')});
       const config=pin?{pinterestToken:access.accessToken,pinterestBoardId:job.board_id}:{blogToken:access.accessToken,blogId:job.blog_target_id,blogUrl:job.blog_target_url};
       outcome=await verifyRemotePublication(config,job,body.externalId.trim());
     }else throw new AutomationError('review_confirmation_required','Verify a real remote ID, or confirm that you inspected the destination before abandoning this job.');
