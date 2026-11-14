@@ -29,9 +29,13 @@ blogger.intercept({ path: /^\/blogger\/v3\/blogs\/123456789012\/posts\/\d+\/publ
   const at = url.searchParams.get('publishDate'); post.status = at ? 'SCHEDULED' : 'LIVE'; post.published = at || new Date().toISOString();
   return { statusCode: 200, data: post };
 }).persist();
+blogger.intercept({ path: /^\/blogger\/v3\/blogs\/123456789012\/posts\?/, method: 'GET' }).reply(options => {
+  const url = new URL(options.path, 'https://www.googleapis.com'), status = url.searchParams.get('status')?.toUpperCase();
+  return { statusCode: 200, data: { items: [...posts.values()].filter(post => post.status === status).slice(0,25) } };
+}).persist();
 blogger.intercept({ path: /^\/blogger\/v3\/blogs\/123456789012\/posts\/\d+\?/, method: 'GET' }).reply(options => {
   const id = /\/posts\/(\d+)\?/.exec(options.path)[1], post = posts.get(id);
-  if (!post) return { statusCode: 404, data: {} };
+  if (!post || post.status === 'DRAFT' && post.title.includes('Synthetic 404 lookup')) return { statusCode: 404, data: {} };
   if (post.status === 'SCHEDULED' && Date.parse(post.published) <= Date.now()) post.status = 'LIVE';
   return { statusCode: 200, data: post };
 }).persist();

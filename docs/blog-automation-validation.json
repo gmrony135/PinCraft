@@ -2,20 +2,20 @@
   "feature": "Independent Blogger publishing + explicit category-trend recurring generation",
   "scope": "Existing generator reused; optional manual Pins only; no live activation invented",
   "localValidation": {
-    "passed": 320,
-    "total": 320,
+    "passed": 336,
+    "total": 336,
     "suites": [
       {
         "name": "Recurring article orchestration, evidence, consent, limits, retries and OIDC",
-        "passed": 44,
-        "total": 44,
-        "evidence": ".shots/blog-receipt-fix-automation-tests.log"
+        "passed": 45,
+        "total": 45,
+        "evidence": ".shots/blogger-404-inspection-automation-tests.log"
       },
       {
         "name": "Reviewed Blogger checkpoints / optional Pin contract",
-        "passed": 57,
-        "total": 57,
-        "evidence": ".shots/blog-receipt-fix-publishing-tests.log"
+        "passed": 69,
+        "total": 69,
+        "evidence": ".shots/blogger-404-inspection-publishing-tests.log"
       },
       {
         "name": "Publishing entry and shared formatting",
@@ -25,9 +25,9 @@
       },
       {
         "name": "Built Next actual owner APIs + Chromium",
-        "passed": 44,
-        "total": 44,
-        "evidence": ".shots/blog-receipt-fix-ui.log"
+        "passed": 47,
+        "total": 47,
+        "evidence": ".shots/blogger-404-inspection-ui.log"
       },
       {
         "name": "Existing workspace/security/billing/legacy boundaries",
@@ -57,7 +57,7 @@
     "productionBuild": {
       "outcome": "passed",
       "next": "15.5.29",
-      "evidence": ".shots/blog-receipt-fix-build.log"
+      "evidence": ".shots/blogger-404-inspection-build.log"
     },
     "lint": {
       "outcome": "not_configured",
@@ -78,7 +78,7 @@
     "result": "Actual public RSS available and a fresh category-news signal selected. Not a live AI call, measured popularity, verified full-text reporting or post."
   },
   "productionAcceptanceAtSourceRelease": {
-    "deployment": "Initial feature release 1620b5833302fc9c127fdef9f10d6d3033de86a6 was READY/PROMOTED and passed 17 real anonymous browser + 20 HTTP checks. Receipt-hardening follow-up is not yet deployed when this ledger is written.",
+    "deployment": "Previous receipt-hardening release 46f62a07031424582f49b96baed659eec252f1c0 was READY/PROMOTED and passed 17 real anonymous browser + 20 HTTP checks. This subsequent owner-404 inspection follow-up is pending deployment when this source ledger is written.",
     "ownerRecurringSettingsSaved": false,
     "ownerRecurringConsentGiven": false,
     "realArticleGeneratedByNewAutomation": false,
@@ -93,7 +93,8 @@
       "validRemotePostIDsSaved": true,
       "ownerInspectionStillRequired": true,
       "privateJobOrBlogIdentifiersPublishedInSource": false
-    }
+    },
+    "ownerReportedExistingPostInspection": "Verify existing post returned Blogger HTTP 404; existing jobs remain blocked. No real provider root cause, recovery or publication is invented."
   },
   "preservedBoundaries": {
     "perOwnerOAuthEncrypted": true,
@@ -120,5 +121,38 @@
     "productionRawDraftResponseInspected": false,
     "soleProductionRootCauseConfirmed": false,
     "newOwnerConsentInvented": false
+  },
+  "owner404Inspection": {
+    "testsAdded": {
+      "publishing": 12,
+      "recurringAuthority": 1,
+      "actualOwnerAPIAndBrowser": 3
+    },
+    "firstAttempt": "67/69 due to missing final owner projection and success diagnostic checkpoint; corrected before release and full rerun 69/69 passed",
+    "scope": "Explicit existing-job inspection only. Verify original same-blog admin access; only a post 404 permits three bounded ADMIN lists (25 posts/status).",
+    "automaticMutation": false,
+    "differentIDIsCandidateOnly": true,
+    "candidateSelectionClearsAttestation": true,
+    "ambiguousMissingIncompleteStayBlocked": true,
+    "neutralDiagnosticCheckpointOnly": true,
+    "unrelatedContentOrTokensPersisted": false,
+    "strictFinalLiveChanged": false,
+    "newRealInspectionResultRequired": true
+  },
+  "additionalOperationalAudits": {
+    "positiveSuccessiveReservations": {
+      "passed": 11,
+      "total": 11,
+      "evidence": ".shots/blogger-404-inspection-positive-lifecycle.log",
+      "conclusion": "Six successive real-emulator Timestamp-backed reservations generate/schedule/verify distinct synthetic posts on one local day, seventh same-day blocked, next-day exact 24-hour boundary allowed. data() recursively unpacks timestamps; no production policy change needed. Not real AI/Blogger acceptance."
+    },
+    "TTLPolicyRead": {
+      "evidence": ".shots/blog-automation-live-TTL-lifecycle-audit.json",
+      "readOnly": true,
+      "relevantCollectionGroupsEnumerated": 6,
+      "configuredTTLFieldsInReviewedCollections": 0,
+      "paidTTLOrCleanupEnabled": false,
+      "conclusion": "Logical cache expiry is not deletion. Existing AI/workload receipts remain replay-protective after expiry; job/slot/history records are durable. Spark storage needs monitoring; no automatic physical cleanup claimed."
+    }
   }
 }

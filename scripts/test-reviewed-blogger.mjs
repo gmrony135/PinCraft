@@ -374,3 +374,58 @@ check('Ignoring a non-public receipt URL never weakens final strict LIVE/public 
  assert.equal(receiptArticleURL({url:'https://example.com/post-123'},'https://example.com/'),'https://example.com/post-123');for(const url of ['https://www.blogger.com/editor','https://example.com/?draft=true','http://127.0.0.1/private'])assert.equal(receiptArticleURL({url},'https://example.com/'),null);
  const f=await reviewedFixture({get:({post})=>post.status==='LIVE'?{...post,url:'https://www.blogger.com/blog/post/preview/123'}:null}),job=await create(f),result=await complete(f,job.id);assert.equal(result.status,'needs_review');assert.equal(result.resultURL,null);assert.equal((await listPublishingJobs(db,f.uid)).jobs.length,1);assert.equal(f.calls.public,0);assert.equal(f.calls.publish,1);
 });
+
+// Real owner-reported production 404 is NOT synthesized as a production fix.
+// These regressions exercise bounded, explicit marker-bound inspection only.
+const inspection404=()=>new AutomationError('provider_request','Explicit local post lookup 404',{upstreamStatus:404,retryable:true});
+async function inspectionFixture(options={},extra={}){
+ const f=await reviewedFixture({...options,draft:()=>{const error=new AutomationError('publication_uncertain','Explicit local lost draft receipt',{uncertain:true});error.acceptedRemoteId=POST;throw error;}}),job=await create(f,extra);
+ assert.equal((await run(f,job.id)).job.status,'needs_review');return {...f,job};
+}
+const inspectFixture=f=>reviewPublishingJob(db,f.uid,f.job.id,{action:'verify',remoteId:POST,inspected:true},{send:f.send,now:f.now()});
+check('Explicit inspection can recover the exact marked draft from ADMIN lists after posts.get returns 404, without inserting or publishing',async()=>{
+ const future=new Date(Date.now()+3600000).toISOString(),f=await inspectionFixture({get:({post})=>{if(post.status==='DRAFT')throw inspection404();}},{blogPublishAtUTC:future,pinReadyAtUTC:future}),result=await inspectFixture(f);
+ assert.equal(result.job.phase,'publish');assert.equal(result.job.status,'queued');assert.equal(result.job.remoteId,POST);assert.equal(result.job.attempts,1);assert.equal(result.job.resultURL,null);assert.equal(result.job.inspection.primaryHTTP,404);assert.equal(result.job.inspection.source,'admin_list');assert.equal(f.calls.list,3);assert.equal(f.calls.draft,1);assert.equal(f.calls.publish,0);
+ for(const request of f.requests.filter(r=>new URL(r.url).pathname.endsWith('/posts')&&r.method!=='POST')){const url=new URL(request.url);assert.equal(url.searchParams.get('view'),'ADMIN');assert.equal(url.searchParams.get('maxResults'),'25');assert.equal(url.searchParams.get('fetchBodies'),'true');assert(['draft','scheduled','live'].includes(url.searchParams.get('status')));assert(!request.mutation);}
+ assert.equal((await run(f,f.job.id)).job.status,'scheduled');assert.equal(f.calls.draft,1);assert.equal(f.calls.publish,1);
+});
+check('A real-shaped post 404 with no marker keeps ID, attempt budget, uncertainty and authority untouched, and stores a safe diagnosis',async()=>{
+ const f=await inspectionFixture({get:()=>{throw inspection404();},list:()=>({items:[]})}),before=await row(f.job.id);
+ await assert.rejects(inspectFixture(f),rejectCode('inspection_post_unavailable'));const saved=await row(f.job.id);
+ for(const field of ['remoteId','attempts','phase','status','mutationPending','reviewedAt'])assert.deepEqual(saved[field],before[field]);assert.deepEqual(saved.payload,before.payload);assert.equal(saved.inspectionDiagnostic.primaryHTTP,404);assert.equal(saved.inspectionDiagnostic.adminConfirmed,true);assert.equal(saved.inspectionDiagnostic.scanRequests,3);assert.equal(saved.inspectionDiagnostic.outcome,'missing');assert.equal(f.calls.draft,1);assert.equal(f.calls.publish,0);assert.match((await listPublishingJobs(db,f.uid)).jobs[0].inspection.message,/not proof of deletion/);
+});
+check('A different marker-matched ID is only a candidate; it requires another explicit owner verification before replacing the saved ID',async()=>{
+ const f=await inspectionFixture({get:()=>{throw inspection404();}}),other=String(BigInt(POST)+10n),original=f.posts.get(POST);f.posts.clear();f.posts.set(other,{...original,id:other});
+ await assert.rejects(inspectFixture(f),rejectCode('inspection_candidate_found'));let saved=await row(f.job.id);assert.equal(saved.remoteId,POST);assert.equal(saved.status,'needs_review');assert.equal(saved.inspectionDiagnostic.matchedPostId,other);assert.equal(saved.attempts,1);assert.equal(f.calls.publish,0);
+ const result=await reviewPublishingJob(db,f.uid,f.job.id,{action:'verify',remoteId:other,inspected:true},{send:f.send,now:f.now()});assert.equal(result.job.remoteId,other);assert.equal(result.job.phase,'publish');assert.equal(result.job.attempts,1);assert.equal(f.calls.draft,1);assert.equal(f.calls.publish,0);
+});
+check('Ambiguous marker matches do not choose a draft or expose unrelated post data',async()=>{
+ const f=await inspectionFixture({get:()=>{throw inspection404();}}),post=f.posts.get(POST),other=String(BigInt(POST)+1n);f.posts.set(other,{...post,id:other,url:'https://example.com/?preview=explicit-private-other'});
+ await assert.rejects(inspectFixture(f),rejectCode('inspection_ambiguous'));const saved=await row(f.job.id);assert.equal(saved.status,'needs_review');assert.equal(saved.remoteId,POST);assert.equal(saved.inspectionDiagnostic.matchedPostId,null);assert(!JSON.stringify(saved).includes('explicit-private-other'));assert.equal(f.calls.publish,0);
+});
+check('An ADMIN list item from a different blog cannot recover even the same ID and marker',async()=>{
+ const f=await inspectionFixture({get:()=>{throw inspection404();},list:({posts})=>({items:[{...posts.get(POST),blog:{id:'999999999999'}}]})});await assert.rejects(inspectFixture(f),rejectCode('inspection_post_unavailable'));assert.equal((await row(f.job.id)).status,'needs_review');assert.equal(f.calls.publish,0);
+});
+check('A blog-admin lookup 404 is distinguished from a missing post and stops before listing content',async()=>{
+ const f=await inspectionFixture({verify:({calls})=>{if(calls.verify>1)throw inspection404();}});await assert.rejects(inspectFixture(f),rejectCode('inspection_blog_unavailable'));const d=(await row(f.job.id)).inspectionDiagnostic;assert.equal(d.adminConfirmed,false);assert.equal(d.blogHTTP,404);assert.equal(d.primaryHTTP,null);assert.equal(d.scanRequests,0);assert.equal(f.calls.get,0);assert.equal(f.calls.list,0);assert.equal(f.calls.publish,0);
+});
+check('Rejected inspection authorization tells the owner to reconnect and never scans around the denial',async()=>{
+ const f=await inspectionFixture({verify:({calls})=>{if(calls.verify>1)throw new AutomationError('provider_auth','Explicit local access denial',{upstreamStatus:403});}});await assert.rejects(inspectFixture(f),error=>{assert.equal(error.code,'oauth_reconnect_required');assert.match(error.message,/Reconnect the original Google account/);return true;});assert.equal(f.calls.list,0);assert.equal(f.calls.get,0);assert.equal(f.calls.publish,0);assert.equal((await row(f.job.id)).inspectionDiagnostic.outcome,'authorization_unavailable');
+});
+check('Quota/rate/other post errors do not trigger the 404-only marker scan or reset attempts',async()=>{
+ const f=await inspectionFixture({get:()=>{throw new AutomationError('provider_request','Explicit local rate rejection',{upstreamStatus:429});}});await assert.rejects(inspectFixture(f),rejectCode('inspection_unconfirmed'));const d=(await row(f.job.id)).inspectionDiagnostic;assert.equal(d.primaryHTTP,429);assert.equal(d.scanRequests,0);assert.equal(f.calls.list,0);assert.equal((await row(f.job.id)).attempts,1);
+});
+check('The owner lookup is bounded to 75 posts with honest truncation; preview tokens, page tokens and unrelated content never persist',async()=>{
+ const f=await inspectionFixture({get:()=>{throw inspection404();},list:({url})=>({nextPageToken:'explicit-private-page-token',items:Array.from({length:40},(_,i)=>({id:String(8000000+i),blog:{id:BLOG},status:url.searchParams.get('status').toUpperCase(),title:'explicit-private-other-title',content:'explicit-private-other-content',url:'https://example.com/?token=explicit-private-preview-token'}))})});
+ await assert.rejects(inspectFixture(f),rejectCode('inspection_post_unavailable'));const saved=await row(f.job.id),serialized=JSON.stringify(saved);assert.equal(saved.inspectionDiagnostic.scanPosts,75);assert.equal(saved.inspectionDiagnostic.scanLimited,true);assert.equal(f.calls.list,3);for(const secret of ['explicit-private-page-token','explicit-private-other-title','explicit-private-other-content','explicit-private-preview-token'])assert(!serialized.includes(secret));
+});
+check('Final LIVE verification never uses the inspection-only list fallback or treats its own 404 as success',async()=>{
+ const f=await reviewedFixture({get:({post})=>{if(post.status==='LIVE')throw inspection404();}}),job=await create(f);await run(f,job.id);await run(f,job.id);const result=await run(f,job.id);assert.equal(result.job.resultURL,null);assert.notEqual(result.job.status,'completed');assert.equal(f.calls.list,0);assert.equal(f.calls.public,0);assert.equal(f.calls.draft,1);assert.equal(f.calls.publish,1);
+});
+check('An incomplete ADMIN scan stores an incomplete result, not a false missing/deleted finding',async()=>{
+ const f=await inspectionFixture({get:()=>{throw inspection404();},list:()=>{throw new AutomationError('provider_unavailable','Explicit local transport failure',{retryable:true});}});await assert.rejects(inspectFixture(f),rejectCode('inspection_unconfirmed'));const d=(await row(f.job.id)).inspectionDiagnostic;assert.equal(d.outcome,'incomplete');assert.equal(d.scanRequests,1);assert.equal(d.scanLimited,true);assert.equal((await row(f.job.id)).status,'needs_review');assert.equal(f.calls.publish,0);
+});
+check('A late failed diagnosis cannot overwrite an owner abandonment committed during its read-only scan',async()=>{
+ let enter,release;const entered=new Promise(r=>{enter=r;}),held=new Promise(r=>{release=r;}),f=await inspectionFixture({get:()=>{throw inspection404();},list:async()=>{enter();await held;return {items:[]};}}),pending=inspectFixture(f);await entered;
+ await reviewPublishingJob(db,f.uid,f.job.id,{action:'abandon',inspected:true},{now:f.now()});release();await assert.rejects(pending,rejectCode('inspection_post_unavailable'));const saved=await row(f.job.id);assert.equal(saved.status,'cancelled');assert.equal(saved.inspectionDiagnostic,undefined);assert.equal(f.calls.publish,0);
+});

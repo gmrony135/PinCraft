@@ -150,3 +150,18 @@ GitHub gets `id-token:write`, not repo write. Existing AI credentials remain sol
 Numeric original post ID, matching blog and recognized expected status remain required. An editor/preview URL in an accepted draft or SCHEDULED receipt is **not** a public permalink: discard an invalid/non-public hint and any query token instead of losing the saved ID or inserting again. Safe allowlisted diagnostic booleans/status may be stored privately, never a preview token. `draftURL` is optional and never a result URL. Final `live()` still requires strict same-blog query-free URL plus ADMIN LIVE and a matching unauthenticated public page.
 
 For an old `needs_review` job, marker-bound explicit owner inspection can recover the existing ID even when Blogger returns only an editor URL. Pause/revision/reconnection authority is checked again before any subsequent mutation. This is not automatic recovery or forged inspection; attempts/IDs are not reset. The Jobs table exposes the genuine saved Job ID/Post ID so identical titles can be distinguished.
+
+
+### Explicit owner inspection after a post 404
+
+The review route remains unchanged and requires the signed-in owner, same origin, `inspected:true`, the original Google identity and same verified blog; a reconnected revision still requires explicit reconfirmation. It does not become an unauthenticated diagnostic or runner retry endpoint.
+
+1. Independently request `users/self/blogs/{originalBlogId}` and require administrator access and the original verified URL. Failure is a blog/authorization blocker, not a claim about post deletion or quota.
+2. Perform the usual `posts.get` ADMIN content read for the explicitly supplied ID. A non-404 failure does **not** invoke a list scan. Expired/rejected authorization instructs the owner to reconnect the original account.
+3. Only after an actual post 404, request the same original blog's [ADMIN posts list](https://developers.google.com/blogger/docs/3.0/reference/posts/list) with `status=draft`, `scheduled`, then `live`, `fetchBodies=true`, `maxResults=25`, `orderBy=updated`. At most three bounded reads, no arbitrary host/URL/cursor or broad cross-blog search. Unread pages are reported as limited, never as exhaustive absence proof.
+4. A recognized-status post with the exact ID, exact original blog ID and this job's marker can satisfy **this explicit inspection** even if the direct lookup was 404. It is not a verified public article and no publish request is sent by inspection.
+5. A unique different marker-matched ID is saved only as a diagnostic candidate. The job's `remoteId`, attempts, target, payload, uncertainty and authority remain unchanged. Choosing the candidate in the UI only fills the input and clears the inspection attestation; a fresh explicit owner verification is required. Ambiguity/missing marker/incomplete reads do not select a post or authorize reinsertion.
+
+Private `inspectionDiagnostic` checkpoints contain allowlisted neutral HTTP/status/count/ID flags. Owner projections expose a fixed-message `inspection` object, not raw content, other titles/IDs, preview URLs, provider bodies, tokens or pagination cursors. Diagnostic writes compare the original job state/version so they cannot overwrite a concurrent owner stop. A failed inspection refreshes its owner-safe UI detail without waiting for a polling interval.
+
+DRAFT recovery resumes the existing ID's publish checkpoint only; paused/changed recurring consent is still checked before a subsequent mutation. The runner does not call this fallback automatically. Final `live()` still uses its strict direct ADMIN LIVE read plus independently matching unauthenticated public page. A 404 in final LIVE verification cannot be converted into success by a list result.

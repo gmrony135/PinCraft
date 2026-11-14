@@ -96,6 +96,16 @@ Blogger draft/schedule response-এ কখনো non-public editor/preview URL �
 
 আগে তৈরি job নিজে থেকে approve/migrate হবে না। `/jobs`-এ **Job ID** ও **Blogger post ID** মিলিয়ে সঠিক saved job-এর **Inspect result** খুলুন। Blogger-এ সত্যিকারের post পরীক্ষা করার পরেই inspection checkbox/প্রয়োজনে original-account reconfirmation দিয়ে **Verify existing post** দিন। Marker মিললে একই ID publish checkpoint-এ ফেরে; **Run due step** একই post-এ পরের কাজ করে। এই recovery আরেকটি নতুন submission নয়। পরপর নতুন Publish চেপে duplicate draft বানাবেন না। অন্য saved attempts থামানোও explicit owner inspection-এর সিদ্ধান্ত; app remote post delete করে না।
 
+### Verify existing post-এ 404 এলে
+
+একই generic error দিয়ে quota শেষ বা post মুছে গেছে ধরে নেওয়া হয় না। Explicit owner inspection এখন প্রথমে original blog-এ Google administrator access যাচাই করে, তারপর exact post ID-র ADMIN read করে। শুধু ওই post lookup-এ 404 হলেই একই ব্লগের সর্বোচ্চ ২৫টি Draft, ২৫টি Scheduled এবং ২৫টি Live post-এ এই job-এর exact marker খোঁজে। সীমিত তালিকায় কিছু না পাওয়া exhaustive deletion proof নয়।
+
+- **একই ID + একই blog + marker** মিললে existing checkpoint উদ্ধার হতে পারে; inspection নিজে draft/publish করে না।
+- **ভিন্ন ID-তে exact marker** মিললে Jobs-এ শুধু candidate দেখাবে। **Use matched existing ID — still requires Verify** কেবল input পূরণ করে এবং inspection checkbox পরিষ্কার করে; নতুন করে প্রকৃত post দেখে confirmation/Verify দিতে হবে। পুরোনো saved ID/attempt/target নিঃশব্দে বদলায় না।
+- Marker না মেলা, একাধিক match, authorization failure বা অসম্পূর্ণ read হলে job blocked-ই থাকে। Original account-এর access মেয়াদোত্তীর্ণ হলে reconnect/re-verify করতে বলে; denial ঘুরিয়ে পাশ কাটায় না।
+- Jobs-এ **Last inspection**-এ same-blog admin HTTP, direct post HTTP এবং checked-post count দেখায়। অন্য post-এর লেখা/title, preview/page token, private URL বা raw provider body save/expose হয় না।
+- Pause/reconnection/recurring authority bypass হয় না। Final ADMIN LIVE + public-page verification-এ এই list fallback ব্যবহার হয় না।
+
 ## ৭. Free Actions + existing Vercel generator
 
 বর্তমান `.github/workflows/pincraft-reviewed-blogger.yml`-ই বাড়ানো হয়েছে; legacy Pinterest workflow চালু করা হয়নি।
