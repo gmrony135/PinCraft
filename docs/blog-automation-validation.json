@@ -2,20 +2,20 @@
   "feature": "Independent Blogger publishing + explicit category-trend recurring generation",
   "scope": "Existing generator reused; optional manual Pins only; no live activation invented",
   "localValidation": {
-    "passed": 315,
-    "total": 315,
+    "passed": 320,
+    "total": 320,
     "suites": [
       {
         "name": "Recurring article orchestration, evidence, consent, limits, retries and OIDC",
         "passed": 44,
         "total": 44,
-        "evidence": ".shots/blog-automation-tests.json"
+        "evidence": ".shots/blog-receipt-fix-automation-tests.log"
       },
       {
         "name": "Reviewed Blogger checkpoints / optional Pin contract",
-        "passed": 53,
-        "total": 53,
-        "evidence": ".shots/blog-automation-publishing-regression.log"
+        "passed": 57,
+        "total": 57,
+        "evidence": ".shots/blog-receipt-fix-publishing-tests.log"
       },
       {
         "name": "Publishing entry and shared formatting",
@@ -25,9 +25,9 @@
       },
       {
         "name": "Built Next actual owner APIs + Chromium",
-        "passed": 43,
-        "total": 43,
-        "evidence": ".shots/reviewed-publishing-ui-tests.json"
+        "passed": 44,
+        "total": 44,
+        "evidence": ".shots/blog-receipt-fix-ui.log"
       },
       {
         "name": "Existing workspace/security/billing/legacy boundaries",
@@ -57,7 +57,7 @@
     "productionBuild": {
       "outcome": "passed",
       "next": "15.5.29",
-      "evidence": ".shots/blog-automation-build.log"
+      "evidence": ".shots/blog-receipt-fix-build.log"
     },
     "lint": {
       "outcome": "not_configured",
@@ -78,14 +78,22 @@
     "result": "Actual public RSS available and a fresh category-news signal selected. Not a live AI call, measured popularity, verified full-text reporting or post."
   },
   "productionAcceptanceAtSourceRelease": {
-    "deployment": "Not yet deployed when this source ledger was written. Check the separate release receipt.",
+    "deployment": "Initial feature release 1620b5833302fc9c127fdef9f10d6d3033de86a6 was READY/PROMOTED and passed 17 real anonymous browser + 20 HTTP checks. Receipt-hardening follow-up is not yet deployed when this ledger is written.",
     "ownerRecurringSettingsSaved": false,
     "ownerRecurringConsentGiven": false,
     "realArticleGeneratedByNewAutomation": false,
-    "realAcceptedBloggerJobObserved": false,
+    "realAcceptedBloggerJobObserved": true,
     "realAdminLiveAndMatchingPublicPageObserved": false,
     "scheduledActionsEventObserved": false,
-    "lastKnownManualRun": "43581615296 — historical empty manual dispatch; not cron proof"
+    "lastKnownManualRun": "43581615296 — historical empty manual dispatch; not cron proof",
+    "knownExistingJobs": {
+      "countObserved": 3,
+      "status": "needs_review",
+      "checkpoint": "draft",
+      "validRemotePostIDsSaved": true,
+      "ownerInspectionStillRequired": true,
+      "privateJobOrBlogIdentifiersPublishedInSource": false
+    }
   },
   "preservedBoundaries": {
     "perOwnerOAuthEncrypted": true,
@@ -103,5 +111,14 @@
     "Same-ID draft and future publishDate checkpoint if scheduled",
     "Due Blogger ADMIN LIVE and independent unauthenticated matching public article",
     "Independently observed GitHub Actions schedule event, not workflow_dispatch"
-  ]
+  ],
+  "receiptHardening": {
+    "reason": "Real owner submissions now exist and stopped after valid draft IDs were returned. Do not create duplicate submissions.",
+    "implementation": "Treat draft/SCHEDULED editor-preview URLs as untrusted optional hints; discard query tokens, retain the saved ID and expected-status checks; strict LIVE/public URL verification is unchanged. Marker-bound owner inspection recovers existing IDs, never automatically approves them.",
+    "testsAdded": 4,
+    "safePrivateDiagnosticFlagsStored": true,
+    "productionRawDraftResponseInspected": false,
+    "soleProductionRootCauseConfirmed": false,
+    "newOwnerConsentInvented": false
+  }
 }

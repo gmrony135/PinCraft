@@ -143,3 +143,10 @@ Immediately before **each** automatic Blogger mutation, the existing lease/site/
 Issuer `https://token.actions.githubusercontent.com`, RS256, short token age; audience `https://pincraftly.vercel.app/api/internal/blog-automation/tick`; repo `gmrony135/PinCraft`, numeric repository ID `1456649831`, public visibility, `refs/heads/main`, exact `.github/workflows/pincraft-reviewed-blogger.yml@refs/heads/main`, schedule/manual-dispatch event, valid run/attempt/jti and SHA equal to Vercel’s current deployed commit. Wrong audience, forks, PRs, private repo, legacy workflow, old commits, expiry and replay are rejected. Production configuration is not enabled by a browser test flag.
 
 GitHub gets `id-token:write`, not repo write. Existing AI credentials remain solely in the already-configured Vercel generator. The CLI bridge returns allowlisted aggregate counters only. Its failure never bypasses consent or prevents already-authorized specific-article jobs from being processed. No production script imports the legacy worker to implement this feature.
+
+
+### Non-public draft/schedule receipt URLs
+
+Numeric original post ID, matching blog and recognized expected status remain required. An editor/preview URL in an accepted draft or SCHEDULED receipt is **not** a public permalink: discard an invalid/non-public hint and any query token instead of losing the saved ID or inserting again. Safe allowlisted diagnostic booleans/status may be stored privately, never a preview token. `draftURL` is optional and never a result URL. Final `live()` still requires strict same-blog query-free URL plus ADMIN LIVE and a matching unauthenticated public page.
+
+For an old `needs_review` job, marker-bound explicit owner inspection can recover the existing ID even when Blogger returns only an editor URL. Pause/revision/reconnection authority is checked again before any subsequent mutation. This is not automatic recovery or forged inspection; attempts/IDs are not reset. The Jobs table exposes the genuine saved Job ID/Post ID so identical titles can be distinguished.

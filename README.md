@@ -44,6 +44,8 @@ Both paths enter the same durable publisher:
 3. `SCHEDULED` is not `LIVE`. Release the actual result URL only after due ADMIN `LIVE` plus an independent unauthenticated, DNS-pinned matching public article page.
 4. Only a specifically requested manual Pin pack receives a manual child after live verification. Manual Pin links are always **user-reported, not API-verified**.
 
+Blogger can return a non-public editor/preview URL in a draft or schedule receipt. Such a URL (and any preview query token) is discarded; it must not discard the genuine saved post ID or trigger another insertion. Only the separate strict ADMIN LIVE/public-page check releases a result URL. Existing `needs_review` jobs still require marker-bound owner inspection, never automatic approval. Jobs displays both immutable job ID and saved Blogger post ID to distinguish existing attempts.
+
 Eight-minute publisher leases, connection locks, pre-send markers and immutable request IDs protect retries. At most three logical publisher attempts; counters/IDs never reset. Ambiguous mutations stop at `needs_review`, requiring marker-bound inspection, never blind insertion. Reconnection requires the original Google identity, site reverification and explicit reconfirmation. Disconnect cannot resurrect grants. Neither local pause nor disconnect deletes/unpublishes a remote post.
 
 ## Free guarded execution

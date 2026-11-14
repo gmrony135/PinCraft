@@ -90,6 +90,12 @@ owner / original Google identity / revision / site / capacity যাচাই
 
 কোনো mutation receipt অনিশ্চিত হলে `needs_review`; original marker/postID যাচাই ছাড়া নতুন insert নয়। পুরোনো ID, publisher attempt limit, authorization locks এবং public-page verification বদলানো হয়নি।
 
+### আগে থেকেই `needs_review` হলে নতুন করে Publish নয়
+
+Blogger draft/schedule response-এ কখনো non-public editor/preview URL থাকতে পারে। সেটিকে live permalink ধরে validation করে genuine post ID হারানো বা নতুন draft তৈরি করা ঠিক নয়। এই implementation preview URL ও তার query token বাদ দেয়; confirmed post ID/checkpoint-ই রাখে। Final LIVE + matching public-page verification আগের মতোই strict।
+
+আগে তৈরি job নিজে থেকে approve/migrate হবে না। `/jobs`-এ **Job ID** ও **Blogger post ID** মিলিয়ে সঠিক saved job-এর **Inspect result** খুলুন। Blogger-এ সত্যিকারের post পরীক্ষা করার পরেই inspection checkbox/প্রয়োজনে original-account reconfirmation দিয়ে **Verify existing post** দিন। Marker মিললে একই ID publish checkpoint-এ ফেরে; **Run due step** একই post-এ পরের কাজ করে। এই recovery আরেকটি নতুন submission নয়। পরপর নতুন Publish চেপে duplicate draft বানাবেন না। অন্য saved attempts থামানোও explicit owner inspection-এর সিদ্ধান্ত; app remote post delete করে না।
+
 ## ৭. Free Actions + existing Vercel generator
 
 বর্তমান `.github/workflows/pincraft-reviewed-blogger.yml`-ই বাড়ানো হয়েছে; legacy Pinterest workflow চালু করা হয়নি।

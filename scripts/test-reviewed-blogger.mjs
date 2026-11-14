@@ -22,7 +22,7 @@ import { AutomationError } from '../lib/automation/errors.mjs';
 import { reviewedInput, articleHTML, reportedPinURL, redactedError } from '../lib/publishing/content.mjs';
 import { localToUTC } from '../lib/publishing/time.mjs';
 import { pinPackEntries, zipStore, crc32 } from '../lib/publishing/pin-pack.mjs';
-import { BloggerPublisher, publicationMarker, articleURL } from '../lib/publishing/blogger.mjs';
+import { BloggerPublisher, publicationMarker, articleURL, receiptArticleURL } from '../lib/publishing/blogger.mjs';
 import { FLOW, LEASE_MS, POLL_MS, createPublishingJob, listPublishingJobs, publishingStatus, processPublishingJob, retryPublishingJob, reviewPublishingJob, markManualPin, runReviewedPublisher } from '../lib/publishing/repository.mjs';
 import { isolatedFirebase, resetFirebase, firebaseIdentity, grant, BLOG } from './automation-fixtures.mjs';
 import { reviewedFixture, reviewedRequest, POST } from './reviewed-blogger-fixtures.mjs';
@@ -357,4 +357,20 @@ check('A future Blogger-only publishDate is accepted with no Pin artwork, copy o
  const f=await reviewedFixture(),raw=reviewedRequest({blogPublishAtUTC:new Date(f.now()+3600000).toISOString()});delete raw.pin;delete raw.pinReadyAtUTC;
  const job=(await createPublishingJob(db,f.uid,raw,{now:f.now()})).job;await run(f,job.id);const scheduled=await run(f,job.id);assert.equal(scheduled.job.status,'scheduled');assert.equal(scheduled.job.resultURL,null);
  f.advance(3600001);const live=await run(f,job.id);assert.equal(live.job.status,'completed');assert.equal((await listPublishingJobs(db,f.uid)).jobs.length,1);
+});
+
+check('Draft editor/preview URLs are discarded without losing the saved ID or inserting a second post',async()=>{
+ for(const url of ['https://www.blogger.com/blog/post/preview/123?token=explicit-local-preview','https://example.com/?preview=explicit-local-preview','http://127.0.0.1/private','not a URL']){
+  const f=await reviewedFixture({draft:({post})=>({...post,url})}),job=await create(f),draft=await run(f,job.id);assert.equal(draft.job.phase,'publish');assert.equal(draft.job.remoteId,POST);assert.equal(draft.job.resultURL,null);const saved=await row(job.id);assert.equal(saved.draftURL,null);assert.equal(saved.draftReceipt.nonPublicURLDiscarded,true);assert(!JSON.stringify(saved).includes('explicit-local-preview'));assert.equal((await complete(f,job.id)).status,'completed');assert.equal(f.calls.draft,1);assert.equal(f.calls.publish,1);
+ }
+});
+check('A future SCHEDULED receipt needs its confirmed ID/status, not a falsely public preview URL',async()=>{
+ const f=await reviewedFixture({publish:({post})=>({...post,url:'https://www.blogger.com/blog/post/preview/123?token=explicit-local-preview'})}),at=f.now()+3600000,job=await create(f,{blogPublishAtUTC:new Date(at).toISOString(),pinReadyAtUTC:new Date(at).toISOString()});await run(f,job.id);const scheduled=await run(f,job.id);assert.equal(scheduled.job.status,'scheduled');assert.equal(scheduled.job.resultURL,null);assert.equal((await row(job.id)).publishReceipt.nonPublicURLDiscarded,true);f.advance(3600001);assert.equal((await run(f,job.id)).job.status,'completed');assert.equal(f.calls.publish,1);
+});
+check('Marker-bound inspection recovers an uncertain draft even if Blogger supplies only an editor URL',async()=>{
+ const f=await reviewedFixture({draft:()=>{throw new AutomationError('provider_unavailable','Explicit local lost receipt',{uncertain:true});},get:({post})=>post.status==='DRAFT'?{...post,url:'https://www.blogger.com/blog/post/preview/123?token=explicit-local-preview'}:null}),job=await create(f);assert.equal((await run(f,job.id)).job.status,'needs_review');const recovered=await reviewPublishingJob(db,f.uid,job.id,{action:'verify',remoteId:POST,inspected:true},{send:f.send,now:f.now()});assert.equal(recovered.job.phase,'publish');assert.equal((await row(job.id)).inspectionReceipt.nonPublicURLDiscarded,true);assert.equal((await complete(f,job.id)).status,'completed');assert.equal(f.calls.draft,1);assert.equal(f.calls.publish,1);assert(!JSON.stringify(await row(job.id)).includes('explicit-local-preview'));
+});
+check('Ignoring a non-public receipt URL never weakens final strict LIVE/public URL verification',async()=>{
+ assert.equal(receiptArticleURL({url:'https://example.com/post-123'},'https://example.com/'),'https://example.com/post-123');for(const url of ['https://www.blogger.com/editor','https://example.com/?draft=true','http://127.0.0.1/private'])assert.equal(receiptArticleURL({url},'https://example.com/'),null);
+ const f=await reviewedFixture({get:({post})=>post.status==='LIVE'?{...post,url:'https://www.blogger.com/blog/post/preview/123'}:null}),job=await create(f),result=await complete(f,job.id);assert.equal(result.status,'needs_review');assert.equal(result.resultURL,null);assert.equal((await listPublishingJobs(db,f.uid)).jobs.length,1);assert.equal(f.calls.public,0);assert.equal(f.calls.publish,1);
 });
