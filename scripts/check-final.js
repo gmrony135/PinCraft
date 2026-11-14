@@ -71,7 +71,7 @@ async function run() {
 
     await load(page, "/");
     check("Homepage shows the requested small welcome popup", await page.getByTestId("notification").getByText(WELCOME, { exact: true }).isVisible());
-    check("Welcome popup discloses verified sign-in/publishing requirements", await page.getByTestId("notification").getByText(/Live AI requires verified sign-in and server setup/).isVisible());
+    check("Welcome popup discloses verified sign-in/publishing requirements", await page.getByTestId("notification").getByText(/sign in for live AI and a private Cloud Library/).isVisible());
     await photo(page, "final-home-desktop.png");
     await page.getByRole("button", { name: "Dismiss notification", exact: true }).click();
     check("Welcome popup can be dismissed", await page.getByTestId("notification").count() === 0);
@@ -85,7 +85,7 @@ async function run() {
 
     let dialog = await login(page);
     check("Navbar Login opens a real accessible popup", await dialog.getByRole("heading", { name: "Welcome to PinCraft", exact: true }).isVisible() && await dialog.getByRole("button", { name: "Continue with Google", exact: true }).isVisible());
-    check("Login discloses pending setup before the Google button is clicked", await dialog.getByText("Firebase sign-in needs setup", { exact: true }).isVisible());
+    check("Login discloses pending setup before the Google button is clicked", await dialog.getByText("Sign-in is temporarily unavailable", { exact: true }).isVisible());
     check("Login locks background scrolling and traps both Tab directions", await page.evaluate(() => document.body.style.overflow === "hidden") && await focusContained(page, dialog));
     await dialog.getByRole("button", { name: "Continue with Google", exact: true }).click();
     check("Unconfigured Google button explains the limitation instead of faking login", await dialog.getByRole("status").filter({ hasText: /No account or session is simulated/ }).isVisible() && await page.getByTestId("google-setup-notice").evaluate((node) => document.activeElement === node));
@@ -95,9 +95,9 @@ async function run() {
     await login(page); await page.mouse.click(3, 3);
     check("Login backdrop click also closes the popup", await page.getByRole("dialog").count() === 0);
     await login(page);
-    await page.getByRole("dialog").getByRole("link", { name: "View setup requirements", exact: true }).click();
+    await page.getByRole("dialog").getByRole("link", { name: "Account help", exact: true }).click();
     await page.waitForURL(`${BASE}/login#setup`);
-    check("Setup link opens the implemented Login/setup page", await page.getByRole("heading", { name: "Firebase sign-in setup requirements", exact: true }).isVisible());
+    check("Setup link opens the implemented Login/setup page", await page.getByRole("heading", { name: "Sign-in help", exact: true }).isVisible());
     await page.evaluate(() => { localStorage.setItem("pincraft.user.v1", JSON.stringify({ name: "Forged User", email: "fake@example.test" })); localStorage.setItem("pincraft.session.v1", JSON.stringify({ user: { name: "Forged User" } })); });
     await page.reload({ waitUntil: "networkidle" });
     check("LocalStorage identities cannot spoof the signed-in Navbar", await page.getByRole("banner").getByRole("button", { name: "Sign in or create account", exact: true }).isVisible() && await page.getByRole("button", { name: /Account: Forged User/ }).count() === 0);
@@ -126,10 +126,10 @@ async function run() {
     await page.locator("article h1").waitFor();
     await page.getByRole("button", { name: "Save To My Library", exact: true }).click();
     await page.getByRole("button", { name: "Saved to My Library", exact: true }).waitFor();
-    await page.getByRole("button", { name: "Auto Publish To Blog", exact: true }).click();
+    await page.getByRole("button", { name: "Save local demo", exact: true }).click();
     dialog = page.getByRole("dialog"); await dialog.waitFor();
-    check("Auto Publish shows the exact requested success popup", await dialog.getByRole("heading", { name: "Article Published Successfully!", exact: true }).isVisible());
-    check("Publish success is visibly labeled Demo, not a live blog claim", await dialog.getByText("Demo preview", { exact: true }).isVisible() && await dialog.getByText(/No live blog is connected and nothing was published online/).isVisible());
+    check("Local demo save shows a truthful confirmation", await dialog.getByRole("heading", { name: "Local demo saved", exact: true }).isVisible());
+    check("Publish success is visibly labeled Demo, not a live blog claim", await dialog.getByText("Demo preview", { exact: true }).isVisible() && await dialog.getByText(/Nothing was published online/).isVisible());
     check("Publish popup fits the screen and traps keyboard focus", await fits(dialog, page) && await focusContained(page, dialog, 5));
     await photo(page, "final-publish-desktop.png");
     const items = await saved(page);
@@ -147,7 +147,8 @@ async function run() {
     const autoSwitch = page.getByRole("switch", { name: "Full Auto Mode", exact: true });
     await autoSwitch.click();
     dialog = page.getByRole("dialog"); await dialog.waitFor();
-    check("Guest cannot enable server automation without verified sign-in", await dialog.getByText("Firebase sign-in needs setup", { exact: true }).isVisible());
+    await dialog.getByText("Sign-in is temporarily unavailable", { exact: true }).waitFor();
+    check("Guest cannot enable server automation without verified sign-in", await dialog.getByText("Sign-in is temporarily unavailable", { exact: true }).isVisible());
     await photo(page, "final-automation-desktop.png");
     await dialog.getByRole("button", { name: "Close login popup", exact: true }).click();
     check("No browser-only ON setting or fake success is saved", await json(page, "pincraft.automation.v1") === null && await autoSwitch.getAttribute("aria-checked") === "false");
@@ -205,7 +206,7 @@ async function run() {
     await mobile.getByRole("button", { name: "Generate Article", exact: true }).click();
     await mobile.locator("article h1").waitFor();
     check("320px generated article and action buttons do not overflow", await noOverflow(mobile));
-    await mobile.getByRole("button", { name: "Auto Publish To Blog", exact: true }).tap();
+    await mobile.getByRole("button", { name: "Save local demo", exact: true }).tap();
     dialog = mobile.getByRole("dialog"); await dialog.waitFor();
     check("320×568 publish popup is readable and fits the viewport", await fits(dialog, mobile));
     await photo(mobile, "final-publish-mobile.png");
@@ -228,7 +229,7 @@ async function run() {
     await blocked.getByLabel("Enter your topic").fill("Balcony Gardening");
     await blocked.getByRole("button", { name: "Generate Viral Pin", exact: true }).click();
     await blocked.getByRole("button", { name: "Save To My Library", exact: true }).click();
-    check("Denied pin save shows an honest error and remains retryable", await blocked.getByRole("status").filter({ hasText: /could not save this item/ }).isVisible() && await blocked.getByRole("button", { name: "Save To My Library", exact: true }).isEnabled() && await json(blocked, LIBRARY) === null);
+    check("Denied pin save shows an honest error and remains retryable", await blocked.getByRole("alert").filter({ hasText: /could not save this item/ }).isVisible() && await blocked.getByRole("button", { name: "Save To My Library", exact: true }).isEnabled() && await json(blocked, LIBRARY) === null);
     await blocked.evaluate(() => { navigator.clipboard.writeText = async () => { throw new DOMException("Denied", "NotAllowedError"); }; document.execCommand = () => false; });
     await blocked.getByRole("button", { name: "Copy to clipboard", exact: true }).first().click();
     check("Older shared Copy buttons no longer report false Copied", await blocked.getByRole("button", { name: "Copy failed. Try again", exact: true }).isVisible());
@@ -237,9 +238,9 @@ async function run() {
     await blocked.getByRole("button", { name: "Generate Article", exact: true }).click();
     await blocked.locator("article h1").waitFor();
     await blocked.getByRole("button", { name: "Save To My Library", exact: true }).click();
-    check("Denied article save does not mark the article as saved", await blocked.getByRole("status").filter({ hasText: /could not save this item/ }).isVisible() && await blocked.getByRole("button", { name: "Save To My Library", exact: true }).isEnabled());
-    await blocked.getByRole("button", { name: "Auto Publish To Blog", exact: true }).click();
-    check("Failed demo publish never shows a success popup", await blocked.getByRole("dialog").count() === 0 && await blocked.getByRole("button", { name: "Auto Publish To Blog", exact: true }).isEnabled() && await json(blocked, LIBRARY) === null);
+    check("Denied article save does not mark the article as saved", await blocked.getByRole("alert").filter({ hasText: /could not save this item/ }).isVisible() && await blocked.getByRole("button", { name: "Save To My Library", exact: true }).isEnabled());
+    await blocked.getByRole("button", { name: "Save local demo", exact: true }).click();
+    check("Failed demo publish never shows a success popup", await blocked.getByRole("dialog").count() === 0 && await blocked.getByRole("button", { name: "Save local demo", exact: true }).isEnabled() && await json(blocked, LIBRARY) === null);
 
     // Isolated API-response fixture checks only the signed-in UI branch, not Google OAuth.
     const uiContext = await browser.newContext({ viewport: { width: 1440, height: 900 } });

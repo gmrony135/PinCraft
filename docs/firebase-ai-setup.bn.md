@@ -4,9 +4,13 @@
 
 ## কী প্রস্তুত, আর কী বাকি
 
+**বর্তমান অবস্থা:** Vercel Production-এ ১৬টি variable/Admin setup সম্পন্ন; owner login/registration কাজ করার কথা নিশ্চিত করেছেন। অনুমোদিত index-only deployment-এর ১০ composite + ১০ field override সব READY। এগুলো আবার deploy/import করার প্রয়োজন নেই। নিচের setup ধাপগুলো নতুন installation বা maintenance-এর রেফারেন্স। Production Google consent/প্রত্যেক AI request/cloud-save round trip আলাদা বাস্তব account দিয়ে যাচাই করতে হবে। Full Auto Functions/Scheduler deploy বা paid upgrade করা হয়নি।
+
+**User-facing privacy:** সাইটে AI provider/model/API settings দেখানো হয় না; public status, result, settings, পুরোনো logs ও Library receipts-এও implementation identity বাদ দেওয়া হয়েছে। ব্যবহারকারী শুধু PinCraft AI এবং AI-generated disclosure দেখেন। এই owner-only প্রযুক্তিগত গাইডে backend-এর বিস্তারিত রয়েছে।
+
 প্রস্তুত কোড: Email/Password signup ও login, verification email, password reset, Continue with Google, private server session, Gemini → Groq text fallback, Cloudflare FLUX artwork এবং AI Studio।
 
-Live login/AI চালু হওয়ার আগে **আপনার Firebase Console ও Vercel secure settings-এর কাজ বাকি**। Public Firebase configuration কোনো Admin authorization নয়। Server-side credentials উপস্থিত থাকাও প্রকৃত login, Firestore permissions বা quota যাচাই হওয়ার প্রমাণ নয়।
+মূল production sign-in/AI configuration এখন উপস্থিত; **নিচের setup instruction ভবিষ্যৎ maintenance-এর জন্য**। Public Firebase configuration কোনো Admin authorization নয়। Server-side credentials উপস্থিত থাকাও প্রকৃত login, Firestore permissions বা quota যাচাই হওয়ার প্রমাণ নয়।
 
 ## ১. Firebase-এ দুই ধরনের sign-in চালু করুন
 
@@ -22,7 +26,7 @@ Live login/AI চালু হওয়ার আগে **আপনার Firebase 
 
 বিদ্যমান default Firestore database ব্যবহার করুন। না থাকলে Console-এ উপযুক্ত free quota/অবস্থান বিবেচনা করে তৈরি করুন; billing upgrade চাইলে এখানে থামুন।
 
-Repository-র **`firestore.rules`** সব browser read/write নিষিদ্ধ করে; অ্যাপের owner-scoped server API-ই data access করে। Rules publish না করে production-এ ব্যক্তিগত drafts/AI receipts/OAuth grants লেখা শুরু করবেন না।
+Index deployment সম্পন্ন; Rules আলাদা এবং agent এই কাজের অংশ হিসেবে পরিবর্তন/deploy করেনি। Repository-র **`firestore.rules`** সব browser read/write নিষিদ্ধ করে; অ্যাপের owner-scoped server API-ই data access করে। Rules publish না করে production-এ ব্যক্তিগত drafts/AI receipts/OAuth grants লেখা শুরু করবেন না।
 
 আপনার নিজের Firebase CLI login করা কম্পিউটার থেকে:
 
@@ -43,13 +47,13 @@ Workspace-এর **`.env.vercel-import`** ফাইলটি private import-এ�
 - কোনো demo/emulator configuration নেই।
 - **Firebase Admin private key/email ইচ্ছাকৃতভাবে রাখা হয়নি।**
 
-ফাইলটি নিজের ডিভাইসে download করে Vercel-এর `.env` import ব্যবহার করুন; **Production** scope নির্বাচন করুন। Server secrets-এ Sensitive/encrypted option ব্যবহার করুন। এই ফাইল chat, GitHub বা screenshot-এ দেবেন না এবং কোনো public folder-এ রাখবেন না। Import শেষে downloaded copy নিরাপদে সরান। Session/vault secret পুনরায় তৈরি করবেন না—vault-এর key বদলালে পুরোনো encrypted publishing grants আর খোলা যাবে না।
+বর্তমান connected Vercel project-এ import আগেই সম্পন্ন। কেবল নতুন authorized installation-এ প্রয়োজন হলে নিজের ডিভাইসে download করে Vercel-এর `.env` import ব্যবহার করুন; **Production** scope নির্বাচন করুন। Server secrets-এ Sensitive/encrypted option ব্যবহার করুন। এই ফাইল chat, GitHub বা screenshot-এ দেবেন না এবং কোনো public folder-এ রাখবেন না। Import শেষে downloaded copy নিরাপদে সরান। Session/vault secret পুনরায় তৈরি করবেন না—vault-এর key বদলালে পুরোনো encrypted publishing grants আর খোলা যাবে না।
 
 ### Firebase Admin: শুধু secure settings-এ যোগ করুন
 
 [Project service accounts](https://console.firebase.google.com/project/pincraft-ly/settings/serviceaccounts/adminsdk) / Google Cloud IAM থেকে আপনার অনুমোদিত server service account ব্যবহার করুন। Least-privilege identity সুপারিশ করা হচ্ছে: Auth user lookup-এর জন্য **Firebase Authentication Viewer**, Firestore CRUD-এর জন্য **Cloud Datastore User**; প্রয়োজন ছাড়া Project Owner/Editor দেবেন না।
 
-নিজের কম্পিউটারে থাকা service-account JSON থেকে কেবল এই দুটি Vercel variable যোগ করুন:
+বর্তমান project-এ এই দুই variable নিরাপদে যোগ করা হয়েছে। ভবিষ্যতে অনুমোদিত key rotation/new installation-এ service-account JSON থেকে যোগ করার mapping:
 
 | Vercel variable | JSON field |
 |---|---|
@@ -86,7 +90,7 @@ Model listing-এ দেখা গেলেও পুরোনো Gemini 2.5 Fla
 1. `/api/health`-এ `bootstrap: ready` দেখুন। `authentication: configured` কেবল configuration উপস্থিত থাকার তথ্য, genuine login-এর প্রমাণ নয়।
 2. `/login` → Create account → নিজের email/password → verification link → Sign in। Password reset-ও পরীক্ষা করুন।
 3. Sign out করে **Continue with Google**-এ নিজের consent দিন। Agent কোনো genuine Google consent প্রদান করেনি।
-4. `/ai-studio`-তে ছোট একটি keyword request এবং একটি artwork request চালান। Result-এর পাশে প্রকৃত provider/model থাকবে।
+4. `/ai-studio`-তে ছোট একটি keyword request এবং একটি artwork request চালান। Result-এর পাশে নিরপেক্ষ “AI-generated” disclosure থাকবে; provider/model থাকবে না।
 5. `/pin-generator` ও `/article-writer`-এ **Live AI + fallback** নির্বাচন করুন। Guest-এর **Offline template** আলাদা engine; সেটিকে live AI বলা হয় না।
 6. Save → My Library-তে শুধু নিজের cloud draft দেখুন। Saving/AI generation কোনো Pinterest/Blog post publish করে না।
 

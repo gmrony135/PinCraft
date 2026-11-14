@@ -19,8 +19,9 @@ export async function POST(request){
     }else if(body.action==='preferences'){
       const p=preferencesInput(body);if(p.topicSource==='google_trends'){await reserveVerification(db,user.id);await fetchTrends(p.trendRegion);}await updatePreferences(db,user.id,p);
     }else if(body.action==='ai'){
-      if(body.consent!==true)throw new AutomationError('consent_required','Confirm AI provider API usage before verification.');
-      const config=aiInput(body.ai);await reserveVerification(db,user.id);const summary=await verifyAI(config,undefined,{database:db,userId:user.id,requestKey:randomUUID()});await saveAI(db,user.id,encryptCredentials(user.id,config),summary);
+      if(body.consent!==true)throw new AutomationError('consent_required','Confirm AI usage before verification.');
+      if(Object.keys(body).some(key=>!['action','consent'].includes(key)))throw new AutomationError('invalid_settings','AI is managed securely by PinCraft. Personal service settings are not accepted here.');
+      const config=aiInput({aiProvider:'managed'});await reserveVerification(db,user.id);const summary=await verifyAI(config,undefined,{database:db,userId:user.id,requestKey:randomUUID()});await saveAI(db,user.id,encryptCredentials(user.id,config),summary);
     }else if(body.action==='remove_ai'){if(body.confirm!==true)throw new AutomationError('confirmation_required','Confirm API-key removal.');await removeAI(db,user.id);
     }else if(body.action==='destinations'){
       const pinterest=await verifyDestination(db,user.id,'pinterest',body.boardId);

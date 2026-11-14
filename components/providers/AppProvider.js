@@ -84,7 +84,7 @@ export default function AppProvider({ children }) {
     setAuthLoading(false);
     setLoginOpen(false);
     channel.current?.postMessage("refresh");
-    showNotice({ title: `Welcome, ${result.user.name}!`, description: "You are signed in with Firebase. Your Pin and Article saves use your private Cloud Library; guest saves remain on this device." });
+    showNotice({ title: `Welcome, ${result.user.name}!`, description: "You are signed in. Your Pin and Article saves use your private Cloud Library; guest saves remain on this device." });
   }, [showNotice]);
   const signOut = useCallback(async () => {
     try {

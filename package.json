@@ -15,6 +15,7 @@
     "test:auth": "node --conditions=react-server scripts/check-auth.js",
     "test:firebase": "node --conditions=react-server scripts/check-automation.mjs",
     "test:firebase:setup": "node scripts/create-firebase-test-env.mjs",
+    "test:ai:public": "node --conditions=react-server scripts/check-public-ai.mjs",
     "test:ai": "node --conditions=react-server scripts/check-ai.mjs",
     "test:ai:ui": "node --conditions=react-server scripts/check-ai-auth-ui.mjs"
   },

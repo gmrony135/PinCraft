@@ -79,13 +79,13 @@ async function run() {
   ok(`Saved article in library (${lib.words} words, SEO ${lib.seo})`, lib.count >= 1 && lib.words >= 500);
 
   // ---------- auto publish ----------
-  await page.getByRole("button", { name: "Auto Publish To Blog", exact: true }).click();
+  await page.getByRole("button", { name: "Save local demo", exact: true }).click();
   await page.waitForTimeout(500);
   await page.getByRole("dialog").waitFor();
-  ok("Publish opens requested success popup", await page.getByRole("dialog").getByRole("heading", { name: "Article Published Successfully!", exact: true }).isVisible());
-  ok("Publish popup honestly discloses the local demo", await page.getByRole("dialog").getByText(/nothing was published online/).isVisible());
+  ok("Local demo opens a truthful confirmation", await page.getByRole("dialog").getByRole("heading", { name: "Local demo saved", exact: true }).isVisible());
+  ok("Publish popup honestly discloses the local demo", await page.getByRole("dialog").getByText(/Nothing was published online/).isVisible());
   await page.getByRole("button", { name: "Close confirmation", exact: true }).click();
-  ok("Publish shows demo state", await page.getByRole("button", { name: "Published (Demo)", exact: true }).isVisible());
+  ok("Publish shows demo state", await page.getByRole("button", { name: "Demo saved locally", exact: true }).isVisible());
   const published = await page.evaluate(() => {
     const list = JSON.parse(localStorage.getItem("pincraft.library.v1") || "[]");
     return list.some((x) => x.type === "published");

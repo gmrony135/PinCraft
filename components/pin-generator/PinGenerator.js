@@ -42,7 +42,8 @@ export default function PinGenerator() {
   const generationRequest = useRef({ sequence: 0, controller: null });
   const [language, setLanguage] = useState('en');
   const [saving, setSaving] = useState(false);
-  const saveRequest = useRef(null);
+  const saveRequest = useRef(null), saveSequence = useRef(0);
+  const [saveError, setSaveError] = useState('');
   const identity = useRef(null);
   identity.current = user?.id || "device";
   const [topic, setTopic] = useState("");
@@ -56,6 +57,7 @@ export default function PinGenerator() {
   const resultsRef = useRef(null);
   const toastTimer = useRef(null);
   useEffect(() => () => clearTimeout(toastTimer.current), []);
+  useEffect(() => { const value = new URLSearchParams(window.location.search).get('topic'); if (value) setTopic(value.slice(0, 160)); }, []);
   useEffect(() => {
     generationRequest.current.sequence++; generationRequest.current.controller?.abort();
     setLoading(false); setError(''); setPack(previous => previous?.generation ? null : previous);
@@ -105,21 +107,21 @@ export default function PinGenerator() {
     finally { if (sequence === generationRequest.current.sequence) setLoading(false); }
   }
 
-  useEffect(() => { setSaved(false); saveRequest.current = null; }, [user?.id, pack?.id]);
+  useEffect(() => { saveSequence.current++; setSaving(false); setSaved(false); setSaveError(''); saveRequest.current = null; }, [user?.id, pack?.id]);
   async function handleSave() {
     if (!pack || saving || authLoading) return;
-    const owner = identity.current, contentId = pack.id;
-    setSaving(true);
+    const owner = identity.current, contentId = pack.id, request = ++saveSequence.current;
+    setSaving(true); setSaveError('');
     try {
       if (user) {
         if (!saveRequest.current) saveRequest.current = crypto.randomUUID();
         await saveCloudDraft("pin", pack, saveRequest.current);
       } else saveToLibrary({ type: "pin", ...pack });
-      if (identity.current !== owner || currentContent.current !== contentId) return;
+      if (identity.current !== owner || currentContent.current !== contentId || request !== saveSequence.current) return;
       setSaved(true);
-      flash(user ? "Saved privately to your Firebase Cloud Library." : "Saved to My Library on this device 📚");
-    } catch (issue) { if (identity.current === owner && currentContent.current === contentId) flash(issue.message); }
-    finally { setSaving(false); }
+      flash(user ? "Saved privately to your Cloud Library." : "Saved to My Library on this device 📚");
+    } catch (issue) { if (identity.current === owner && currentContent.current === contentId && request === saveSequence.current) setSaveError(issue.message || 'Your draft could not be saved. Keep this page open and try again.'); }
+    finally { if (request === saveSequence.current) setSaving(false); }
   }
 
   const articleHref = pack
@@ -259,7 +261,7 @@ export default function PinGenerator() {
                 )}
               </button>
               <p className="mt-2.5 text-center text-[11.5px] text-neutral-400">
-                {mode === 'ai' ? 'Live requests use provider quota · Automatic Gemini/Groq fallback' : 'Instant offline templates · 5 titles + description + 10 hashtags + image idea'}
+                {mode === 'ai' ? 'Original AI content · Automatic recovery · Daily limits apply' : 'Instant offline templates · 5 titles + description + 10 hashtags + image idea'}
               </p>
             </form>
 
@@ -286,6 +288,7 @@ export default function PinGenerator() {
             {pack && !loading && (
               <div ref={resultsRef} className="animate-fade-up mt-6 scroll-mt-20">
                 <GenerationReceipt generation={pack.generation} />
+                {saveError && <p role="alert" className="mb-4 rounded-xl border border-brand-100 bg-brand-50 p-3 text-[12px] leading-relaxed text-brand-800">{saveError} Your draft is still on this page; use Save to retry.</p>}
                 {pack.keywords?.length > 0 && <div className="mb-3 rounded-xl border border-neutral-200 bg-white p-3.5"><p className="text-[11px] font-bold text-neutral-600">SEO keyword suggestions · not measured search data</p><div className="mt-2 flex flex-wrap gap-1.5">{pack.keywords.map(keyword => <span key={keyword} className="rounded-full bg-neutral-100 px-2.5 py-1 text-[11px] text-neutral-600">{keyword}</span>)}</div></div>}
                 {/* result header */}
                 <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
@@ -474,7 +477,7 @@ export default function PinGenerator() {
                           </>
                         ) : (
                           <>
-                            <Bookmark size={17} /> Save To My Library
+                            {saving ? <Loader2 size={17} className="animate-spin" aria-hidden="true" /> : <Bookmark size={17} />} {saving ? 'Saving…' : 'Save To My Library'}
                           </>
                         )}
                       </button>

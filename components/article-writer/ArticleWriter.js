@@ -45,7 +45,8 @@ export default function ArticleWriter() {
   const [language, setLanguage] = useState('en');
   const generationRequest = useRef({ sequence: 0, controller: null });
   const [saving, setSaving] = useState(false);
-  const saveRequest = useRef(null);
+  const saveRequest = useRef(null), saveSequence = useRef(0);
+  const [saveError, setSaveError] = useState('');
   const identity = useRef(null);
   identity.current = user?.id || "device";
   const [title, setTitle] = useState("");
@@ -73,6 +74,7 @@ export default function ArticleWriter() {
     const t = params.get("title");
     const topic = params.get("topic");
     if (t) setTitle(t.slice(0, 200));
+    if (['en', 'bn'].includes(params.get('language'))) setLanguage(params.get('language'));
     if (!t && topic) setTitle(topic.slice(0, 200));
   }, [params]);
 
@@ -117,7 +119,7 @@ export default function ArticleWriter() {
     finally { if (sequence === generationRequest.current.sequence) setLoading(false); }
   }
 
-  useEffect(() => { setSaved(false); saveRequest.current = null; }, [user?.id, article?.id]);
+  useEffect(() => { saveSequence.current++; setSaving(false); setSaved(false); setSaveError(''); saveRequest.current = null; }, [user?.id, article?.id]);
   useEffect(() => {
     setLibraryDrop(null);
     if (authLoading) return;
@@ -135,18 +137,18 @@ export default function ArticleWriter() {
   }, [authLoading, user?.id]);
   async function handleSave() {
     if (!article || saving || authLoading) return;
-    const owner = identity.current, contentId = article.id;
-    setSaving(true);
+    const owner = identity.current, contentId = article.id, request = ++saveSequence.current;
+    setSaving(true); setSaveError('');
     try {
       if (user) {
         if (!saveRequest.current) saveRequest.current = crypto.randomUUID();
         await saveCloudDraft("article", article, saveRequest.current);
       } else saveToLibrary({ type: "article", ...article });
-      if (identity.current !== owner || currentContent.current !== contentId) return;
+      if (identity.current !== owner || currentContent.current !== contentId || request !== saveSequence.current) return;
       setSaved(true);
-      flash(user ? "Saved privately to your Firebase Cloud Library." : "Saved to My Library on this device 📚");
-    } catch (issue) { if (identity.current === owner && currentContent.current === contentId) flash(issue.message); }
-    finally { setSaving(false); }
+      flash(user ? "Saved privately to your Cloud Library." : "Saved to My Library on this device 📚");
+    } catch (issue) { if (identity.current === owner && currentContent.current === contentId && request === saveSequence.current) setSaveError(issue.message || 'Your draft could not be saved. Keep this page open and try again.'); }
+    finally { if (request === saveSequence.current) setSaving(false); }
   }
 
   function handlePublish() {
@@ -163,8 +165,8 @@ export default function ArticleWriter() {
       setPublished(true);
       setToast("");
       showSuccess({
-        title: "Article Published Successfully!",
-        description: "Demo only: this article was saved to My Library on this device. No live blog is connected and nothing was published online.",
+        title: "Local demo saved",
+        description: "This publishing demo was saved to My Library on this device only. Nothing was published online. Use the Dashboard for separate account authorization and real publishing settings.",
         href: "/library?tab=articles",
         linkLabel: "View in My Library",
       });
@@ -353,6 +355,7 @@ export default function ArticleWriter() {
             {article && !loading && (
               <div ref={resultRef} className="animate-fade-up mt-6 scroll-mt-20">
                 <GenerationReceipt generation={article.generation} />
+                {saveError && <p role="alert" className="mb-4 rounded-xl border border-brand-100 bg-brand-50 p-3 text-[12px] leading-relaxed text-brand-800">{saveError} Your article is still on this page; use Save to retry.</p>}
                 <ArticleView article={article} />
                 <div className="mt-4"><ImageGenerator initialPrompt={`Editorial photograph illustrating ${article.title}. Thoughtful composition, natural light, a clear central subject, no text or logos.`.slice(0, 1700)} useCase="featured" /></div>
 
@@ -397,7 +400,7 @@ export default function ArticleWriter() {
                     </ul>
                   </details>
 
-                  <div className="mt-4 grid gap-2.5 sm:grid-cols-2">
+                  <div className="mt-4 grid min-w-0 grid-cols-1 gap-2.5 sm:grid-cols-2">
                     <div className="w-full sm:flex-1">
                       <CopyButton
                         text={article.plainText}
@@ -411,7 +414,7 @@ export default function ArticleWriter() {
                       type="button"
                       onClick={handleSave}
                       disabled={saved || saving || authLoading}
-                      className={`w-full sm:flex-1 ${
+                      className={`w-full !px-3 !text-[14px] sm:flex-1 ${
                         saved ? "btn-outline border-emerald-200 text-emerald-600" : "btn-dark"
                       }`}
                     >
@@ -421,7 +424,7 @@ export default function ArticleWriter() {
                         </>
                       ) : (
                         <>
-                          <Bookmark size={17} /> Save To My Library
+                          {saving ? <Loader2 size={17} className="animate-spin" aria-hidden="true" /> : <Bookmark size={17} />} {saving ? 'Saving…' : 'Save To My Library'}
                         </>
                       )}
                     </button>
@@ -429,24 +432,24 @@ export default function ArticleWriter() {
                       type="button"
                       onClick={handlePublish}
                       disabled={published}
-                      className={`w-full sm:col-span-2 ${
+                      className={`w-full !whitespace-normal !px-3 !text-[14px] sm:col-span-2 ${
                         published ? "btn-outline border-emerald-200 text-emerald-600" : "btn-primary"
                       }`}
                     >
                       {published ? (
                         <>
-                          <Check size={17} strokeWidth={3} /> Published (Demo)
+                          <Check size={17} strokeWidth={3} /> Demo saved locally
                         </>
                       ) : (
                         <>
-                          <Globe size={17} /> Auto Publish To Blog
+                          <Globe size={17} /> Save local demo
                         </>
                       )}
                     </button>
                   </div>
 
                   <p className="mt-3 rounded-xl border border-brand-100 bg-brand-50/40 px-3.5 py-2.5 text-[11.5px] leading-relaxed text-neutral-600">
-                    <strong className="font-bold text-brand-800">Demo publishing:</strong> {published ? "Demo publication saved to My Library on this device. Nothing was published online." : "Auto Publish saves a local demo record. A live blog and publishing API are not connected."}
+                    <strong className="font-bold text-brand-800">Local preview only:</strong> {published ? "Your demo is saved on this device. Nothing was published online." : "This optional demo does not publish or authorize access to a blog."} <Link href="/dashboard#connections" prefetch={false} className="font-bold text-brand-700 underline underline-offset-2">Real publishing settings</Link>
                   </p>
 
                   <button
