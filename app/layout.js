@@ -4,22 +4,22 @@ import AppProvider from "@/components/providers/AppProvider";
 export const metadata = {
   metadataBase: new URL("https://pincraftly.vercel.app"),
   title: {
-    default: "PinCraft — Your Pinterest Automation Machine",
+    default: "PinCraft — Blogger Publishing & Manual Pin Packs",
     template: "%s · PinCraft",
   },
   description:
-    "Connect your own Pinterest and Blogger accounts, choose content categories and 1–6 daily Pins, and manage real scheduled publishing in one private workspace.",
+    "Review your existing articles and Pin artwork, schedule Blogger posts, then download a manual Pinterest pack with the verified article URL.",
   keywords: [
-    "Pinterest automation",
-    "viral pin generator",
+    "Blogger publishing",
+    "Pin generator",
     "SEO article writer",
-    "Pinterest traffic Bangladesh",
+    "Manual Pinterest scheduling",
   ],
   applicationName: "PinCraft",
   openGraph: {
-    title: "PinCraft — Your Pinterest Automation Machine",
+    title: "PinCraft — Blogger Publishing & Manual Pin Packs",
     description:
-      "Your own Pinterest and Blogger accounts, categories, schedules and confirmed publication history in one workspace.",
+      "Reviewed Blogger publishing and downloadable manual Pinterest packs. Separate real article receipts from user-reported Pin links.",
     url: "https://pincraftly.vercel.app",
     siteName: "PinCraft",
     type: "website",
@@ -27,9 +27,9 @@ export const metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "PinCraft — Your Pinterest Automation Machine",
+    title: "PinCraft — Blogger Publishing & Manual Pin Packs",
     description:
-      "Connect accounts, choose categories and build a controlled Pinterest and Blogger publishing schedule.",
+      "Schedule reviewed Blogger articles. Upload and schedule your Pins yourself inside Pinterest.",
     images: ["/brand/pincraft-logo-full-1024.png"],
   },
   appleWebApp: {

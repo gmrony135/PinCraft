@@ -25,6 +25,7 @@ export async function GET(request,{params}){
     else if(error.code==='oauth_setup_required')result='setup_required';
     else if(error.code==='subscription_required')result='subscription_required';
     else if(error.code==='connection_exists')result='connection_exists';
+    else if(error.code==='worker_busy')result='publication_busy';
     // Do not log request URLs, authorization codes, provider responses or errors.
   }
   const target=new URL('/connector',imageOrigin()||request.url);target.searchParams.set('integration',provider);target.searchParams.set('result',result);target.hash='connections';

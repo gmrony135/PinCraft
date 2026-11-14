@@ -1,7 +1,7 @@
 {
-  "name": "PinCraft — Crafted Pins, Daily Traffic",
+  "name": "PinCraft — Articles & Manual Pin Packs",
   "short_name": "PinCraft",
-  "description": "Create pin ideas, write article drafts, and plan your publishing routine",
+  "description": "Create articles and Pin artwork, schedule reviewed Blogger posts and download manual Pinterest packs",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",

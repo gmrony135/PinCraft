@@ -16,9 +16,10 @@ concurrency:
 
 jobs:
   publish-due-content:
-    # Public repositories receive standard hosted Actions without a paid plan.
-    # Moving this repository to private must be reviewed before re-enabling it.
-    if: github.repository == 'gmrony135/PinCraft' && github.event.repository.private == false
+    # Historical Pinterest API workflow, NOT the selected reviewed Blogger runner.
+    # Remains off unless a legacy operator deliberately opts in; never enable
+    # this alongside the Blogger automatic + manual Pinterest rollout.
+    if: github.repository == 'gmrony135/PinCraft' && github.event.repository.private == false && github.ref == 'refs/heads/main' && vars.LEGACY_PINTEREST_API_SCHEDULER_ENABLED == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

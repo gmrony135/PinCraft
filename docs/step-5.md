@@ -1,5 +1,7 @@
 # Step 5 — Adsterra Income + My Library
 
+> **Historical / superseded publishing instructions.** Current selected path: Blogger automatic + Pinterest manual, Firestore Spark + direct GitHub Actions runner. Follow [the current বাংলা setup guide](blogger-manual-pinterest-setup.bn.md). Do not activate the Pinterest API, old OIDC workflow or deferred Worker from this document. Historical results below are not evidence that the new runner or real owner publication is live.
+
 Two new routes only:
 
 - `/adsterra-income`

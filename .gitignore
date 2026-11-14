@@ -55,3 +55,15 @@ functions/runtime/
 
 # Private user-provided attachments
 uploads/
+
+# Additive publisher: local secrets and generated Worker output
+.dev.vars
+.dev.vars.*
+.wrangler/
+.wrangler-check/
+
+# Local browser private-key/certificate state; never publish or stage.
+.pki/
+
+# Downloadable delivery snapshots are outputs, not repository inputs.
+deliverables/

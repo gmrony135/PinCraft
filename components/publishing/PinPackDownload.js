@@ -1,0 +1,11 @@
+"use client";
+import {useEffect,useState} from 'react';
+import {Download,Loader2} from 'lucide-react';
+import {downloadBlob,imageAsPNG,pinPackEntries,zipStore} from '@/lib/publishing/pin-pack.mjs';
+import {fieldClass,secondaryClass,ExternalLink} from '../workspace/WorkspaceUI';
+export default function PinPackDownload({pin}){
+ const [file,setFile]=useState(null),[preview,setPreview]=useState(''),[busy,setBusy]=useState(false),[error,setError]=useState('');
+ useEffect(()=>{if(!file){setPreview('');return;}const url=URL.createObjectURL(file);setPreview(url);return()=>URL.revokeObjectURL(url);},[file]);
+ async function download(){if(busy)return;setBusy(true);setError('');try{const image=file?await imageAsPNG(file):null;downloadBlob(zipStore(pinPackEntries(pin,image)),'pincraft-manual-pin-pack.zip');}catch(issue){setError(issue.message);}finally{setBusy(false);}}
+ return <div className="mt-4 min-w-0 rounded-xl border border-neutral-200 bg-neutral-50 p-4"><h4 className="text-[12px] font-extrabold">Download your manual Pin pack</h4><p className="mt-2 text-[11px] leading-relaxed text-neutral-600">Copy and the verified Blogger link are included. Add the artwork you downloaded from Pin Generator to include a PNG in the ZIP. No image file is uploaded to PinCraft.</p><label className="mt-3 block text-[11px] font-bold">Your downloaded Pin artwork <span className="font-normal text-neutral-400">(optional for ZIP)</span><input aria-label="Artwork for manual Pin ZIP" type="file" accept="image/png,image/jpeg,image/webp" onChange={e=>{setFile(e.target.files?.[0]||null);setError('');}} className={`${fieldClass} !text-[11px] file:mr-3 file:rounded-lg file:border-0 file:bg-white file:px-2 file:py-2`}/></label>{preview&&<img src={preview} alt={pin.altText||'Your manually selected Pin artwork'} className="mx-auto mt-3 max-h-64 w-full max-w-[180px] rounded-lg object-contain"/>}<div className="mt-3 flex flex-wrap items-center gap-4"><button type="button" onClick={download} disabled={busy} className={secondaryClass}>{busy?<Loader2 size={14} className="animate-spin"/>:<Download size={14}/>}Download {file?'copy + PNG':'copy'} ZIP</button>{pin.imageUrl&&<ExternalLink href={pin.imageUrl}>Open existing hosted image</ExternalLink>}</div>{error&&<p role="alert" className="mt-3 text-[11px] text-brand-700">{error}</p>}</div>;
+}

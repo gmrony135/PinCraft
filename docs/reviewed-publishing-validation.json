@@ -1,0 +1,389 @@
+{
+  "selectedMode": "blogger_manual_pin",
+  "scope": "Local source delivery only. All provider/OAuth/public-page receipts are explicit synthetic fixtures, never genuine owner consent or publication.",
+  "backend": {
+    "mode": "Guarded demo emulators + explicit Blogger doubles; no production authorization or publication.",
+    "passed": 49,
+    "total": 49,
+    "results": [
+      {
+        "name": "Default mode permits Blogger only and advertises the exact canonical callback",
+        "pass": true
+      },
+      {
+        "name": "Google aliases and the existing vault key are strict, without rotating keys",
+        "pass": true
+      },
+      {
+        "name": "Strict reviewed inputs reject provider credentials, old Pinterest API fields and unreviewed content",
+        "pass": true
+      },
+      {
+        "name": "HTML is restricted to balanced article tags, with no script, event attributes, comments or image bytes",
+        "pass": true
+      },
+      {
+        "name": "Manual artwork accepts a local download or a public URL, not embedded bytes/private hosts",
+        "pass": true
+      },
+      {
+        "name": "UTC ordering and IANA/DST validation reject reversed targets and ambiguous/nonexistent local times",
+        "pass": true
+      },
+      {
+        "name": "Pin copy preserves plain description newlines while invalid UTC calendar dates fail closed",
+        "pass": true
+      },
+      {
+        "name": "Creation is owner-scoped, idempotent and does not call any publishing provider",
+        "pass": true
+      },
+      {
+        "name": "Concurrent identical creation persists exactly one parent and one immutable manual-task ID",
+        "pass": true
+      },
+      {
+        "name": "An accepted request can be replayed after time passes and after disconnection without creating a new job",
+        "pass": true
+      },
+      {
+        "name": "Draft -> publish -> public verification uses one saved post and only then releases the manual pack",
+        "pass": true
+      },
+      {
+        "name": "Future publishDate is registered immediately, without a POST body, and SCHEDULED is never relabeled LIVE",
+        "pass": true
+      },
+      {
+        "name": "A still-SCHEDULED or future-dated remote post is polled, with no new insertion/publication",
+        "pass": true
+      },
+      {
+        "name": "LIVE in the admin API still needs a matching unauthenticated public page",
+        "pass": true
+      },
+      {
+        "name": "Public post URLs must belong to the verified blog, never a guessed slug or another host",
+        "pass": true
+      },
+      {
+        "name": "Concurrent processing of the same job sends only one draft mutation",
+        "pass": true
+      },
+      {
+        "name": "A definite rejected publish retries the saved draft, preserving the logical three-attempt budget",
+        "pass": true
+      },
+      {
+        "name": "Three definite failures stop; explicit Retry cannot reset the attempt count",
+        "pass": true
+      },
+      {
+        "name": "A timed-out/5xx draft mutation becomes needs_review and never automatically reinserts",
+        "pass": true
+      },
+      {
+        "name": "Unexpected accepted draft receipts retain a usable remote ID for inspection",
+        "pass": true
+      },
+      {
+        "name": "An accepted publish with an invalid status is uncertain, not a fake successful schedule",
+        "pass": true
+      },
+      {
+        "name": "Malformed and oversized accepted HTTP mutation bodies force inspection at draft and publish checkpoints",
+        "pass": true
+      },
+      {
+        "name": "An accepted Blogger result followed by a rejected checkpoint preserves its ID and blocks another mutation",
+        "pass": true
+      },
+      {
+        "name": "A lost successful Firestore checkpoint acknowledgement resumes only its saved next phase",
+        "pass": true
+      },
+      {
+        "name": "If all post-send writes fail, the pre-send marker survives and lease recovery requires inspection",
+        "pass": true
+      },
+      {
+        "name": "Inspection requires this job’s marker and an owned post, not just a supplied URL/ID",
+        "pass": true
+      },
+      {
+        "name": "Owner-abandoned uncertainty never fabricates a publication or deletes a remote post",
+        "pass": true
+      },
+      {
+        "name": "Lease expiry before send prevents the mutation, without declaring publication success",
+        "pass": true
+      },
+      {
+        "name": "Interrupted leases with mutation markers require review; no-mutation interruptions can retry",
+        "pass": true
+      },
+      {
+        "name": "A late accepted response cannot overwrite another lease’s uncertainty state",
+        "pass": true
+      },
+      {
+        "name": "Connection mutation locks serialize two jobs and reject OAuth replacement while a send is in flight",
+        "pass": true
+      },
+      {
+        "name": "Disconnect wins locally during an in-flight send and cannot resurrect credentials",
+        "pass": true
+      },
+      {
+        "name": "Reconnection must preserve Google identity, re-verify the blog, and explicitly reconfirm Retry",
+        "pass": true
+      },
+      {
+        "name": "A different Google identity cannot take over a saved job even with a verified same blog",
+        "pass": true
+      },
+      {
+        "name": "A removed or URL-changed website stops a queued job before the first mutation",
+        "pass": true
+      },
+      {
+        "name": "Website removal, reassignment and revision changes during preflight stop the next draft or publish send",
+        "pass": true
+      },
+      {
+        "name": "Website changes during an already-sent draft preserve its ID but block the following publish checkpoint",
+        "pass": true
+      },
+      {
+        "name": "Subscription capacity is enforced again immediately before publication, not just during review",
+        "pass": true
+      },
+      {
+        "name": "Disabled or no-longer-verified managed owners cannot authorize scheduled mutations",
+        "pass": true
+      },
+      {
+        "name": "One 401 causes one refreshed-token retry; a second 401 requires reconnect",
+        "pass": true
+      },
+      {
+        "name": "Expired offline authorization is actionable and browser receipts never contain tokens",
+        "pass": true
+      },
+      {
+        "name": "Google refresh grants remain per-owner encrypted and no access token is persisted",
+        "pass": true
+      },
+      {
+        "name": "429 pauses the whole runner and an owner cannot bypass its recorded backoff",
+        "pass": true
+      },
+      {
+        "name": "Manual Pin completion is only user-reported and cannot accept arbitrary/social-shortened URLs",
+        "pass": true
+      },
+      {
+        "name": "Manual export is a valid offline ZIP with copy and optional artwork, never a Pin receipt",
+        "pass": true
+      },
+      {
+        "name": "Legacy entrypoints do not generate, refresh Pinterest or publish in the selected manual mode",
+        "pass": true
+      },
+      {
+        "name": "Errors, workflow and CLI guardrails do not disclose credentials or install a browser publisher",
+        "pass": true
+      },
+      {
+        "name": "Bounded runner records only its own summary heartbeat and never counts manual links as API results",
+        "pass": true
+      },
+      {
+        "name": "Direct Node CLI closes its client and returns only a zero-due summary under explicit local guards",
+        "pass": true
+      }
+    ]
+  },
+  "productionBuildAPIAndBrowser": {
+    "passed": 31,
+    "total": 31,
+    "mode": "Production-build Next APIs, Chromium and local demo Firebase only. OAuth/Blogger/public-page receipts are explicit process-local doubles. No real owner consent or external publication.",
+    "browserErrors": [],
+    "results": [
+      {
+        "name": "Unauthenticated publishing endpoints reject access instead of returning example jobs",
+        "pass": true
+      },
+      {
+        "name": "Cross-origin mutations and old Pinterest/session payloads are rejected by actual API routes",
+        "pass": true
+      },
+      {
+        "name": "Pinterest consent and callback are disabled in manual mode; no API/session connection is required",
+        "pass": true
+      },
+      {
+        "name": "Retained Pinterest queue and automation routes cannot enqueue or enable API publishing in manual mode",
+        "pass": true
+      },
+      {
+        "name": "Blogger OAuth start uses offline+PKCE consent and a callback-scoped HttpOnly cookie",
+        "pass": true
+      },
+      {
+        "name": "The canonical Blogger callback exchanges synthetic consent once, clears its exact cookie, then rejects replay",
+        "pass": true
+      },
+      {
+        "name": "Actual resource and website APIs return only the authorized owned Blogger destination",
+        "pass": true
+      },
+      {
+        "name": "Actual reviewed-create API is immutable and idempotent, with owner-only access",
+        "pass": true
+      },
+      {
+        "name": "Real API checkpoint calls use synthetic draft+publish+public verification, releasing a separate manual task",
+        "pass": true
+      },
+      {
+        "name": "Actual future-publish API records SCHEDULED without inventing a live article or a Pin",
+        "pass": true
+      },
+      {
+        "name": "A synthetic lost draft response stops at needs_review; Retry cannot blindly insert another post",
+        "pass": true
+      },
+      {
+        "name": "Connector presents Blogger consent and manual Pinterest instructions, with no boards or Trial controls",
+        "pass": true
+      },
+      {
+        "name": "Existing offline article generation still works without activating publishing",
+        "pass": true
+      },
+      {
+        "name": "The review composer defaults to local artwork, no Pinterest account/host requirement, with an unchecked consent gate",
+        "pass": true
+      },
+      {
+        "name": "Local artwork can be previewed and downloaded as a real PNG without uploading its bytes to an API",
+        "pass": true
+      },
+      {
+        "name": "Editing content invalidates previous review consent before any publication button activates",
+        "pass": true
+      },
+      {
+        "name": "Explicit review publishes only this blog through saved checkpoints; Pinterest remains manual",
+        "pass": true
+      },
+      {
+        "name": "Jobs separates verified live articles from unverified manual Pin packs and offers copy/export",
+        "pass": true
+      },
+      {
+        "name": "Copy destination writes the confirmed Blogger URL to the real browser clipboard",
+        "pass": true
+      },
+      {
+        "name": "The manual pack ZIP contains real reviewed copy, the verified URL and locally attached PNG",
+        "pass": true
+      },
+      {
+        "name": "Manual completion needs owner confirmation and is visibly labeled user-reported, not API verified",
+        "pass": true
+      },
+      {
+        "name": "Dashboard and old automation URL explain the selected path rather than requiring a Pinterest API account",
+        "pass": true
+      },
+      {
+        "name": "Home, footer and policies clearly describe manual Pinterest rather than promise automatic Pin uploads",
+        "pass": true
+      },
+      {
+        "name": "Subscription retains reviewer-gated capacity without selling automatic Pinterest uploads",
+        "pass": true
+      },
+      {
+        "name": "Reviewed publishing surfaces remain contained at 320px",
+        "pass": true
+      },
+      {
+        "name": "Reviewed publishing surfaces remain contained at 390px",
+        "pass": true
+      },
+      {
+        "name": "Reviewed publishing surfaces remain contained at 768px",
+        "pass": true
+      },
+      {
+        "name": "Reviewed publishing surfaces remain contained at 1440px",
+        "pass": true
+      },
+      {
+        "name": "A late owner jobs response cannot leak into a different signed-in account in the same tab",
+        "pass": true
+      },
+      {
+        "name": "Browser-facing API receipts never include raw grants, ciphertext, session values or uploaded image bytes",
+        "pass": true
+      },
+      {
+        "name": "The configured production-build browser pages have no uncaught runtime or unexpected console errors",
+        "pass": true
+      }
+    ]
+  },
+  "existingRegressions": {
+    "totalPassed": 211,
+    "total": 211,
+    "legacyIsolation": "legacy_api is used only by retained compatibility suites, not the selected rollout.",
+    "suites": {
+      "automation": {
+        "passed": 89,
+        "total": 89,
+        "logSHA256": "e41734dd4b006c87a1c3b9629acb096ef1c011d7025c36021d0ada9eaecfbcc6"
+      },
+      "workspace": {
+        "passed": 55,
+        "total": 55,
+        "logSHA256": "0b08ccb79a000914685dcf934afd82150f2c400c4842bf7d37cfaf0e019d3c6d"
+      },
+      "publicAI": {
+        "passed": 17,
+        "total": 17,
+        "logSHA256": "8e0a53fd9565f734120f536e979fdc277fd012a7c564e861ce1b452f430c1aff"
+      },
+      "AI": {
+        "passed": 50,
+        "total": 50,
+        "logSHA256": "5c227a8a6f1d2d637548865b81fedd59a60dddacdd9ae5e390b4d23f465d9d8f"
+      }
+    }
+  },
+  "productionBuild": {
+    "passed": true,
+    "exitCode": 0,
+    "nextVersion": "15.5.29",
+    "logSHA256": "efc69d62d7be084aa1477f4c98ac5b82f56a769de0f6919690b7c5bfb7739c0b"
+  },
+  "productionOnlyDependencies": {
+    "installedPackages": 289,
+    "finalSourceImportsPassed": true,
+    "rootAndDevFallbackDenied": true,
+    "browserPublisherRequired": false
+  },
+  "workflowYAMLParsed": true,
+  "liveActivation": {
+    "newCommitOrPush": false,
+    "deployment": false,
+    "newProductionSecrets": false,
+    "newSchedulerEnabledOrDispatched": false,
+    "genuineOwnerConsent": false,
+    "realBloggerPublication": false,
+    "PinterestAPIPublication": false
+  },
+  "temporaryTestServicesStopped": true
+}

@@ -1,5 +1,7 @@
 # Step 4 — Automation Dashboard
 
+> **Historical / superseded publishing instructions.** Current selected path: Blogger automatic + Pinterest manual, Firestore Spark + direct GitHub Actions runner. Follow [the current বাংলা setup guide](blogger-manual-pinterest-setup.bn.md). Do not activate the Pinterest API, old OIDC workflow or deferred Worker from this document. Historical results below are not evidence that the new runner or real owner publication is live.
+
 > Historical UI-first release record. The browser-only automation/dashboard scope below has been superseded by [real Full Auto Mode](full-auto-mode.md). Old counts describe that release, not live provider authorization.
 
 Route: `/dashboard`

@@ -12,6 +12,7 @@ import { useAuth } from "../providers/AppProvider";
 import { generateWithAI } from "@/lib/ai-client";
 import GenerationMode, { GenerationReceipt, useGenerationMode } from "../ai/GenerationMode";
 import ImageGenerator from "../ai/ImageGenerator";
+import PublishComposer from "../publishing/PublishComposer";
 import {
   Sparkles,
   FileText,
@@ -123,13 +124,13 @@ export default function ArticleWriter() {
     if (authLoading) return;
     if (!user) {
       const pin = getLibrary().find(item => item.type === "pin");
-      if (pin) setLibraryDrop({ owner: "device", topic: pin.topic, title: pin.titles?.[0] });
+      if (pin) setLibraryDrop({ owner: "device", topic: pin.topic, title: pin.titles?.[0], description: pin.description, hashtags: pin.hashtags });
       return;
     }
     let active = true;
     fetch("/api/library", { credentials: "same-origin", cache: "no-store" }).then(r => r.ok ? r.json() : null).then(data => {
       const pin = data?.items?.find(item => item.kind !== "article_draft" && item.content?.title);
-      if (active && pin) setLibraryDrop({ owner: user.id, topic: pin.topic, title: pin.content.title });
+      if (active && pin) setLibraryDrop({ owner: user.id, topic: pin.topic, title: pin.content.title, description: pin.content.description, hashtags: pin.content.hashtags });
     }).catch(() => {});
     return () => { active = false; };
   }, [authLoading, user?.id]);
@@ -336,6 +337,8 @@ export default function ArticleWriter() {
                 <ArticleView article={article} />
                 <div className="mt-4"><ImageGenerator initialPrompt={`Editorial photograph illustrating ${article.title}. Thoughtful composition, natural light, a clear central subject, no text or logos.`.slice(0, 1700)} useCase="featured" /></div>
 
+                <PublishComposer key={`${user?.id || "device"}:${article.id}`} article={article} sourcePin={sourcePin} />
+
                 {/* stats + actions */}
                 <div className="mt-4 rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm sm:p-5">
                   <div className="grid grid-cols-3 gap-2.5">
@@ -407,7 +410,7 @@ export default function ArticleWriter() {
                     </button>
                     <Link href="/automation" prefetch={false} className="btn-outline w-full !whitespace-normal !px-3 !text-[14px] sm:col-span-2"><CalendarClock size={17} aria-hidden="true"/>Automation setup</Link>
                   </div>
-                  <p className="mt-3 rounded-xl border border-neutral-200 bg-neutral-50 px-3.5 py-2.5 text-[11.5px] leading-relaxed text-neutral-600">Saving this article creates a draft, not a publication or queued job. Manage ongoing category-based publishing on the Automations page.</p>
+                  <p className="mt-3 rounded-xl border border-neutral-200 bg-neutral-50 px-3.5 py-2.5 text-[11.5px] leading-relaxed text-neutral-600">Saving this article creates a private draft, not a publication. To upload this article and its matching Pin, use Review & publish above and approve these specific items.</p>
 
                   <button
                     type="button"

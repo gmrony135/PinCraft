@@ -1,5 +1,7 @@
 # PinCraft: নিরাপদ Firebase + AI সেটআপ
 
+> **Publishing/scheduler অংশ superseded।** Authentication ও generation maintenance-এর পুরোনো তথ্য রাখা হয়েছে; selected publishing setup হলো [Blogger automatic + Pinterest manual guide](blogger-manual-pinterest-setup.bn.md)। নিচের পুরোনো OIDC/Pinterest API activation steps এই rollout-এ অনুসরণ করবেন না।
+
 এই গাইডটি `pincraft-ly` → `https://pincraftly.vercel.app`-এর জন্য। **কোনো paid plan/Blaze upgrade বা native Firebase Functions/Cloud Scheduler deploy করা হয়নি। Primary scheduler এখন GitHub workload identity → existing Vercel worker; [বর্তমান OAuth activation checklist](oauth-activation.bn.md) আগে দেখুন।**
 
 ## কী প্রস্তুত, আর কী বাকি

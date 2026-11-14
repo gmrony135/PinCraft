@@ -12,6 +12,7 @@ import { copyText } from "@/lib/clipboard";
 import { generateWithAI } from "@/lib/ai-client";
 import GenerationMode, { GenerationReceipt, useGenerationMode } from "../ai/GenerationMode";
 import ImageGenerator from "../ai/ImageGenerator";
+import { handoffPin } from "@/lib/publishing/review-content.mjs";
 import {
   Sparkles,
   Wand2,
@@ -457,7 +458,7 @@ export default function PinGenerator() {
 
                     <div className="mt-3.5 flex flex-col gap-2.5 sm:flex-row">
                       <Link
-                        href={articleHref}
+                        href={articleHref} onClick={() => handoffPin(user?.id, pack)}
                         prefetch={false}
                         className="btn-primary w-full whitespace-normal px-4 text-[14px] sm:flex-1"
                       >
@@ -548,7 +549,7 @@ export default function PinGenerator() {
                 personalize your draft before publishing.
               </p>
               <Link
-                href={articleHref}
+                href={articleHref} onClick={() => handoffPin(user?.id, pack)}
                 prefetch={false}
                 className="mt-3.5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-white px-4 py-3 text-[13px] font-bold text-neutral-900 transition-colors hover:bg-neutral-100"
               >

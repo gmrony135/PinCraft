@@ -1,0 +1,14 @@
+{
+  "name": "pincraft-reviewed-publisher",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev --ip 0.0.0.0",
+    "check": "wrangler deploy --dry-run --outdir .wrangler-check",
+    "deploy": "wrangler deploy",
+    "test": "node --test test/*.test.mjs"
+  },
+  "devDependencies": { "wrangler": "4.85.0" },
+  "engines": { "node": ">=22" }
+}

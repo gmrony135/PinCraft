@@ -19,7 +19,10 @@
     "test:ai": "node --conditions=react-server scripts/check-ai.mjs",
     "test:ai:ui": "node --conditions=react-server scripts/check-ai-auth-ui.mjs",
     "test:workspace": "node --conditions=react-server scripts/check-workspace.mjs",
-    "test:workspace:ui": "node --conditions=react-server scripts/check-workspace-ui.mjs"
+    "test:workspace:ui": "node --conditions=react-server scripts/check-workspace-ui.mjs",
+    "publishing:blogger": "node --conditions=react-server scripts/run-reviewed-blogger.mjs",
+    "test:publishing": "node --conditions=react-server --test scripts/test-reviewed-blogger.mjs",
+    "test:publishing:ui": "node --conditions=react-server scripts/check-reviewed-publishing-ui.mjs"
   },
   "dependencies": {
     "firebase": "^13.3.0",

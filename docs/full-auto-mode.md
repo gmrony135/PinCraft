@@ -1,5 +1,7 @@
 # Automation-first architecture and safe operation
 
+> **Historical / superseded publishing instructions.** Current selected path: Blogger automatic + Pinterest manual, Firestore Spark + direct GitHub Actions runner. Follow [the current বাংলা setup guide](blogger-manual-pinterest-setup.bn.md). Do not activate the Pinterest API, old OIDC workflow or deferred Worker from this document. Historical results below are not evidence that the new runner or real owner publication is live.
+
 ## Primary scheduled path: existing Vercel + public GitHub Actions
 
 `.github/workflows/pincraft-automation.yml` requests a GitHub OIDC token and POSTs an empty body to the canonical production worker endpoint at `7,37 * * * *` UTC. Checks are best effort: hosted workflow queues and external requests can delay them. No personal credential, OAuth token, Admin key or long-lived worker secret is stored in the workflow.

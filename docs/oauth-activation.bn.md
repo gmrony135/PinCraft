@@ -1,5 +1,7 @@
 # PinCraft: বাকি OAuth অনুমোদন চালুর নির্দিষ্ট চেকলিস্ট
 
+> **Historical / superseded publishing instructions.** Current selected path: Blogger automatic + Pinterest manual, Firestore Spark + direct GitHub Actions runner. Follow [the current বাংলা setup guide](blogger-manual-pinterest-setup.bn.md). Do not activate the Pinterest API, old OIDC workflow or deferred Worker from this document. Historical results below are not evidence that the new runner or real owner publication is live.
+
 এই নথি মালিকের জন্য। Vercel access দিয়ে Pinterest/Google developer portal-এর মালিকানা, developer terms গ্রহণ, app review বা ব্যক্তিগত consent দেওয়া যায় না। এখানে কোনো credentials বানিয়ে বসানো হয়নি। অ্যাপের callback, encrypted token storage, owner verification, reconnect, publishing controls এবং no-paid-upgrade scheduler-এর server configuration প্রস্তুত করা হয়েছে।
 
 ## ১. ইতিমধ্যে যা সেটআপ/যাচাই হয়েছে

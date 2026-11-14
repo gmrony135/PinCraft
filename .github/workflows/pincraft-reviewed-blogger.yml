@@ -1,0 +1,48 @@
+name: Reviewed Blogger publishing and manual Pin packs
+
+on:
+  schedule:
+    # Best effort, offset from the busiest minute. Blogger future publication
+    # is registered ahead of time; this is not an exact-minute Pin scheduler.
+    - cron: '7,17,27,37,47,57 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pincraft-reviewed-blogger
+  cancel-in-progress: false
+
+jobs:
+  publish-reviewed-blogger:
+    # No runner starts until an operator deliberately enables this PUBLIC repo.
+    # Do not remove the public-repository guard to consume paid/private minutes.
+    if: github.repository == 'gmrony135/PinCraft' && github.event.repository.private == false && github.ref == 'refs/heads/main' && vars.REVIEWED_BLOGGER_SCHEDULER_ENABLED == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Check out trusted publishing code
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Set up the existing Node runtime
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '24.22.3'
+      - name: Install locked production dependencies only
+        run: npm ci --omit=dev --ignore-scripts --no-audit --no-fund
+      - name: Run bounded Blogger checkpoints
+        env:
+          PINCRAFT_PUBLISHING_MODE: blogger_manual_pin
+          APP_URL: https://pincraftly.vercel.app
+          FIREBASE_PROJECT_ID: ${{ vars.PINCRAFT_FIREBASE_PROJECT_ID }}
+          FIREBASE_ADMIN_CLIENT_EMAIL: ${{ secrets.PINCRAFT_FIREBASE_ADMIN_CLIENT_EMAIL }}
+          FIREBASE_ADMIN_PRIVATE_KEY: ${{ secrets.PINCRAFT_FIREBASE_ADMIN_PRIVATE_KEY }}
+          AUTOMATION_ENCRYPTION_KEY: ${{ secrets.PINCRAFT_TOKEN_ENCRYPTION_KEY }}
+          GOOGLE_CLIENT_ID: ${{ vars.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          GOOGLE_REDIRECT_URI: https://pincraftly.vercel.app/api/blogger/callback
+        run: node --conditions=react-server scripts/run-reviewed-blogger.mjs
+      # No Chromium, session cookies, screenshots, artifacts or AI keys.
+      # No pull_request/pull_request_target execution with publishing secrets.

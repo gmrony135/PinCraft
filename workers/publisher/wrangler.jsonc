@@ -1,0 +1,16 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "pincraft-reviewed-publisher",
+  "main": "src/index.mjs",
+  "compatibility_date": "2026-04-24",
+  "workers_dev": true,
+  "preview_urls": false,
+  "triggers": { "crons": ["*/10 * * * *"] },
+  "observability": { "enabled": false },
+  "vars": {
+    "APP_URL": "https://pincraftly.vercel.app",
+    "PINTEREST_CLIENT_ID": "1638625",
+    "PINTEREST_REDIRECT_URI": "https://pincraftly.vercel.app/api/pinterest/callback",
+    "GOOGLE_REDIRECT_URI": "https://pincraftly.vercel.app/api/blogger/callback"
+  }
+}
