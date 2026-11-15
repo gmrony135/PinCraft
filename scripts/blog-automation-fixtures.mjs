@@ -62,7 +62,7 @@ export function automaticArticle(_sourceTitle){
  return {
   title:'A Practical Balcony Garden Plan for Smaller Spaces',category:'Gardening',intro,
   sections:sectionCopy.map(section=>({heading:section.heading,paragraphs:section.paragraphs,subsections:[{heading:section.subheading,paragraphs:[section.subparagraph]}]})),
-  listSection,faqs,conclusion,focusKeyword:'balcony garden',secondaryKeywords:['balcony containers','small space gardening','balcony plant care','container garden layout','balcony light conditions','compact garden planning'],metaDescription,slug:'practical-balcony-garden-plan',
+  listSection,faqs,conclusion,focusKeyword:'balcony garden',secondaryKeywords:['balcony containers','garden care routine','building rules','small balcony','walking route','local nursery'],metaDescription,slug:'practical-balcony-garden-plan',
   imageBriefs:[
    {role:'cover',sectionIndex:null,prompt:'A calm, realistic compact balcony garden with a few containers and clear walking space, soft natural light, landscape editorial photography, no text or logos.',altText:'A compact balcony garden with a few containers and an open walking path'},
    {role:'section',sectionIndex:0,prompt:'A measured balcony floor plan beside empty containers, door clearance visible, calm natural light, landscape editorial photography, no text or logos.',altText:'Empty containers arranged to test a small balcony garden layout'},

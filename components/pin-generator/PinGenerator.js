@@ -10,7 +10,7 @@ import { saveCloudDraft } from "@/lib/cloud-library";
 import { useAuth } from "../providers/AppProvider";
 import { copyText } from "@/lib/clipboard";
 import { generateWithAI } from "@/lib/ai-client";
-import GenerationMode, { GenerationReceipt, useGenerationMode } from "../ai/GenerationMode";
+import { GenerationReceipt } from "../ai/GenerationMode";
 import ImageGenerator from "../ai/ImageGenerator";
 import { CATEGORIES } from "@/lib/product.mjs";
 import { handoffPin } from "@/lib/publishing/review-content.mjs";
@@ -29,9 +29,18 @@ import {
   Loader2,
 } from "lucide-react";
 
+function createPinArtworkPrompt(topic, visualDirection = '') {
+  const cleanTopic = String(topic || '').trim();
+  if (!cleanTopic) return '';
+  const direction = visualDirection ? `Visual direction: ${visualDirection} ` : '';
+  return `Create original, polished vertical Pinterest Pin artwork inspired by "${cleanTopic}". ${direction}Use a clear focal point, a balanced editorial composition and a cohesive color palette. Leave clean space for an optional headline. Do not include text, letters, logos or watermarks.`;
+}
+
 export default function PinGenerator() {
   const { user, authLoading, openLogin } = useAuth();
-  const { mode, setMode, status: aiStatus } = useGenerationMode(user);
+  // Pin Generator keeps the workflow simple: signed-in users get live AI;
+  // guests get the clearly labelled offline template without a mode selector.
+  const mode = user ? 'ai' : 'local';
   const generationRequest = useRef({ sequence: 0, controller: null });
   const [language, setLanguage] = useState('en');
   const [saving, setSaving] = useState(false);
@@ -40,6 +49,7 @@ export default function PinGenerator() {
   const identity = useRef(null);
   identity.current = user?.id || "device";
   const [topic, setTopic] = useState("");
+  const [artworkPrompt, setArtworkPrompt] = useState("");
   const [loading, setLoading] = useState(false);
   const [pack, setPack] = useState(null);
   const currentContent = useRef(null);
@@ -50,7 +60,7 @@ export default function PinGenerator() {
   const resultsRef = useRef(null);
   const toastTimer = useRef(null);
   useEffect(() => () => clearTimeout(toastTimer.current), []);
-  useEffect(() => { const value = new URLSearchParams(window.location.search).get('topic'); if (value) setTopic(value.slice(0, 160)); }, []);
+  useEffect(() => { const value = new URLSearchParams(window.location.search).get('topic'); if (value) { const clean = value.slice(0, 160); setTopic(clean); setArtworkPrompt(createPinArtworkPrompt(clean)); } }, []);
   useEffect(() => {
     generationRequest.current.sequence++; generationRequest.current.controller?.abort();
     setLoading(false); setError(''); setPack(previous => previous?.generation ? null : previous);
@@ -80,7 +90,7 @@ export default function PinGenerator() {
       return;
     }
     if (loading || authLoading) return;
-    if (mode === 'ai' && !user) { setError('Sign in with a verified account to use live AI, or choose Offline template.'); openLogin(); return; }
+    if (mode === 'ai' && !user) { setError('Sign in with a verified account to use live Pin generation.'); openLogin(); return; }
     const owner = identity.current, sequence = ++generationRequest.current.sequence;
     generationRequest.current.controller = new AbortController();
     setError(''); setSaved(false); setPack(null); setLoading(true);
@@ -94,7 +104,9 @@ export default function PinGenerator() {
         generated = generatePinPack(value);
       }
       if (sequence !== generationRequest.current.sequence || identity.current !== owner) return;
-      setPack(generated); flash(mode === 'ai' ? 'AI Pin pack generated' : 'Offline pin template generated');
+      setPack(generated);
+      setArtworkPrompt(generated.imageIdea?.prompt || createPinArtworkPrompt(generated.topic || value));
+      flash(mode === 'ai' ? 'AI Pin pack generated' : 'Offline pin template generated');
       setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
     } catch (issue) { if (issue.name !== 'AbortError' && sequence === generationRequest.current.sequence && identity.current === owner) setError(issue.message); }
     finally { if (sequence === generationRequest.current.sequence) setLoading(false); }
@@ -151,12 +163,12 @@ export default function PinGenerator() {
           </nav>
 
           <span className="eyebrow">
-            <Sparkles size={13} /> Offline templates + live AI
+            <Sparkles size={13} /> Pin copy + downloadable artwork
           </span>
 
           <h1 className="h1 mt-4 text-neutral-900">Pin Generator</h1>
           <p className="lead mt-3 max-w-2xl">
-            Create five title ideas, an SEO description, 10 hashtags and a custom Pin artwork option in one flow. Start with a category or enter your own topic.
+            Explore the Top 10 categories, create Pin copy, or generate downloadable artwork here—no Pin text is required to make an image.
           </p>
         </div>
       </section>
@@ -170,7 +182,6 @@ export default function PinGenerator() {
               onSubmit={handleGenerate}
               className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm sm:p-6"
             >
-              <GenerationMode mode={mode} setMode={setMode} status={aiStatus} disabled={loading || authLoading} />
               {mode === 'ai' && <label className="mb-4 flex items-center justify-between gap-3 text-[12px] font-bold text-neutral-600">AI output language<select aria-label="AI output language" value={language} onChange={event => setLanguage(event.target.value)} disabled={loading} className="min-h-11 rounded-lg border border-neutral-300 bg-white px-3 text-[13px]"><option value="en">English</option><option value="bn">বাংলা</option></select></label>}
               <label
                 htmlFor="topic"
@@ -222,7 +233,7 @@ export default function PinGenerator() {
                     Top 10 categories
                   </p>
                   <p className="text-[11px] font-medium text-neutral-400">
-                    Select one to fill your topic
+                    Select one to fill your topic and suggest Pin artwork
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -233,6 +244,7 @@ export default function PinGenerator() {
                       data-testid="pin-category-suggestion"
                       onClick={() => {
                         setTopic(category.label);
+                        setArtworkPrompt(createPinArtworkPrompt(category.label, category.description));
                         setError("");
                       }}
                       className="min-h-11 max-w-full whitespace-normal rounded-full border border-neutral-200 bg-neutral-50 px-3.5 py-2 text-left text-[11.5px] font-semibold leading-snug text-neutral-600 transition-colors hover:border-brand-200 hover:bg-brand-50 hover:text-brand-700 active:scale-[0.98]"
@@ -259,9 +271,29 @@ export default function PinGenerator() {
                 )}
               </button>
               <p className="mt-2.5 text-center text-[11.5px] text-neutral-400">
-                {mode === 'ai' ? 'Original AI content · Automatic recovery · Daily limits apply' : 'Instant offline templates · 5 titles + description + 10 hashtags + image idea'}
+                Generate title ideas, a description, hashtags and an image prompt from your topic.
               </p>
             </form>
+
+            <section id="pin-artwork-generator" data-testid="pin-artwork-section" className="mt-5 scroll-mt-20">
+              <div className="mb-3 flex flex-col justify-between gap-2 sm:flex-row sm:items-end">
+                <div>
+                  <p className="text-[10.5px] font-bold uppercase tracking-[0.12em] text-brand-700">Artwork · Pinterest Pin</p>
+                  <h2 className="mt-1 text-[18px] font-extrabold tracking-tight text-neutral-900">Generate Pin artwork</h2>
+                  <p className="mt-1 max-w-xl text-[11.5px] leading-relaxed text-neutral-500">Create a 1000 × 1500 image here—Pin copy is optional. Choose one of the Top 10 categories above for a matching prompt, or describe your own scene.</p>
+                </div>
+                <span className="inline-flex min-h-8 shrink-0 items-center rounded-full bg-neutral-100 px-3 text-[10px] font-bold text-neutral-600">1000 × 1500 · WebP</span>
+              </div>
+              {topic.trim() && <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-neutral-200 bg-white px-3.5 py-2.5">
+                <p className="min-w-0 break-words text-[11px] text-neutral-500">Current topic: <strong className="text-neutral-700">{topic}</strong></p>
+                <button type="button" onClick={() => setArtworkPrompt(createPinArtworkPrompt(topic))} className="min-h-11 shrink-0 rounded-lg px-2 text-[11px] font-bold text-brand-700 hover:bg-brand-50">Use topic for artwork prompt</button>
+              </div>}
+              {!authLoading && !user && <div className="mb-3 flex flex-col gap-2 rounded-xl border border-amber-100 bg-amber-50 p-3 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-[11px] leading-relaxed text-amber-900">A verified account is required for AI artwork. Your daily image allowance applies; the Pin stays on this page.</p>
+                <button type="button" onClick={openLogin} className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-lg border border-amber-200 bg-white px-3 text-[11px] font-bold text-amber-900 hover:bg-amber-50">Sign in / create account</button>
+              </div>}
+              <ImageGenerator initialPrompt={artworkPrompt} useCase="pin" editable postInfo={pack ? { topic: pack.topic, titles: pack.titles, description: pack.description, hashtags: pack.hashtags } : null} onRequestPostInfo={() => handleGenerate()} postInfoLoading={loading} />
+            </section>
 
             {/* loading skeleton */}
             {loading && (
@@ -395,7 +427,6 @@ export default function PinGenerator() {
                     meta="Design text + AI prompt"
                     icon={ImageIcon}
                     accent="dark"
-                    keepMounted
                   >
                     <div className="space-y-2.5">
                       <div className="rounded-xl border border-neutral-150 bg-neutral-900 p-4">
@@ -434,31 +465,11 @@ export default function PinGenerator() {
                           {pack.imageIdea.prompt}
                         </p>
                       </div>
-                      <div className="rounded-xl border border-brand-100 bg-brand-50/40 p-3.5">
-                        <div className="mb-3">
-                          <p className="text-[12px] font-extrabold text-neutral-800">
-                            Create Pin artwork here
-                          </p>
-                          <p className="mt-1 text-[11px] leading-relaxed text-neutral-500">
-                            The prompt is prefilled from this Pin. Generate a 1000 × 1500 WebP, preview it and download it without leaving this page.
-                          </p>
-                        </div>
-                        {!authLoading && !user && (
-                          <div className="mb-3 flex flex-col gap-2 rounded-xl border border-amber-100 bg-amber-50 p-3 sm:flex-row sm:items-center sm:justify-between">
-                            <p className="text-[11px] leading-relaxed text-amber-900">
-                              A verified account is required for AI artwork. Your daily image allowance applies; your Pin stays on this page.
-                            </p>
-                            <button type="button" onClick={openLogin} className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-lg border border-amber-200 bg-white px-3 text-[11px] font-bold text-amber-900 hover:bg-amber-50">
-                              Sign in / create account
-                            </button>
-                          </div>
-                        )}
-                        <ImageGenerator
-                          key={pack.id}
-                          initialPrompt={pack.imageIdea.prompt}
-                          useCase="pin"
-                          editable
-                        />
+                      <div className="flex flex-col justify-between gap-2 rounded-xl border border-brand-100 bg-brand-50/40 p-3.5 sm:flex-row sm:items-center">
+                        <p className="text-[11px] leading-relaxed text-neutral-600">This Pin’s image prompt is ready in the artwork section above.</p>
+                        <button type="button" onClick={() => document.getElementById('pin-artwork-generator')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} className="inline-flex min-h-11 shrink-0 items-center justify-center gap-1.5 rounded-lg px-2 text-[11px] font-bold text-brand-700 hover:bg-brand-50">
+                          Open Pin artwork generator <ArrowRight size={13} aria-hidden="true" />
+                        </button>
                       </div>
                     </div>
                   </ResultSection>
@@ -525,8 +536,7 @@ export default function PinGenerator() {
                   Nothing generated yet
                 </p>
                 <p className="mx-auto mt-1 max-w-sm text-[12.5px] leading-relaxed text-neutral-400">
-                  Choose a category or type a topic and tap <b>Generate Pin</b>. You&apos;ll get
-                  5 titles, an SEO description, 10 hashtags, an image prompt and an optional artwork generator.
+                  Choose a category to fill the topic and suggest a matching artwork prompt, then tap <b>Generate Pin</b> for copy—or generate the Pin artwork above without creating text.
                 </p>
               </div>
             )}

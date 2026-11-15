@@ -22,7 +22,7 @@ test('The historical AI Studio alias goes to the hub without a redirect loop',as
 });
 test('Studio exposes exactly six distinct canonical tools and retains both separate writers',()=>{
  const all=[...WRITING_TOOLS,...STUDIO_TOOLS];assert.equal(all.length,6);assert.equal(new Set(all.map(tool=>tool.href)).size,6);
- assert.deepEqual(WRITING_TOOLS.map(tool=>tool.href),['/article-writer','/pin-generator']);assert.deepEqual(STUDIO_TOOLS.map(tool=>tool.id),['image','keywords','plan','quality']);
+ assert.deepEqual(WRITING_TOOLS.map(tool=>tool.href),['/article-writer','/pin-generator']);assert.deepEqual(STUDIO_TOOLS.map(tool=>tool.id),['image','keywords','plan','quality']);assert.equal(STUDIO_TOOLS[0].label,'Blog featured image');
 });
 test('Tool lookup rejects unknown slugs rather than selecting a default generator',()=>{
  for(const tool of STUDIO_TOOLS)assert.equal(studioTool(tool.slug),tool);
@@ -41,11 +41,14 @@ test('A tool page has one fixed task, not another duplicated tool selector',asyn
 test('Pin Generator suggestions always use the ten canonical product categories',async()=>{
  const ui=await source('components/pin-generator/PinGenerator.js');assert.equal(CATEGORIES.length,10);assert.match(ui,/CATEGORIES\.map\(\(category\)/);assert.match(ui,/data-testid="pin-category-suggestion"/);assert.match(ui,/setTopic\(category\.label\)/);assert(!ui.includes('const EXAMPLES'));
 });
-test('The shared artwork generator is available in Studio and inline in the Pin flow',async()=>{
+test('Pin artwork is direct in Pin Generator; Content Studio Artwork is blog-featured only',async()=>{
  const files=await javascript('components'),renderers=[];for(const file of files)if((await source(file)).includes('<ImageGenerator'))renderers.push(file);
  assert.deepEqual(renderers,['components/ai/AIStudio.js','components/pin-generator/PinGenerator.js']);
- const pin=await source('components/pin-generator/PinGenerator.js'),writer=await source('components/article-writer/ArticleWriter.js'),section=await source('components/pin-generator/ResultSection.js');
- assert(pin.includes('<ImageGenerator')&&pin.includes('initialPrompt={pack.imageIdea.prompt}')&&pin.includes('useCase="pin"'));assert(pin.includes('keepMounted'));assert(section.includes('keepMounted && hasBeenOpened'));assert(pin.includes('A verified account is required for AI artwork'));assert(pin.includes('onClick={openLogin}'));assert(!pin.includes('href="/content-studio/artwork'));
+ const pin=await source('components/pin-generator/PinGenerator.js'),studio=await source('components/ai/AIStudio.js'),writer=await source('components/article-writer/ArticleWriter.js');
+ assert(pin.includes('data-testid="pin-artwork-section"'));assert(pin.indexOf('data-testid="pin-artwork-section"')<pin.indexOf('{pack && !loading'));
+ assert(pin.includes('<ImageGenerator initialPrompt={artworkPrompt} useCase="pin" editable postInfo={pack ?'));assert(pin.includes('onRequestPostInfo={() => handleGenerate()}'));assert(pin.includes('setArtworkPrompt(createPinArtworkPrompt(category.label, category.description))'));assert(pin.includes('setArtworkPrompt(generated.imageIdea?.prompt'));
+ assert(pin.includes('Use topic for artwork prompt'));assert(pin.includes('Open Pin artwork generator'));assert(pin.includes('A verified account is required for AI artwork'));assert(pin.includes('onClick={openLogin}'));
+ assert(studio.includes('useCase="featured"'));assert(studio.includes('Generate Pin artwork instead'));assert(!studio.includes('Image format'));assert(!studio.includes('value="pin"'));
  assert(writer.includes('async function generateArticleImages'));assert(writer.includes('Generate three AI images'));assert(!writer.includes('<ImageGenerator'));
 });
 test('Reviewed Blogger publishing has one canonical form, not forms inside writing or reader tools',async()=>{

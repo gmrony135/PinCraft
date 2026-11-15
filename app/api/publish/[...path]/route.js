@@ -15,7 +15,7 @@ export async function GET(request,{params}){
   if(key==='related'){
    const q=new URL(request.url).searchParams,connectionId=q.get('connectionId')||'',websiteId=q.get('websiteId')||'',title=q.get('title')||'',focusKeyword=q.get('focusKeyword')||'',keywords=(q.get('keywords')||'').split(',').map(value=>value.trim()).filter(Boolean).slice(0,10);
    if(title.length<3||title.length>200||focusKeyword.length>100||keywords.some(value=>value.length>100))throw new AutomationError('invalid_request','Enter a valid article title and keywords to find relevant internal links.');
-   const posts=await listLiveBloggerPosts(db,user.id,connectionId,websiteId);return json({items:selectRelevantBloggerPosts(posts,{title,focusKeyword,secondaryKeywords:keywords}),verifiedSource:'selected Blogger blog · live posts only'});
+   const posts=await listLiveBloggerPosts(db,user.id,connectionId,websiteId);let items;try{items=selectRelevantBloggerPosts(posts,{title,focusKeyword,secondaryKeywords:keywords});}catch(error){if(error.code!=='article_internal_links_missing')throw error;items=[];}return json({items,verifiedSource:'selected Blogger blog · live posts only'});
   }
   if(path.length===3&&path[0]==='jobs'&&path[2]==='article')return json(await recoverPublishingArticle(db,user.id,path[1]));
   if(key==='connections/blogger/resources'){const q=new URL(request.url).searchParams;return json(await listOAuthResources(db,user.id,'blogger',q.get('cursor'),undefined,q.get('connectionId')||'blogger'));}

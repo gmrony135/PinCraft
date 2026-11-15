@@ -19,7 +19,8 @@ import { addQueuedPin } from '../lib/automation/queue.mjs';
 import { saveAutomation, toggleAutomation } from '../lib/automation/channels.mjs';
 import { httpsURL, publicAddresses, requestData } from '../lib/automation/http.mjs';
 import { AutomationError } from '../lib/automation/errors.mjs';
-import { reviewedInput, articleHTML, reportedPinURL, redactedError } from '../lib/publishing/content.mjs';
+import { reviewedInput, automatedArticleInput, articleHTML, reportedPinURL, redactedError } from '../lib/publishing/content.mjs';
+import { countArticleWordsFromHTML } from '../lib/publishing/review-content.mjs';
 import { localToUTC } from '../lib/publishing/time.mjs';
 import { pinPackEntries, zipStore, crc32 } from '../lib/publishing/pin-pack.mjs';
 import { BloggerPublisher, publicationMarker, articleURL, receiptArticleURL } from '../lib/publishing/blogger.mjs';
@@ -79,6 +80,17 @@ check('Strict reviewed inputs reject provider credentials, old Pinterest API fie
   assert.throws(() => reviewedInput(short), rejectCode('invalid_article_length'));
   const staleCount = reviewedRequest(); staleCount.article.wordCount--;
   assert.throws(() => reviewedInput(staleCount), rejectCode('invalid_article_length'));
+});
+check('Manual external source links require explicit human verification before a publishing request is accepted',()=>{
+ const request=reviewedRequest();request.article.html+='<p><a href="https://www.bhg.com/portable-lamps-walmart-12166615">Independent lamp source</a></p>';request.article.wordCount=countArticleWordsFromHTML(request.article.html);
+ assert.throws(()=>reviewedInput(request),rejectCode('external_source_review_required'));
+ const checked=reviewedInput({...request,externalSourcesVerified:true});assert.equal(checked.article.externalSourcesVerified,true);assert(checked.article.html.includes('https://www.bhg.com/portable-lamps-walmart-12166615'));
+});
+check('Recurring article input removes outbound anchors without waiting for external-source review',()=>{
+ const request=reviewedRequest();delete request.reviewed;delete request.pin;delete request.pinReadyAtUTC;
+ request.article.images=[{assetId:'a'.repeat(64),role:'cover',sectionIndex:null,altText:'A bright editorial cover illustration for this practical guide'},{assetId:'b'.repeat(64),role:'section',sectionIndex:0,altText:'An illustrated opening section for this practical guide'},{assetId:'c'.repeat(64),role:'section',sectionIndex:2,altText:'An illustrated later section for this practical guide'}];
+ request.article.html+='<p><a href="https://www.bhg.com/portable-lamps-walmart-12166615">Independent lamp source</a></p>';request.article.wordCount=countArticleWordsFromHTML(request.article.html);
+ const automatic=automatedArticleInput(request);assert(!automatic.article.html.includes('href="https://www.bhg.com/'));assert(automatic.article.html.includes('Independent lamp source'));assert.equal(automatic.article.externalSourcesVerified,false);
 });
 check('HTML is restricted to balanced article tags, with no script, event attributes, comments or image bytes', () => {
   const safe = '<p>This is a sufficiently long and safe plain text article paragraph.</p>';
@@ -472,7 +484,7 @@ check('Recovery returns only the stopped owner’s exact saved article and never
  const f=await inspectionFixture(),before=await row(f.job.id),count=(await db.collection('publish_jobs').get()).size;await assert.rejects(recoverPublishingArticle(db,f.uid,f.job.id),rejectCode('stop_before_recovery'));await assert.rejects(recoverPublishingArticle(db,'isolated-other-owner',f.job.id),rejectCode('not_found'));await reviewPublishingJob(db,f.uid,f.job.id,{action:'abandon',inspected:true},{now:f.now()});const result=await recoverPublishingArticle(db,f.uid,f.job.id);assert.equal(result.accountId,f.uid);assert.equal(result.sourceStatus,'cancelled');assert.equal(result.article.title,before.payload.article.title);assert.equal(result.article.reviewedHTML,before.payload.article.html);assert.equal(result.websiteId,before.payload.websiteId);assert(!('reviewedAt' in result));assert(!('reviewed' in result.article));assert(!('publishAtUTC' in result));assert.equal((await db.collection('publish_jobs').get()).size,count);const after=await row(f.job.id);assert.equal(after.remoteId,before.remoteId);assert.equal(after.attempts,before.attempts);assert.equal(f.calls.draft,1);assert.equal(f.calls.publish,0);assert.equal((await listPublishingJobs(db,f.uid)).jobs[0].canRecoverArticle,true);
 });
 check('A new request ID cannot bypass an unresolved exact article, but replay and genuinely different reviewed articles remain valid',async()=>{
- const f=await reviewedFixture({draft:()=>{throw new AutomationError('publication_uncertain','Explicit local uncertain insert',{uncertain:true});}}),raw=reviewedRequest(),first=await createPublishingJob(db,f.uid,raw,{now:f.now(),send:f.linkSend});await run(f,first.job.id);assert.equal((await createPublishingJob(db,f.uid,raw,{now:f.now(),send:f.linkSend})).replayed,true);await assert.rejects(createPublishingJob(db,f.uid,{...raw,requestId:randomUUID()},{now:f.now(),send:f.linkSend}),rejectCode('unresolved_article'));const other=await createPublishingJob(db,f.uid,{...raw,requestId:randomUUID(),article:{...raw.article,title:'A genuinely different owner-reviewed article'}},{now:f.now(),send:f.linkSend});assert.equal(other.job.status,'queued');assert.equal(f.calls.draft,1);assert.equal((await row(first.job.id)).attempts,1);
+ const f=await reviewedFixture({draft:()=>{throw new AutomationError('publication_uncertain','Explicit local uncertain insert',{uncertain:true});}}),raw=reviewedRequest(),first=await createPublishingJob(db,f.uid,raw,{now:f.now(),send:f.linkSend});await run(f,first.job.id);assert.equal((await createPublishingJob(db,f.uid,raw,{now:f.now(),send:f.linkSend})).replayed,true);await assert.rejects(createPublishingJob(db,f.uid,{...raw,requestId:randomUUID()},{now:f.now(),send:f.linkSend}),rejectCode('unresolved_article'));const other=await createPublishingJob(db,f.uid,{...raw,requestId:randomUUID(),article:{...raw.article,title:'A Different Balcony Garden Plan for Compact City Homes'}},{now:f.now(),send:f.linkSend});assert.equal(other.job.status,'queued');assert.equal(f.calls.draft,1);assert.equal((await row(first.job.id)).attempts,1);
 });
 check('Old first-page-only missing diagnostics cannot be projected as complete paginated absence',()=>{
  const result=publicInspection({outcome:'missing',adminConfirmed:true,primaryHTTP:404,scanPosts:25,scanLimited:true});assert.equal(result.outcome,'limited');assert.equal(result.scanComplete,false);assert(!result.message.includes('All returned pages'));assert.match(result.message,/some posts remain unchecked/);

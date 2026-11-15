@@ -17,11 +17,15 @@ const blog = { id: '123456789012', name: 'Explicit synthetic owned blog', url: '
 blogger.intercept({ path: /^\/blogger\/v3\/users\/self\/blogs\?/, method: 'GET' }).reply(200, { items: [blog] }).persist();
 blogger.intercept({ path: '/blogger/v3/users/self/blogs/123456789012', method: 'GET' }).reply(200, { blog, blog_user_info: { hasAdminAccess: true } }).persist();
 let sequence = 12345678901234n; const posts = new Map();
+for (const post of [
+  { id: '223456789012301', title: 'Balcony Container Garden Layout Ideas', url: 'https://example.com/blog/balcony-container-layout', status: 'LIVE', published: new Date(Date.now() - 5 * 86400000).toISOString(), labels: ['balcony', 'container garden', 'gardening'] },
+  { id: '223456789012302', title: 'Small Balcony Container Planting Guide', url: 'https://example.com/blog/small-balcony-planting', status: 'LIVE', published: new Date(Date.now() - 3 * 86400000).toISOString(), labels: ['balcony', 'planting', 'compact spaces', 'small', 'garden'] },
+]) posts.set(post.id, { ...post, blog: { id: blog.id }, content: '<p>Explicit local live Blogger link fixture.</p>' });
 blogger.intercept({ path: '/blogger/v3/blogs/123456789012/posts?isDraft=true', method: 'POST' }).reply(options => {
   const input = JSON.parse(options.body), id = String(sequence++), post = { id, blog: { id: blog.id }, title: input.title, content: input.content, url: 'https://example.com/post-' + id, status: 'DRAFT', published: new Date().toISOString() };
   posts.set(id, post);
-  if (input.title.includes('Synthetic missing saved ID')) return { statusCode: 200, data: { ...post, status: 'UNCONFIRMED' } };
-  if (input.title.includes('Synthetic uncertain receipt')) return { statusCode: 503, data: { error: 'Explicit lost mutation receipt fixture' } };
+  if (input.title.includes('Synthetic Missing-ID Recovery')) return { statusCode: 200, data: { ...post, status: 'UNCONFIRMED' } };
+  if (input.title.includes('Synthetic Balcony Garden Draft') || input.title.includes('Synthetic 404 Marker Recovery')) return { statusCode: 503, data: { error: 'Explicit lost mutation receipt fixture' } };
   return { statusCode: 200, data: post };
 }).persist();
 blogger.intercept({ path: /^\/blogger\/v3\/blogs\/123456789012\/posts\/\d+\/publish(?:\?.*)?$/, method: 'POST' }).reply(options => {
@@ -32,13 +36,13 @@ blogger.intercept({ path: /^\/blogger\/v3\/blogs\/123456789012\/posts\/\d+\/publ
 }).persist();
 blogger.intercept({ path: /^\/blogger\/v3\/blogs\/123456789012\/posts\?/, method: 'GET' }).reply(options => {
   const url = new URL(options.path, 'https://www.googleapis.com'), status = url.searchParams.get('status')?.toUpperCase();
-  const ownPosts = [...posts.values()].filter(post => post.status === status && !post.title.includes('Synthetic missing saved ID'));
-  if (status === 'DRAFT' && [...posts.values()].some(post => post.title.includes('Synthetic later page lookup')) && !url.searchParams.get('pageToken')) return { statusCode: 200, data: { nextPageToken: 'isolated-private-page-cursor', items: Array.from({length:25},(_,i)=>({id:String(8000000+i),blog:{id:blog.id},status:'DRAFT',content:'isolated-unrelated-private-post-content'})) } };
+  const ownPosts = [...posts.values()].filter(post => post.status === status && !post.title.includes('Synthetic Missing-ID Recovery'));
+  if (status === 'DRAFT' && [...posts.values()].some(post => post.title.includes('Synthetic 404 Marker Recovery')) && !url.searchParams.get('pageToken')) return { statusCode: 200, data: { nextPageToken: 'isolated-private-page-cursor', items: Array.from({length:25},(_,i)=>({id:String(8000000+i),blog:{id:blog.id},status:'DRAFT',content:'isolated-unrelated-private-post-content'})) } };
   return { statusCode: 200, data: { items: ownPosts.slice(0,25) } };
 }).persist();
 blogger.intercept({ path: /^\/blogger\/v3\/blogs\/123456789012\/posts\/\d+\?/, method: 'GET' }).reply(options => {
   const id = /\/posts\/(\d+)\?/.exec(options.path)[1], post = posts.get(id);
-  if (!post || post.title.includes('Synthetic missing saved ID') || post.status === 'DRAFT' && post.title.includes('Synthetic 404 lookup')) return { statusCode: 404, data: {} };
+  if (!post || post.title.includes('Synthetic Missing-ID Recovery') || post.status === 'DRAFT' && post.title.includes('Synthetic 404 Marker Recovery')) return { statusCode: 404, data: {} };
   if (post.status === 'SCHEDULED' && Date.parse(post.published) <= Date.now()) post.status = 'LIVE';
   return { statusCode: 200, data: post };
 }).persist();

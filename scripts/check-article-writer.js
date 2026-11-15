@@ -25,7 +25,7 @@ async function run() {
   await page.goto(`${BASE}/article-writer`, { waitUntil: "networkidle" });
   const titleField = page.getByPlaceholder("Simple Balcony Garden Ideas for Small Spaces");
   ok("Article Writer heading", await page.getByRole("heading", { name: "Auto Article Writer", exact: true }).isVisible());
-  ok("Updated article and image guidance", await page.getByText(/Create a practical, search-aware article draft/).isVisible());
+  ok("Updated article and image guidance", await page.getByText(/Create a practical draft with a 50–60-character H1/).isVisible());
   ok("Guest starts in the explicit Offline template mode", await page.getByRole("button", { name: "Offline template", exact: true }).getAttribute("aria-pressed") === "true");
   ok("Generate button and title field", await titleField.isVisible() && await page.getByRole("button", { name: "Generate Article", exact: true }).isVisible());
 
@@ -61,7 +61,7 @@ async function run() {
     return { count: list.length, words: article?.wordCount, generation: article?.generation?.kind };
   });
   ok("Offline article saves privately without AI or publication claims", saved.count >= 1 && saved.words >= 400 && !saved.generation);
-  await page.screenshot({ path: `${OUT}/article-writer-offline-desktop.png`, fullPage: true });
+  await page.screenshot({ path: `${OUT}/article-writer-offline-desktop.png`, fullPage: false, animations: "disabled", timeout: 15000 });
 
   await page.goto(`${BASE}/article-writer?title=${encodeURIComponent("5 Home Decor Ideas for Small Rooms")}&topic=Home%20Decor`, { waitUntil: "networkidle" });
   const prefilled = await titleField.inputValue();
@@ -80,7 +80,7 @@ async function run() {
   const overflow = await mobile.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   ok(`Mobile has no horizontal overflow (${overflow}px)`, overflow <= 1);
   ok("Mobile offline result remains publish-blocked", await mobile.getByRole("button", { name: "Save & open publishing review" }).isDisabled());
-  await mobile.screenshot({ path: `${OUT}/article-writer-offline-mobile.png`, fullPage: true });
+  await mobile.screenshot({ path: `${OUT}/article-writer-offline-mobile.png`, fullPage: false, animations: "disabled", timeout: 15000 });
 
   await browser.close();
   const failed = steps.filter(step => !step.pass);

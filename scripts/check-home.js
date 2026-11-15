@@ -23,6 +23,7 @@ async function run() {
   ok('Hero contains the animated workflow illustration', await desktop.getByTestId('home-hero-motion').isVisible());
   ok('Hero animation is clearly marked as a preview', await desktop.getByText(/preview only, not live account activity/i).isVisible());
   ok('The preview uses a looping CSS animation', await desktop.locator('.home-motion-window').evaluate(node => getComputedStyle(node).animationName.includes('home-window-float')));
+  ok('The CSS/SVG scene includes gentle leaf sway and an image-sheen pass', await desktop.locator('.home-motion-leaf--one').evaluate(node => getComputedStyle(node).animationName.includes('home-leaf-sway')) && await desktop.locator('.home-motion-art').evaluate(node => getComputedStyle(node, '::after').animationName.includes('home-image-sheen')));
   ok('Workspace section is present', await desktop.getByRole('heading', { name: /Everything has its own place/i }).isVisible());
   for (const href of ['/connector', '/jobs', '/content-studio', '/library']) {
     ok(`Workspace navigation includes ${href}`, await desktop.locator(`a[href="${href}"]`).count() > 0);

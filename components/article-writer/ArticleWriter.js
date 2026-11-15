@@ -100,7 +100,10 @@ export default function ArticleWriter() {
         if(imageRequest.current.sequence!==imageSequence||identity.current!==ownerId)return;
         setImageMessage(`Generating article image ${index+1} of 3…`);
         const key=`${target.id}:${brief.role}:${brief.sectionIndex===null?'cover':brief.sectionIndex}`,requestKey=imageRequest.current.keys[key]||(imageRequest.current.keys[key]=crypto.randomUUID());
-        const cooldown=Math.max(0,15100-(Date.now()-imageRequest.current.lastStartedAt));
+        // The server starts its 15-second cooldown after the request arrives;
+        // keep a one-second network/clock margin so the next sequential image
+        // does not receive an avoidable 429 after waiting on the client clock.
+        const cooldown=Math.max(0,16100-(Date.now()-imageRequest.current.lastStartedAt));
         if(cooldown){setImageMessage(`Waiting ${Math.ceil(cooldown/1000)} seconds for the existing image-quota cooldown…`);await new Promise((resolve,reject)=>{const abort=()=>{clearTimeout(timer);const issue=new Error('Image generation was cancelled.');issue.name='AbortError';reject(issue);};const timer=setTimeout(()=>{controller.signal.removeEventListener('abort',abort);resolve();},cooldown);controller.signal.addEventListener('abort',abort,{once:true});});}
         imageRequest.current.lastStartedAt=Date.now();
         const result=await generateWithAI('image',{prompt:brief.prompt,useCase:brief.role==='cover'?'article-cover':'article-section',language},{signal:controller.signal,requestKey});
@@ -220,7 +223,7 @@ export default function ArticleWriter() {
 
           <h1 className="h1 mt-4 text-neutral-900">Auto Article Writer</h1>
           <p className="lead mt-3 max-w-2xl">
-            Create a practical, search-aware article draft with a linked contents list, useful H2/H3 sections, FAQs, a suggested meta description and three original AI illustrations. Review sources and facts before publishing.
+            Create a practical draft with a 50–60-character H1, linked contents, useful H2/H3 sections, tips and common mistakes, FAQs, SEO suggestions and three original AI illustrations. Factual claims are not source-verified; add only exact sources you have opened and checked during publishing review.
           </p>
         </div>
       </section>
@@ -343,7 +346,7 @@ export default function ArticleWriter() {
               </button>
               <p className="mt-2.5 text-center text-[11.5px] text-neutral-400">
                 {titleWords ? `${titleWords} words in title · ` : ""}
-                H1 + linked contents + 4 H2/H3 sections + tips + FAQs
+                50–60-character H1 + linked contents + 4 H2/H3 sections + tips + FAQs
               </p>
             </form>
 

@@ -36,6 +36,7 @@ export default function AppProvider({ children }) {
   const [notice, setNotice] = useState(null);
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
+  const [authUnavailable, setAuthUnavailable] = useState(false);
   const [loginOpen, setLoginOpen] = useState(false);
   const timer = useRef(null);
   const channel = useRef(null);
@@ -50,9 +51,26 @@ export default function AppProvider({ children }) {
   const refresh = useCallback(async () => {
     const requestId = ++authSequence.current;
     try {
-      const response = await fetch("/api/auth/session", { credentials: "same-origin", cache: "no-store" });
-      if (response.ok) { const data = await response.json(); if (requestId === authSequence.current) setUser(data.user || null); }
-    } catch { /* Keep the guest tools usable if the session endpoint is offline. */ }
+      let response = null;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          response = await fetch("/api/auth/session", { credentials: "same-origin", cache: "no-store" });
+        } catch {
+          if (attempt === 2) { if (requestId === authSequence.current) setAuthUnavailable(true); return; }
+        }
+        if (requestId !== authSequence.current) return;
+        if (response?.ok) {
+          const data = await response.json();
+          if (requestId === authSequence.current) { setUser(data.user || null); setAuthUnavailable(false); }
+          return;
+        }
+        // A 503/network hiccup is not a sign-out. Retry without discarding the
+        // HttpOnly cookie or a user already restored in this browser context.
+        if ((response && response.status < 500) || attempt === 2) { setAuthUnavailable(true); return; }
+        await new Promise(resolve => setTimeout(resolve, 300 * (attempt + 1)));
+        if (requestId !== authSequence.current) return;
+      }
+    } catch { if (requestId === authSequence.current) setAuthUnavailable(true); }
     finally { if (requestId === authSequence.current) setAuthLoading(false); }
   }, []);
 
@@ -84,6 +102,7 @@ export default function AppProvider({ children }) {
     if (!response.ok || !result.user?.id) throw Object.assign(new Error(result.error || "Sign-in could not be completed."), { appAuthError: true });
     authSequence.current++;
     setUser(result.user);
+    setAuthUnavailable(false);
     setAuthLoading(false);
     setLoginOpen(false);
     channel.current?.postMessage("refresh");
@@ -95,6 +114,7 @@ export default function AppProvider({ children }) {
       if (!response.ok) throw new Error("Sign out failed.");
       authSequence.current++;
       setUser(null);
+      setAuthUnavailable(false);
       setAuthLoading(false);
       channel.current?.postMessage("refresh");
       showNotice({ title: "You are signed out", description: "Your device-saved pins and articles have not been deleted." });
@@ -102,7 +122,7 @@ export default function AppProvider({ children }) {
     } catch { showNotice({ tone: "error", title: "Could not sign out", description: "Please check your connection and try again." }); return false; }
   }, [showNotice]);
 
-  const auth = useMemo(() => ({ user, authLoading, openLogin, closeLogin, signIn, signOut, refresh }), [user, authLoading, openLogin, closeLogin, signIn, signOut, refresh]);
+  const auth = useMemo(() => ({ user, authLoading, authUnavailable, openLogin, closeLogin, signIn, signOut, refresh }), [user, authLoading, authUnavailable, openLogin, closeLogin, signIn, signOut, refresh]);
   const feedback = useMemo(() => ({ showNotice, closeNotice }), [showNotice, closeNotice]);
   return (
     <FeedbackContext.Provider value={feedback}>

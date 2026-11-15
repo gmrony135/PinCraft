@@ -18,11 +18,11 @@ function resultText(output) {
     : [`Editorial score: ${r.score}/100 (not a search ranking)`, r.summary, '', ...r.checks.flatMap(check => [`${check.label} — ${check.status}`, check.detail, '']), 'Suggested title', r.improvedTitle, '', 'Suggested description', r.improvedDescription, '', r.hashtags.join(' ')];
   return ['PinCraft · AI-generated draft', '', ...body, '', r.note].join('\n');
 }
-export default function AIStudio({tool,initialUseCase='pin'}){
+export default function AIStudio({tool}){
  const task=tool.id,{user,authLoading,openLogin}=useAuth();
  const [status,setStatus]=useState(null),[statusError,setStatusError]=useState(false),[statusVersion,setStatusVersion]=useState(0);
- const [topic,setTopic]=useState(''),[content,setContent]=useState(''),[language,setLanguage]=useState('en'),[useCase,setUseCase]=useState(initialUseCase);
- const [busy,setBusy]=useState(false),[imageBusy,setImageBusy]=useState(false),[error,setError]=useState(''),[output,setOutput]=useState(null);
+ const [topic,setTopic]=useState(''),[content,setContent]=useState(''),[language,setLanguage]=useState('en');
+ const [busy,setBusy]=useState(false),[error,setError]=useState(''),[output,setOutput]=useState(null);
  const [usage,setUsage]=useState(null),[usageError,setUsageError]=useState(''),[usageLoading,setUsageLoading]=useState(false);
  const owner=useRef(null),sequence=useRef(0),controller=useRef(null);owner.current=user?.id||null;
  useEffect(()=>{
@@ -57,7 +57,7 @@ export default function AIStudio({tool,initialUseCase='pin'}){
   <div className="mt-7 grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_280px]">
    <div className="min-w-0 rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm sm:p-6">
     <div>
-     {task==='image'?<div className="space-y-4"><label className="block text-[12px] font-bold text-neutral-700">Image format<select aria-label="Image format" value={useCase} disabled={imageBusy} onChange={event=>setUseCase(event.target.value)} className={field}><option value="pin">Pinterest Pin · 1000 × 1500</option><option value="featured">Blog featured image · 1200 × 630</option></select></label><ImageGenerator initialPrompt="" useCase={useCase} editable onUsageChange={refreshUsage} onBusyChange={setImageBusy}/></div>:<form onSubmit={generate} className="space-y-4" aria-label={tool.label} aria-busy={busy}>
+     {task==='image'?<div className="space-y-4"><div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4"><p className="text-[12px] font-extrabold text-neutral-800">Blog featured image · 1200 × 630</p><p className="mt-1 text-[11px] leading-relaxed text-neutral-500">Create a wide image for an article. Pinterest Pin artwork is available directly in Pin Generator.</p><Link href="/pin-generator" prefetch={false} className="mt-2 inline-flex min-h-11 items-center gap-1.5 text-[11px] font-bold text-brand-700">Generate Pin artwork instead<ArrowRight size={12} aria-hidden="true"/></Link></div><ImageGenerator initialPrompt="" useCase="featured" editable onUsageChange={refreshUsage}/></div>:<form onSubmit={generate} className="space-y-4" aria-label={tool.label} aria-busy={busy}>
       <label className="block text-[12px] font-bold text-neutral-700">{task==='quality'?'Topic (optional)':'Topic or niche'}<input required={task!=='quality'} minLength={3} maxLength={160} value={topic} onChange={event=>setTopic(event.target.value)} disabled={busy} placeholder="Balcony gardening for small apartments" className={field}/></label>
       {task==='quality'&&<label className="block text-[12px] font-bold text-neutral-700">Your draft<textarea aria-label="Your draft" required minLength={40} maxLength={14000} rows={8} value={content} onChange={event=>setContent(event.target.value)} disabled={busy} className={`${field} resize-y leading-relaxed`} placeholder="Paste at least 40 characters to review…"/><span className="mt-1 block text-right text-[10px] font-normal text-neutral-400">{content.length.toLocaleString()} / 14,000 characters</span></label>}
       <label className="block text-[12px] font-bold text-neutral-700">Output language<select aria-label="Output language" value={language} onChange={event=>setLanguage(event.target.value)} disabled={busy} className={field}><option value="en">English</option><option value="bn">বাংলা</option></select></label>

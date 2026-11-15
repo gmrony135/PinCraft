@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import {articleHTML} from '../lib/publishing/article-format.mjs';
-import {articleToHTML,countArticleWordsFromHTML,plainArticleToHTML} from '../lib/publishing/review-content.mjs';
+import {articleToHTML,countArticleWordsFromHTML,externalSourceLinks,hasProfessionalArticleStructure,plainArticleToHTML} from '../lib/publishing/review-content.mjs';
 import {defaultPublishingDestination,publishingReadiness} from '../lib/publishing/composer-state.mjs';
 const html='<p>A complete actual article must be reviewed by its owner before any publishing command is accepted.</p>';
 const data={providers:{blogger:{configured:true}},profiles:[{id:'blogger',provider:'blogger',connected:true}],websites:[{id:'blogger_123456789012',connectionId:'blogger',connected:true,authorizationChanged:false}]};
@@ -94,4 +94,24 @@ test('A stopped job’s exact reviewed HTML is preserved, not reformatted or rep
 });
 test('Recovered HTML has the same strict boundary and cannot inject a script or publication marker',()=>{
  for(const reviewedHTML of [html+'<script>alert(1)</script>',html+'<!-- pincraft-reviewed-job:injected -->',html+'<p class="unsafe">attributes</p>'])assert.throws(()=>articleToHTML({title:'Unsafe recovered content',reviewedHTML}));
+});
+
+test('External source candidates are disclosed and require a separate reviewer verification',()=>{
+ const candidateHTML=html+'<p><a href="https://www.bhg.com/portable-lamps-walmart-12166615">Portable lamp source</a></p>',sources=externalSourceLinks(candidateHTML,valid.relatedArticles);
+ assert.equal(sources.length,1);assert.equal(sources[0].hostname,'www.bhg.com');
+ assert(!publishingReadiness({...valid,html:candidateHTML,externalSources:sources}).find(row=>row.id==='external-sources').ready);
+ assert(publishingReadiness({...valid,html:candidateHTML,externalSources:sources,externalSourcesVerified:true}).find(row=>row.id==='external-sources').ready);
+ assert.equal(externalSourceLinks(html+'<p><a href="https://example.com/blog/another-post">Our own blog</a></p>',valid.relatedArticles).length,0);
+});
+test('AI publishing readiness requires a short SEO title and the complete clickable article structure',()=>{
+ const required=['section-1','section-2','section-3','section-4','article-tips','article-faq','article-conclusion'];
+ const contents=`<h2>In this guide</h2><ol>${required.map(id=>`<li><a href="#${id}">${id}</a></li>`).join('')}</ol>`;
+ const sections=[1,2,3,4].map(index=>`<h2 id="section-${index}">Section ${index}</h2><h3>Useful subheading</h3><p>Substantive paragraph text for this structured section.</p>`).join('');
+ const structuredHTML=contents+sections+'<h2 id="article-tips">Tips</h2><ul><li>Tip</li></ul><h2 id="article-faq">Frequently asked questions</h2><p>FAQ</p><h2 id="article-conclusion">Final thoughts</h2><p>balcony garden layout, small balcony plants, balcony light and a container choices guide.</p>';
+ assert(hasProfessionalArticleStructure(structuredHTML));
+ const title='A Practical Balcony Garden Plan for Smaller Spaces',base={...valid,includePin:false,title,html:structuredHTML,requireSeo:true,metaDescription:'A'.repeat(150),focusKeyword:'balcony garden',secondaryKeywords:['balcony garden layout','small balcony plants','balcony light','container choices','balcony care routine'],slug:'practical-balcony-garden-plan'};
+ assert(publishingReadiness(base).find(row=>row.id==='article-structure').ready);
+ assert(publishingReadiness(base).find(row=>row.id==='seo').ready);
+ assert(!publishingReadiness({...base,title:'A title that is too short'}).find(row=>row.id==='seo').ready);
+ assert(!publishingReadiness({...base,html:'<p>A plain article body without its linked contents or organized sections.</p>'}).find(row=>row.id==='article-structure').ready);
 });
