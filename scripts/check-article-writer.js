@@ -26,7 +26,12 @@ async function run() {
   const titleField = page.getByPlaceholder("Simple Balcony Garden Ideas for Small Spaces");
   ok("Article Writer heading", await page.getByRole("heading", { name: "Auto Article Writer", exact: true }).isVisible());
   ok("Updated article and image guidance", await page.getByText(/Create a practical draft with a 50–60-character H1/).isVisible());
-  ok("Guest starts in the explicit Offline template mode", await page.getByRole("button", { name: "Offline template", exact: true }).getAttribute("aria-pressed") === "true");
+  const modeControls = (await page.getByText("Content generation mode", { exact: true }).count())
+    + (await page.getByRole("button", { name: "Offline template", exact: true }).count())
+    + (await page.getByRole("button", { name: "Live AI + fallback", exact: true }).count());
+  const modeNotice = await page.locator("main").innerText();
+  const selectorDisclosure = "Verified sign-in required. Generating sends your text to an AI service and uses your daily allowance. Automatic recovery is included. Do not enter private or sensitive information.";
+  ok("Guest sees no generation-mode selector or disclosure", modeControls === 0 && !modeNotice.includes(selectorDisclosure));
   ok("Generate button and title field", await titleField.isVisible() && await page.getByRole("button", { name: "Generate Article", exact: true }).isVisible());
 
   await page.getByRole("button", { name: "Generate Article", exact: true }).click();

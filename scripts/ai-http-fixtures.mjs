@@ -16,6 +16,9 @@ mock.get('https://api.groq.com').intercept({ path: '/openai/v1/chat/completions'
   const prompt = JSON.parse(options.body).messages[0].content;
   return { statusCode: 200, data: { choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(resultForPrompt(prompt)) } }] } };
 }).persist();
+const currentTrendXML = `<rss version="2.0"><channel><item><title>A small balcony garden</title><pubDate>${new Date().toUTCString()}</pubDate></item></channel></rss>`;
+mock.get('https://trends.google.com').intercept({ path: '/trending/rss?geo=US', method: 'GET' }).reply(200, currentTrendXML, { headers: { 'content-type': 'application/rss+xml' } }).persist();
+mock.get('https://news.google.com').intercept({ path: /^\/rss\/search\?/, method: 'GET' }).reply(200, '<rss version="2.0"><channel></channel></rss>', { headers: { 'content-type': 'application/rss+xml' } }).persist();
 const png = await sharp({ create: { width: 512, height: 512, channels: 3, background: '#c9dbbf' } }).png().toBuffer();
 mock.get('https://api.cloudflare.com').intercept({ path: /^\/client\/v4\/accounts\/a{32}\/ai\/run\/@cf\/black-forest-labs\/flux-/, method: 'POST' }).reply(200, { success: true, result: { image: png.toString('base64') } }).persist();
 console.log('ISOLATED AI TEST SERVER: generation HTTP responses are explicit doubles; budgets, session verification and image decoding remain real.');

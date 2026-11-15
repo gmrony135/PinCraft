@@ -10,7 +10,7 @@ import { getLibrary, saveToLibrary } from "@/lib/library";
 import { saveCloudDraft } from "@/lib/cloud-library";
 import { useAuth } from "../providers/AppProvider";
 import { generateWithAI } from "@/lib/ai-client";
-import GenerationMode, { GenerationReceipt, useGenerationMode } from "../ai/GenerationMode";
+import { GenerationReceipt } from "../ai/GenerationMode";
 import { handoffPin } from "@/lib/publishing/review-content.mjs";
 import {
   Sparkles,
@@ -40,7 +40,8 @@ const EXAMPLES = [
 export default function ArticleWriter() {
   const params = useSearchParams(), router = useRouter();
   const { user, authLoading, openLogin } = useAuth();
-  const { mode, setMode, status: aiStatus } = useGenerationMode(user);
+  // Signed-in users get live AI; guests keep the private, device-only template.
+  const mode = user ? 'ai' : 'local';
   const [language, setLanguage] = useState('en');
   const generationRequest = useRef({ sequence: 0, controller: null });
   const imageRequest = useRef({ sequence: 0, controller: null, keys: {}, lastStartedAt: 0 });
@@ -91,7 +92,7 @@ export default function ArticleWriter() {
 
   async function generateArticleImages(target, ownerId=identity.current) {
     if(!user){setImageMessage('Sign in to generate and privately save the three required article images.');openLogin();return;}
-    if(!Array.isArray(target?.imageBriefs)||target.imageBriefs.length!==3){setImageMessage('This offline template has no verified AI image briefs. Choose Live AI for a complete illustrated article.');return;}
+    if(!Array.isArray(target?.imageBriefs)||target.imageBriefs.length!==3){setImageMessage('This draft has no verified AI image briefs, so its missing illustrations cannot be generated.');return;}
     const imageSequence=++imageRequest.current.sequence;imageRequest.current.controller?.abort();const controller=new AbortController();imageRequest.current.controller=controller;
     let next={...target,images:Array.isArray(target.images)?[...target.images]:[],imageStatus:'pending',imageError:''};setImageBusy(true);setImageMessage('Preparing the featured image and two section illustrations…');
     try{
@@ -125,7 +126,7 @@ export default function ArticleWriter() {
     if (!value) { setError("Enter a topic or title first — for example, “Simple Balcony Garden Ideas for Small Spaces”."); return; }
     if (value.length < 10) { setError("That title is a little short. Try at least 10 characters for a clearer article."); return; }
     if (loading || imageBusy || authLoading) return;
-    if (mode === 'ai' && !user) { setError('Sign in with a verified account to use live AI, or choose Offline template.'); openLogin(); return; }
+    if (mode === 'ai' && !user) { setError('Sign in with a verified account to generate a live AI article.'); openLogin(); return; }
     const owner = identity.current, sequence = ++generationRequest.current.sequence;
     imageRequest.current.sequence++;imageRequest.current.controller?.abort();imageRequest.current.keys={};imageRequest.current.lastStartedAt=0;generationRequest.current.controller = new AbortController();
     setError('');setImageMessage('');setSaved(false);setArticle(null);setLoading(true);
@@ -141,7 +142,7 @@ export default function ArticleWriter() {
       setArticle(generated);setLoading(false);flash(mode === 'ai' ? 'AI article draft ready' : 'Offline article template generated');
       setTimeout(() => resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
       if(mode==='ai')await generateArticleImages(generated,owner);
-      else setImageMessage('The offline template is text-only. Live AI is required for the featured image and two section images.');
+      else setImageMessage('The offline template is text-only and does not include original illustrations.');
     } catch (issue) { if (issue.name !== 'AbortError' && sequence === generationRequest.current.sequence && identity.current === owner) setError(issue.message); }
     finally { if (sequence === generationRequest.current.sequence) setLoading(false); }
   }
@@ -236,7 +237,6 @@ export default function ArticleWriter() {
               onSubmit={handleGenerate}
               className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm sm:p-6"
             >
-              <GenerationMode mode={mode} setMode={setMode} status={aiStatus} disabled={loading || authLoading} />
               {mode === 'ai' && <label className="mb-4 flex items-center justify-between gap-3 text-[12px] font-bold text-neutral-600">AI output language<select aria-label="AI output language" value={language} onChange={event => setLanguage(event.target.value)} disabled={loading} className="min-h-11 rounded-lg border border-neutral-300 bg-white px-3 text-[13px]"><option value="en">English</option><option value="bn">বাংলা</option></select></label>}
               <label
                 htmlFor="pin-title"

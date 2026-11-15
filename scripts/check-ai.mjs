@@ -7,12 +7,13 @@ import sharp from 'sharp';
 import { MockAgent, getGlobalDispatcher, setGlobalDispatcher } from 'undici';
 import { isolatedFirebase, resetFirebase, raw as rawAutomation } from './automation-fixtures.mjs';
 import { verifyAI, generateContent } from '../lib/automation/providers.mjs';
-import { rawPin, rawArticle, rawKeywords, rawPlan, rawQuality } from './ai-fixtures.mjs';
+import { rawPin, rawPinPostInfo, rawArticle, rawKeywords, rawPlan, rawQuality } from './ai-fixtures.mjs';
 import { aiInput, countArticleWords, textTask } from '../lib/ai/tasks.mjs';
 import { articleToHTML, countArticleWordsFromHTML } from '../lib/publishing/review-content.mjs';
 import { aiLimits, IMAGE_MODELS, publicAIStatus, textCandidates } from '../lib/ai/config.mjs';
 import { generateText, parseAIJSON } from '../lib/ai/text.mjs';
 import { generateImage, normalizeImage } from '../lib/ai/images.mjs';
+import { generatePinPostInfo, validatePinPostInfoInput, perceptualHash } from '../lib/ai/pin-post-info.mjs';
 import { generateForUser } from '../lib/ai/service.mjs';
 import { reserveAIRequest, finishAIRequest, aiUsage, requestFingerprint } from '../lib/ai/usage.mjs';
 import { getDatabase } from '../lib/automation/db.mjs';
@@ -23,9 +24,9 @@ import { automationAIRequestKey } from '../lib/automation/worker.mjs';
 
 isolatedFirebase();
 const results = [], db = getDatabase();
-const envNames = ['GEMINI_API_KEY', 'GROQ_API_KEY', 'GEMINI_MODEL', 'GROQ_MODEL', 'GROQ_FALLBACK_MODEL', 'CLOUDFLARE_ACCOUNT_ID', 'CLOUDFLARE_API_TOKEN'];
+const envNames = ['AUTH_SESSION_SECRET', 'GEMINI_API_KEY', 'GROQ_API_KEY', 'GEMINI_MODEL', 'GROQ_MODEL', 'GROQ_FALLBACK_MODEL', 'CLOUDFLARE_ACCOUNT_ID', 'CLOUDFLARE_API_TOKEN'];
 const old = Object.fromEntries(envNames.map(name => [name, process.env[name]]));
-Object.assign(process.env, { GEMINI_API_KEY: 'isolated-gemini-api-key-fixture', GROQ_API_KEY: 'isolated-groq-api-key-fixture', CLOUDFLARE_ACCOUNT_ID: 'a'.repeat(32), CLOUDFLARE_API_TOKEN: 'isolated-cloudflare-token-fixture' });
+Object.assign(process.env, { AUTH_SESSION_SECRET: 'synthetic-ai-test-session-secret-with-more-than-32-characters', GEMINI_API_KEY: 'isolated-gemini-api-key-fixture', GROQ_API_KEY: 'isolated-groq-api-key-fixture', CLOUDFLARE_ACCOUNT_ID: 'a'.repeat(32), CLOUDFLARE_API_TOKEN: 'isolated-cloudflare-token-fixture' });
 for (const name of ['GEMINI_MODEL', 'GROQ_MODEL', 'GROQ_FALLBACK_MODEL']) delete process.env[name];
 const candidates = textCandidates();
 const gemini = value => ({ candidates: [{ finishReason: 'STOP', content: { parts: [{ text: JSON.stringify(value) }] } }] });
@@ -34,6 +35,18 @@ const input = (task = 'pin', fields = {}) => aiInput({ task, topic: 'Balcony gar
 const owner = () => `isolated-ai:${randomUUID()}`;
 const request = (extra = {}) => ({ requestKey: randomUUID(), fingerprint: requestFingerprint(['isolated-test']), task: 'pin', ...extra });
 const isCode = code => error => error.code === code;
+const pinInfoRequest = (imageDataUrl, fields = {}) => ({ task: 'pin_info', requestKey: randomUUID(), consent: true, prompt: 'A polished vertical Pinterest artwork with a clear garden subject, soft natural light and no lettering.', topic: 'A small balcony garden', categoryId: 'gardening-outdoor', language: 'en', imageDataUrl, ...fields });
+async function pinInfoArtwork(variant = 1) {
+  const shapes = {
+    1: '<circle cx="270" cy="420" r="235" fill="#143d2b"/><rect x="590" y="840" width="290" height="460" rx="30" fill="#b76e45"/>',
+    2: '<rect x="80" y="250" width="350" height="900" rx="45" fill="#183954"/><path d="M570 1020 Q720 500 930 300 L930 1300 L570 1300Z" fill="#c54b58"/>',
+    3: '<path d="M80 1200 L360 240 L640 1200Z" fill="#264c72"/><ellipse cx="760" cy="430" rx="170" ry="290" fill="#d18d32"/><rect x="600" y="1000" width="320" height="240" fill="#4e7660"/>',
+    4: '<rect x="120" y="180" width="260" height="1000" fill="#f1b2a0"/><circle cx="750" cy="390" r="170" fill="#345a41"/><path d="M520 900 C650 650 890 650 960 900 L960 1250 L520 1250Z" fill="#3a6b55"/>',
+  };
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="1500"><rect width="1000" height="1500" fill="#f5eedf"/>${shapes[variant]}</svg>`;
+  const bytes = await sharp(Buffer.from(svg)).webp({ quality: 80 }).toBuffer();
+  return { bytes, dataUrl: `data:image/webp;base64,${bytes.toString('base64')}` };
+}
 async function test(name, task) { try { await task(); results.push({ name, pass: true }); console.log('PASS ' + name); } catch (error) { results.push({ name, pass: false, error: error.message }); console.error('FAIL ' + name + ': ' + error.message); } }
 try {
   await test('Public status exposes capability flags and bounded user limits without provider or model identities', () => { const status = publicAIStatus(); assert(status.textConfigured && status.imageConfigured); assert(status.automaticFallback); assert(!/gemini|groq|cloudflare|flux|openai|model/i.test(JSON.stringify(status))); for (const key of [process.env.GEMINI_API_KEY, process.env.GROQ_API_KEY, process.env.CLOUDFLARE_API_TOKEN, process.env.CLOUDFLARE_ACCOUNT_ID]) assert(!JSON.stringify(status).includes(key)); assert.equal(aiLimits().maxTextAttempts, 3); assert.equal(aiLimits().maxImageAttempts, 2); });
@@ -76,6 +89,68 @@ try {
   await test('Image fallbacks stop at two attempts on a provider-wide outage', async () => { let count = 0; await assert.rejects(() => generateImage({ prompt: 'A plant on a desk', useCase: 'pin' }, { config: imageConfig, circuit: new Map(), send: async () => { count++; throw new Error('offline'); } }), isCode('ai_images_unavailable')); assert.equal(count, 2); });
   await test('An image safety refusal never runs another model', async () => { let count = 0; await assert.rejects(() => generateImage({ prompt: 'A test prompt', useCase: 'pin' }, { config: imageConfig, circuit: new Map(), send: async () => { count++; return Buffer.from(JSON.stringify({ success: false, errors: [{ code: 3030 }] })); } }), isCode('content_blocked')); assert.equal(count, 1); });
   await test('SVG, malformed images and oversized byte payloads are not accepted as AI artwork', async () => { for (const value of [Buffer.from('<svg>'.repeat(100)), Buffer.alloc(200), Buffer.alloc(7000001)]) await assert.rejects(() => normalizeImage(value, 'pin')); });
+  await resetFirebase();
+  await test('Pin Post Info accepts only bounded 1000×1500 WebP artwork and returns keyed perceptual fingerprints', async () => {
+    const artwork = await pinInfoArtwork(1), parsed = validatePinPostInfoInput(pinInfoRequest(artwork.dataUrl));
+    assert.equal(parsed.imageBytes.length, artwork.bytes.length); assert.equal(parsed.requestKey.length, 36); assert.match(await perceptualHash(artwork.bytes), /^[a-f0-9]{16}$/);
+    assert.throws(() => validatePinPostInfoInput({ ...pinInfoRequest(artwork.dataUrl), titles: ['not allowed'] }), isCode('invalid_ai_request'));
+    assert.throws(() => validatePinPostInfoInput({ ...pinInfoRequest(artwork.dataUrl), imageDataUrl: 'data:image/png;base64,AAAA' }), isCode('pin_info_invalid_image'));
+    assert.throws(() => validatePinPostInfoInput({ ...pinInfoRequest(artwork.dataUrl), language: 'fr' }), isCode('invalid_ai_request'));
+  });
+  await test('Post Info vision receives the actual generated pixels and a fresh USA trend, returns exactly three fields and stores no image bytes', async () => {
+    const uid = owner(), artwork = await pinInfoArtwork(1), raw = pinInfoRequest(artwork.dataUrl), now = Date.now(), date = new Date(now).toUTCString();
+    const trendXML = `<rss version="2.0"><channel><item><title>A small balcony garden</title><pubDate>${date}</pubDate></item></channel></rss>`;
+    const trendURLs = [], visionBodies = [];
+    const dependencies = {
+      now: () => now, candidates: [candidates[0]],
+      trendSend: async url => { trendURLs.push(url); return trendXML; },
+      send: async (url, init) => { const body = JSON.parse(init.body); visionBodies.push({ url, body }); return gemini(rawPinPostInfo); },
+    };
+    const generated = await generatePinPostInfo(db, uid, raw, dependencies);
+    assert.deepEqual(Object.keys(generated.result).sort(), ['description', 'hashtags', 'title']); assert.equal(generated.result.title, rawPinPostInfo.title); assert.equal(generated.result.hashtags.length, 4); assert.equal(generated.generation.attempts, 1);
+    assert.equal(trendURLs.length, 1); assert(trendURLs[0].startsWith('https://trends.google.com/trending/rss?geo=US'));
+    const parts = visionBodies[0].body.contents[0].parts; assert.equal(parts.length, 2); assert.equal(parts[1].inline_data.mime_type, 'image/webp'); assert.equal(parts[1].inline_data.data, artwork.bytes.toString('base64')); assert(visionBodies[0].body.contents[0].parts[0].text.includes('Fresh Google search trend')); assert(visionBodies[0].body.contents[0].parts[0].text.includes('"region":"US"'));
+    const receipt = data(await accountRef(db, uid).collection('aiRequests').doc(raw.requestKey).get()); assert(receipt && receipt.result); assert(!JSON.stringify(receipt).includes(artwork.dataUrl)); assert(!JSON.stringify(receipt).includes(raw.prompt));
+    const global = await Promise.all(['pincraft_pin_post_info_images', 'pincraft_pin_post_info_visuals', 'pincraft_pin_post_info_text'].map(name => db.collection(name).get()));
+    assert(global.every(snapshot => snapshot.size > 0)); for (const snapshot of global) for (const item of snapshot.docs) { const stored = item.data(); assert(!JSON.stringify(stored).includes(artwork.dataUrl)); assert(!Object.hasOwn(stored, 'prompt')); assert(!Object.hasOwn(stored, 'title')); assert(!Object.hasOwn(stored, 'description')); }
+    const replay = await generatePinPostInfo(db, uid, raw, { ...dependencies, send: async () => { throw new Error('cached Post Info must not call vision again'); }, trendSend: async () => { throw new Error('cached Post Info must not refetch trends'); } });
+    assert(replay.replayed); assert.equal(replay.result.title, generated.result.title); assert.equal(visionBodies.length, 1); assert.equal((await aiUsage(db, uid)).used.text, 1);
+    const regeneratedCopy = { title: 'A Thoughtful Green Corner on a Small Balcony', description: 'Create a restful balcony corner with a few leafy containers and warm light. This image-led idea can help you arrange a small outdoor space around the plants and details you enjoy.', hashtags: ['#BalconyGreenery', '#LeafyCorner', '#OutdoorNook', '#ContainerPlants'] }; let sameOwnerCalls = 0;
+    const sameOwner = await generatePinPostInfo(db, uid, { ...raw, requestKey: randomUUID() }, { now: () => Date.now() + 5000, candidates: [candidates[0]], trendSend: async () => { throw new Error('regeneration may continue without trend data'); }, send: async () => { sameOwnerCalls++; return gemini(sameOwnerCalls === 1 ? rawPinPostInfo : regeneratedCopy); } });
+    assert.equal(sameOwnerCalls, 2); assert.equal(sameOwner.result.title, regeneratedCopy.title); assert.equal(sameOwner.generation.attempts, 2);
+    let duplicateVisionCalls = 0; await assert.rejects(() => generatePinPostInfo(db, owner(), pinInfoRequest(artwork.dataUrl), { candidates: [candidates[0]], send: async () => { duplicateVisionCalls++; return gemini(rawPinPostInfo); }, trendSend: async () => { throw new Error('duplicate image must be rejected before trend lookup'); } }), isCode('pin_info_duplicate_image')); assert.equal(duplicateVisionCalls, 0);
+  });
+  await test('If no exact US trend matches, Post Info uses a fresh Google category signal instead of blocking generation', async () => {
+    const uid = owner(), artwork = await pinInfoArtwork(2), now = Date.now(), date = new Date(now).toUTCString(), trendURLs = [], visionPrompts = [];
+    const generalXML = `<rss version="2.0"><channel><item><title>Film awards night</title><pubDate>${date}</pubDate></item></channel></rss>`;
+    const categoryXML = `<rss xmlns:ht="http://www.google.com/trends/hottrends" version="2.0"><channel><item><title>Garden ideas</title><pubDate>${date}</pubDate><ht:news_item><ht:news_item_title>Small balcony herb garden ideas for early summer</ht:news_item_title><ht:news_item_source>Garden Weekly</ht:news_item_source><ht:news_item_url>https://example.com/garden-guide</ht:news_item_url></ht:news_item></item></channel></rss>`;
+    const input = pinInfoRequest(artwork.dataUrl, { topic: 'Herb planters on a compact balcony', prompt: 'A sunny balcony railing with two herb planters and a small watering can, no words.' });
+    const categoryResult = { title: 'Herb Planters for a Sunny Balcony', description: 'Arrange a few herb planters along a sunny balcony rail and leave room to tend them comfortably. Use this artwork as inspiration for a small, practical growing corner.', hashtags: ['#HerbPlanters', '#BalconyPlants', '#KitchenHerbs', '#ContainerGrowing'] };
+    const result = await generatePinPostInfo(db, uid, input, {
+      now: () => now, candidates: [candidates[0]],
+      trendSend: async url => { trendURLs.push(url); if (url.startsWith('https://trends.google.com')) return trendURLs.filter(value => value.startsWith('https://trends.google.com')).length === 1 ? generalXML : categoryXML; return '<rss version="2.0"><channel></channel></rss>'; },
+      send: async (url, init) => { visionPrompts.push(JSON.parse(init.body).contents[0].parts[0].text); return gemini(categoryResult); },
+    });
+    assert.equal(result.result.title, categoryResult.title); assert.equal(visionPrompts.length, 1); assert(visionPrompts[0].includes('"searchTerm":"Garden ideas"')); assert(visionPrompts[0].includes('Small balcony herb garden ideas for early summer')); assert(visionPrompts[0].includes('not measured search volume')); assert(trendURLs.some(url => url.startsWith('https://trends.google.com/trending/rss?geo=US'))); assert(trendURLs.some(url => url.startsWith('https://news.google.com/rss/search?')));
+  });
+  await test('Fresh Google category-news clusters also provide a safe fallback when no current trend matches', async () => {
+    const uid = owner(), artwork = await pinInfoArtwork(4), now = Date.now(), date = new Date(now).toUTCString(), trendURLs = [], prompts = [];
+    const generalXML = `<rss version="2.0"><channel><item><title>Film awards night</title><pubDate>${date}</pubDate></item></channel></rss>`;
+    const newsXML = `<rss version="2.0"><channel><item><title>Balcony garden ideas for growing fresh herbs</title><pubDate>${date}</pubDate><source>Garden Weekly</source><link>https://example.com/garden-one</link></item><item><title>Balcony garden ideas for sunny herbs</title><pubDate>${date}</pubDate><source>Plant Journal</source><link>https://example.com/garden-two</link></item></channel></rss>`;
+    const input = pinInfoRequest(artwork.dataUrl, { topic: 'Herb planters on a compact balcony', prompt: 'A framed scene of two herb planters on a narrow sunny balcony with a watering can and green leaves.' });
+    const newsResult = { title: 'A Compact Balcony for Everyday Herb Growing', description: 'Arrange a few herbs on a narrow balcony shelf and leave enough room to care for each pot. This image-led idea can inspire a simple outdoor growing corner.', hashtags: ['#CompactHerbGarden', '#SunnyBalconyPlants', '#HerbGrowingIdeas', '#SmallOutdoorSpace'] };
+    const result = await generatePinPostInfo(db, uid, input, { now: () => now, candidates: [candidates[0]], trendSend: async url => { trendURLs.push(url); if (url.startsWith('https://trends.google.com')) return trendURLs.filter(value => value.startsWith('https://trends.google.com')).length === 1 ? generalXML : '<rss version="2.0"><channel></channel></rss>'; return newsXML; }, send: async (url, init) => { prompts.push(JSON.parse(init.body).contents[0].parts[0].text); return gemini(newsResult); } });
+    assert.equal(result.result.title, newsResult.title); assert.equal(prompts.length, 1); assert(prompts[0].includes('"signal":"Fresh Google category-news cluster"')); assert(prompts[0].includes('Balcony garden ideas for growing fresh herbs')); assert(prompts[0].includes('Plant Journal')); assert(prompts[0].includes('not measured search volume')); assert(trendURLs.some(url => url.startsWith('https://news.google.com/rss/search?')));
+  });
+  await test('Persistent cross-user copy fingerprints reject a duplicate and retry with a private wording variation', async () => {
+    const uid = owner(), artwork = await pinInfoArtwork(3), raw = pinInfoRequest(artwork.dataUrl), prompts = [];
+    const alternative = { title: 'A Tiny Balcony Herb Shelf in Soft Light', description: 'Arrange herbs on a compact balcony shelf and leave enough room to reach each pot. This simple artwork offers a calm starting point for a small outdoor growing space.', hashtags: ['#BalconyHerbShelf', '#TinyOutdoorSpace', '#FreshHerbIdeas', '#UrbanPlanting'] };
+    const result = await generatePinPostInfo(db, uid, raw, {
+      candidates: [candidates[0]], trendSend: async () => { throw new Error('fresh trend feeds are unavailable'); },
+      send: async (url, init) => { const text = JSON.parse(init.body).contents[0].parts[0].text; prompts.push(text); return gemini(prompts.length === 1 ? rawPinPostInfo : alternative); },
+    });
+    assert.equal(prompts.length, 2); assert.notEqual(prompts[0].match(/Private wording-variation token: ([a-f0-9]+)/)?.[1], prompts[1].match(/Private wording-variation token: ([a-f0-9]+)/)?.[1]); assert.equal(result.generation.attempts, 2); assert.equal(result.result.title, alternative.title); assert.equal(result.result.hashtags.length, 4); assert(!JSON.stringify(await db.collection('pincraft_pin_post_info_text').get()).includes(raw.prompt));
+  });
   await resetFirebase();
   await test('Real Firestore reservation atomically counts private and site-wide usage', async () => { const uid = owner(), req = request(), reserved = await reserveAIRequest(db, uid, req); assert.equal((await aiUsage(db, uid)).used.text, 1); const global = data(await db.doc(`pincraft_system/ai-${reserved.day}`).get()); assert.equal(global.text, 1); await finishAIRequest(db, uid, reserved, { result: { task: 'pin', result: { title: 'Synthetic result' } } }); });
   await test('Same-key successful text replays do not perform another reservation or expose another owner’s receipt', async () => { const uid = owner(), req = request(), reservation = await reserveAIRequest(db, uid, req), result = { task: 'pin', result: { title: 'Owner-private result' } }; await finishAIRequest(db, uid, reservation, { result }); assert.deepEqual((await reserveAIRequest(db, uid, req)).cached, result); assert.equal((await aiUsage(db, uid)).used.text, 1); const other = owner(), second = await reserveAIRequest(db, other, req); assert(!second.cached); await finishAIRequest(db, other, second, { error: { code: 'test_failure' } }); });

@@ -292,7 +292,7 @@ export default function PinGenerator() {
                 <p className="text-[11px] leading-relaxed text-amber-900">A verified account is required for AI artwork. Your daily image allowance applies; the Pin stays on this page.</p>
                 <button type="button" onClick={openLogin} className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-lg border border-amber-200 bg-white px-3 text-[11px] font-bold text-amber-900 hover:bg-amber-50">Sign in / create account</button>
               </div>}
-              <ImageGenerator initialPrompt={artworkPrompt} useCase="pin" editable postInfo={pack ? { topic: pack.topic, titles: pack.titles, description: pack.description, hashtags: pack.hashtags } : null} onRequestPostInfo={() => handleGenerate()} postInfoLoading={loading} />
+              <ImageGenerator initialPrompt={artworkPrompt} useCase="pin" editable topic={topic} categoryId={CATEGORIES.find(category => category.label.toLocaleLowerCase() === topic.trim().toLocaleLowerCase())?.id || ''} language={language} />
             </section>
 
             {/* loading skeleton */}
