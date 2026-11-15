@@ -6,7 +6,7 @@ import ArticleWriter from "@/components/article-writer/ArticleWriter";
 export const metadata = {
   title: "Auto Article Writer",
   description:
-    "PinCraft writes a full 500–800 word SEO blog article for your pin automatically — headline, intro, sub-headings, quotes list and conclusion.",
+    "Create a reviewed 1,000–1,600-word article draft with SEO suggestions and three AI illustrations; publication also requires relevant live Blogger links.",
   alternates: { canonical: "/article-writer" },
 };
 

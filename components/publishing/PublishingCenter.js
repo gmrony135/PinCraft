@@ -6,7 +6,7 @@ import {useSearchParams} from 'next/navigation';
 import {ArrowRight,BookOpen,CheckCircle2,Clock3,FileText,Loader2,ShieldCheck} from 'lucide-react';
 import {usePublisher,publishRequest} from './usePublisher';
 import PublishComposer from './PublishComposer';
-import {articleToHTML} from '@/lib/publishing/review-content.mjs';
+import {articleToHTML,countArticleWordsFromHTML} from '@/lib/publishing/review-content.mjs';
 import {articleHTML} from '@/lib/publishing/article-format.mjs';
 import {getLibrary} from '@/lib/library';
 import {partitionLibrary} from '@/lib/library-content';
@@ -76,7 +76,9 @@ export default function PublishingCenter(){
    }else{
     if(!form.title.trim()||form.title.trim().length>200)throw new Error('Enter your article title, up to 200 characters.');
     if(!form.body.trim())throw new Error('Paste your complete article. No example or generated substitute will be published.');
-    value={id:crypto.randomUUID(),title:form.title.trim(),plainText:form.body,description:form.body.replace(/\s+/g,' ').slice(0,320)};
+    const candidate={id:crypto.randomUUID(),title:form.title.trim(),plainText:form.body,description:form.body.replace(/\s+/g,' ').slice(0,320)},words=countArticleWordsFromHTML(articleToHTML(candidate));
+    if(words<1000||words>1600)throw new Error(`Paste an article with 1,000–1,600 visible words before opening publishing review. This draft contains ${words.toLocaleString()} words.`);
+    value={...candidate,wordCount:words};
    }
    articleHTML(articleToHTML(value));setPrepared({owner:user.id,article:value});
   }catch(issue){setError(issue.message);}
@@ -88,7 +90,7 @@ export default function PublishingCenter(){
   <div className="grid gap-3 sm:grid-cols-3" data-testid="publishing-connection-readiness">
    <section className="rounded-2xl border border-neutral-200 bg-white p-4"><ShieldCheck size={19} className="text-brand-600"/><h2 className="mt-3 text-[12px] font-extrabold">Blogger authorization</h2><p className="mt-2 text-[11px] leading-relaxed text-neutral-600">{data?`${profiles.length} connected account(s)`:'Sign in to check your account.'}</p></section>
    <section className="rounded-2xl border border-neutral-200 bg-white p-4"><CheckCircle2 size={19} className="text-brand-600"/><h2 className="mt-3 text-[12px] font-extrabold">Verified publishing website</h2><p className="mt-2 text-[11px] leading-relaxed text-neutral-600">{data?`${sites.length} ready website(s)`:'No connection state assumed.'}</p><Link href="/connector" prefetch={false} className="mt-2 inline-flex min-h-11 items-center text-[11px] font-bold text-brand-700">{sites.length?'View connection':'Connect or re-verify Blogger'}</Link></section>
-   <section className="rounded-2xl border border-neutral-200 bg-white p-4"><Clock3 size={19} className="text-brand-600"/><h2 className="mt-3 text-[12px] font-extrabold">Background runner</h2><p className="mt-2 text-[11px] leading-relaxed text-neutral-600">{seen?`Last check: ${formatWhen(seen)} (${data.cron.lastOutcome}).`:'No actual runner heartbeat confirmed.'}</p><p className="mt-2 text-[10.5px] leading-relaxed text-neutral-500">{runnerRecent?'Recent check observed.':'A stale or absent check is not proof that cron is running.'} Saved jobs can continue with the browser closed; GitHub cron is best effort.</p></section>
+   <section className="rounded-2xl border border-neutral-200 bg-white p-4"><Clock3 size={19} className="text-brand-600"/><h2 className="mt-3 text-[12px] font-extrabold">Background runner</h2><p className="mt-2 text-[11px] leading-relaxed text-neutral-600">{seen?`Last check: ${formatWhen(seen)} (${data.cron.lastOutcome}).`:'No actual runner heartbeat confirmed.'}</p><p className="mt-2 text-[10.5px] leading-relaxed text-neutral-500">{runnerRecent?'Recent check observed.':'A stale or absent check is not proof that cron is running.'} Saved jobs can continue with the browser closed; background checks are best effort and may be delayed.</p></section>
   </div>
   {requestedJob&&<div className="mt-6" data-testid="recovered-job-review-status">{recoveryBusy?<p role="status" className="text-[12px] text-neutral-600">Loading only your stopped job’s original article…</p>:recoveryError?<Feedback error>{recoveryError}</Feedback>:prepared?.owner===user?.id&&prepared?.recoveredJob&&<p data-testid="recovered-job-review-notice" className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-[12px] leading-relaxed text-amber-950">The original saved article was recovered from your stopped job. No post was created. Its old schedule, publisher attempts and consent were not transferred. Check Blogger and other unresolved Jobs before considering another submission. Publication requires a separate fresh review and command below.</p>}</div>}
   {!article?<Panel className="mt-6" title="1. Choose the actual article" description="Paste existing text or load a private saved draft. The next screen is review only; nothing is published yet.">

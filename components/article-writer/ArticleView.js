@@ -1,129 +1,28 @@
 "use client";
-
-import { Pin } from "lucide-react";
-
-const Bold = ({ text }) => {
-  // render **bold** segments inside generated copy
-  const parts = String(text).split(/(\*\*[^*]+\*\*)/g);
-  return (
-    <>
-      {parts.map((part, i) =>
-        part.startsWith("**") && part.endsWith("**") ? (
-          <strong key={i} className="font-bold text-neutral-900">
-            {part.slice(2, -2)}
-          </strong>
-        ) : (
-          <span key={i}>{part}</span>
-        )
-      )}
-    </>
-  );
-};
-
-export default function ArticleView({ article }) {
-  return (
-    <article className="rounded-2xl border border-neutral-200 bg-white shadow-sm">
-      {/* blog post header */}
-      <header className="border-b border-neutral-100 px-5 py-6 sm:px-8 sm:py-8">
-        <div className="flex flex-wrap items-center gap-2 text-[11.5px] font-bold">
-          <span className="rounded-full bg-brand-50 px-2.5 py-1 text-brand-700">
-            {article.niche}
-          </span>
-          <span className="rounded-full bg-neutral-100 px-2.5 py-1 text-neutral-500">
-            {article.readMinutes} min read
-          </span>
-          <span className="rounded-full bg-neutral-100 px-2.5 py-1 text-neutral-500">
-            SEO {article.seoScore.total}/100
-          </span>
-        </div>
-
-        <h1 className="mt-3 text-[26px] font-extrabold leading-[1.15] tracking-[-0.03em] text-neutral-900 sm:text-[34px]">
-          {article.title}
-        </h1>
-
-        <div className="mt-3 flex items-center gap-2 text-[12px] font-semibold text-neutral-400">
-          <span className="grid h-6 w-6 place-items-center rounded-full bg-brand-600 text-white">
-            <Pin size={12} />
-          </span>
-          By PinCraft · {new Date(article.createdAt).toLocaleDateString(undefined, {
-            month: "short",
-            day: "numeric",
-            year: "numeric",
-          })}
-        </div>
-      </header>
-
-      {/* body — clean reading style */}
-      <div className="px-5 py-6 sm:px-8 sm:py-8">
-        <p className="text-[16px] leading-[1.8] text-neutral-700 sm:text-[17px]">
-          {article.intro}
-        </p>
-
-        {article.sections.map((section, i) => (
-          <section key={i} className="mt-7">
-            <h2 className="text-[20px] font-extrabold leading-snug tracking-[-0.02em] text-neutral-900 sm:text-[22px]">
-              {section.heading}
-            </h2>
-            <div className="mt-2.5 space-y-3.5">
-              {section.paragraphs.map((para, j) => (
-                <p
-                  key={j}
-                  className="text-[15.5px] leading-[1.8] text-neutral-700 sm:text-[16.5px]"
-                >
-                  <Bold text={para} />
-                </p>
-              ))}
-            </div>
-          </section>
-        ))}
-
-        {/* quotes / list section */}
-        <section className="mt-7 rounded-2xl border border-brand-100 bg-brand-50/40 p-4 sm:p-5">
-          <h2 className="text-[19px] font-extrabold leading-snug tracking-[-0.02em] text-neutral-900 sm:text-[21px]">
-            {article.listSection.heading}
-          </h2>
-          <p className="mt-1.5 text-[13px] font-semibold text-brand-700">
-            {article.listSection.intro}
-          </p>
-          <ul className="mt-3 space-y-2.5">
-            {article.listSection.items.map((item, i) => (
-              <li key={i} className="flex items-start gap-2.5">
-                <span className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-brand-600" />
-                <span className="text-[15px] leading-relaxed text-neutral-700">
-                  {item}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </section>
-
-        {/* conclusion */}
-        <section className="mt-7">
-          <h2 className="text-[20px] font-extrabold leading-snug tracking-[-0.02em] text-neutral-900 sm:text-[22px]">
-            Final thoughts
-          </h2>
-          <p className="mt-2.5 text-[15.5px] leading-[1.8] text-neutral-700 sm:text-[16.5px]">
-            {article.conclusion}
-          </p>
-        </section>
-
-        {/* keywords footer */}
-        <footer className="mt-7 border-t border-neutral-100 pt-4">
-          <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-neutral-400">
-            SEO keywords
-          </p>
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            {article.keywords.map((k) => (
-              <span
-                key={k}
-                className="rounded-full bg-neutral-100 px-2.5 py-1 text-[11.5px] font-semibold text-neutral-600"
-              >
-                {k}
-              </span>
-            ))}
-          </div>
-        </footer>
-      </div>
-    </article>
-  );
+import {useMemo} from 'react';
+import {BookOpen,Pin,ShieldCheck} from 'lucide-react';
+import CopyButton from '../CopyButton';
+const safeAsset=id=>typeof id==='string'&&/^[a-f0-9]{64}$/.test(id)?`/api/library/article-images/${id}`:'';
+const Bold=({text})=>String(text||'').split(/(\*\*[^*]+\*\*)/g).map((part,i)=>part.startsWith('**')&&part.endsWith('**')?<strong key={i} className="font-bold text-neutral-900">{part.slice(2,-2)}</strong>:<span key={i}>{part}</span>);
+export default function ArticleView({article}){
+ const sections=Array.isArray(article.sections)?article.sections:[],images=Array.isArray(article.images)?article.images:[],cover=images.find(image=>image.role==='cover'&&safeAsset(image.assetId)),faqs=Array.isArray(article.faqs)?article.faqs:[],score=article.seoScore?.total;
+ const toc=useMemo(()=>[...sections.map((section,index)=>({id:`section-${index+1}`,heading:section.heading})),...(article.listSection?.items?.length?[{id:'article-tips',heading:article.listSection.heading||'Practical tips'}]:[]),...(faqs.length?[{id:'article-faq',heading:'Frequently asked questions'}]:[]),...(article.conclusion?[{id:'article-conclusion',heading:'Final thoughts'}]:[])],[sections,article.listSection?.items?.length,article.listSection?.heading,faqs.length,article.conclusion]);
+ return <article className="overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-sm [overflow-wrap:anywhere]">
+  <header className="border-b border-neutral-100 px-5 py-6 sm:px-8 sm:py-8">
+   <div className="flex flex-wrap items-center gap-2 text-[11px] font-bold"><span className="rounded-full bg-brand-50 px-2.5 py-1 text-brand-700">{article.niche||'Practical guide'}</span><span className="rounded-full bg-neutral-100 px-2.5 py-1 text-neutral-500">{article.readMinutes||Math.max(1,Math.ceil((article.wordCount||0)/220))} min read</span><span className="rounded-full bg-neutral-100 px-2.5 py-1 text-neutral-500">{Number(article.wordCount||0).toLocaleString()} words</span>{Number.isFinite(score)&&<span className="rounded-full bg-neutral-100 px-2.5 py-1 text-neutral-500">Editorial checklist {score}/100</span>}</div>
+   <h1 className="mt-4 text-[28px] font-extrabold leading-[1.12] tracking-[-0.035em] text-neutral-950 sm:text-[38px]">{article.title}</h1>
+   <div className="mt-4 flex items-center gap-2 text-[11px] font-semibold text-neutral-400"><span className="grid h-6 w-6 place-items-center rounded-full bg-brand-600 text-white"><Pin size={12}/></span>PinCraft draft · {article.createdAt?new Date(article.createdAt).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'}):'Review before publishing'}</div>
+  </header>
+  <div className="px-5 py-6 sm:px-8 sm:py-8">
+   {cover&&<figure className="mb-7 overflow-hidden rounded-2xl border border-neutral-100 bg-neutral-50"><img src={safeAsset(cover.assetId)} alt={cover.altText||'Article featured image'} width={1200} height={630} loading="lazy" className="h-auto max-h-[520px] w-full object-cover"/><figcaption className="px-3 py-2 text-[10px] text-neutral-400">AI-generated featured illustration · 1200 × 630</figcaption></figure>}
+   {article.intro&&<p className="text-[16px] leading-[1.85] text-neutral-700 sm:text-[17px]"><Bold text={article.intro}/></p>}
+   {toc.length>0&&<nav aria-label="Table of contents" className="mt-6 rounded-2xl border border-brand-100 bg-brand-50/40 p-4 sm:p-5"><h2 className="flex items-center gap-2 text-[14px] font-extrabold text-neutral-900"><BookOpen size={16} className="text-brand-700" aria-hidden="true"/>In this guide</h2><ol className="mt-3 grid gap-x-6 gap-y-2 text-[12px] font-semibold text-brand-800 sm:grid-cols-2">{toc.map((item,index)=><li key={item.id} className="flex items-start gap-2"><span className="text-brand-400">{String(index+1).padStart(2,'0')}</span><a href={`#${item.id}`} className="underline decoration-brand-200 underline-offset-4 hover:text-brand-950">{item.heading}</a></li>)}</ol></nav>}
+   {sections.map((section,index)=>{const sectionImage=images.find(image=>image.role==='section'&&(image.sectionIndex===index||image.sectionHeading===section.heading)&&safeAsset(image.assetId));return <section key={`${index}-${section.heading}`} id={`section-${index+1}`} className="mt-8 scroll-mt-24"><h2 className="text-[21px] font-extrabold leading-snug tracking-tight text-neutral-950 sm:text-[24px]">{section.heading}</h2><div className="mt-3 space-y-4">{(section.paragraphs||[]).map((paragraph,i)=><p key={i} className="text-[15.5px] leading-[1.85] text-neutral-700 sm:text-[16px]"><Bold text={paragraph}/></p>)}</div>{(section.subsections||[]).map((subsection,i)=><div key={`${i}-${subsection.heading}`} className="mt-5"><h3 className="text-[17px] font-bold leading-snug text-neutral-900 sm:text-[19px]">{subsection.heading}</h3><div className="mt-2 space-y-3">{(subsection.paragraphs||[]).map((paragraph,j)=><p key={j} className="text-[15px] leading-[1.85] text-neutral-700 sm:text-[16px]"><Bold text={paragraph}/></p>)}</div></div>)}{sectionImage&&<figure className="mt-5 overflow-hidden rounded-2xl border border-neutral-100 bg-neutral-50"><img src={safeAsset(sectionImage.assetId)} alt={sectionImage.altText||section.heading} width={1200} height={630} loading="lazy" className="h-auto max-h-[480px] w-full object-cover"/><figcaption className="px-3 py-2 text-[10px] text-neutral-400">AI-generated section illustration · {sectionImage.altText||section.heading}</figcaption></figure>}</section>;})}
+   {article.listSection?.items?.length>0&&<section id="article-tips" className="mt-8 scroll-mt-24 rounded-2xl border border-brand-100 bg-brand-50/40 p-4 sm:p-5"><h2 className="text-[19px] font-extrabold leading-snug text-neutral-950">{article.listSection.heading||'Practical tips'}</h2>{article.listSection.intro&&<p className="mt-2 text-[13px] leading-relaxed text-brand-800"><Bold text={article.listSection.intro}/></p>}<ul className="mt-4 space-y-2.5">{article.listSection.items.map((item,i)=><li key={i} className="flex items-start gap-2.5"><span className="mt-[8px] h-1.5 w-1.5 shrink-0 rounded-full bg-brand-600"/><span className="text-[14px] leading-relaxed text-neutral-700"><Bold text={item}/></span></li>)}</ul></section>}
+   {faqs.length>0&&<section id="article-faq" className="mt-8 scroll-mt-24"><h2 className="text-[21px] font-extrabold text-neutral-950">Frequently asked questions</h2><div className="mt-4 divide-y divide-neutral-100 rounded-2xl border border-neutral-200 px-4">{faqs.map((faq,i)=><details key={`${i}-${faq.question}`} className="py-4" open={i===0}><summary className="cursor-pointer text-[14px] font-bold text-neutral-800">{faq.question}</summary><p className="mt-3 text-[14px] leading-[1.8] text-neutral-600"><Bold text={faq.answer}/></p></details>)}</div></section>}
+   {article.conclusion&&<section id="article-conclusion" className="mt-8 scroll-mt-24"><h2 className="text-[21px] font-extrabold text-neutral-950">Final thoughts</h2><p className="mt-3 text-[15.5px] leading-[1.85] text-neutral-700 sm:text-[16px]"><Bold text={article.conclusion}/></p></section>}
+   {article.relatedArticles?.length>0&&<section className="mt-8 rounded-2xl border border-neutral-200 p-4 sm:p-5"><h2 className="text-[17px] font-extrabold">Related articles</h2><ul className="mt-3 space-y-2">{article.relatedArticles.map((link,index)=><li key={`${index}-${link.url}`}><a href={link.url} target="_blank" rel="noopener noreferrer" className="text-[13px] font-semibold text-brand-700 underline decoration-brand-200 underline-offset-4">{link.title}</a></li>)}</ul></section>}
+   <section className="mt-8 rounded-2xl border border-neutral-200 bg-neutral-50 p-4 sm:p-5"><div className="flex items-center gap-2"><ShieldCheck size={17} className="text-brand-700" aria-hidden="true"/><h2 className="text-[14px] font-extrabold">SEO fields · suggestions, not a ranking promise</h2></div><dl className="mt-3 grid gap-3 text-[12px] sm:grid-cols-2"><div><dt className="font-bold text-neutral-500">Focus keyword</dt><dd className="mt-1 font-semibold text-neutral-800">{article.focusKeyword||'—'}</dd></div><div><dt className="font-bold text-neutral-500">Suggested slug</dt><dd className="mt-1 break-all font-mono text-neutral-800">{article.slug||'—'} <span className="font-sans text-neutral-400">(not applied automatically)</span></dd></div><div className="sm:col-span-2"><dt className="font-bold text-neutral-500">Meta description · {article.metaDescription?.length||0}/160 characters</dt><dd className="mt-1 leading-relaxed text-neutral-700">{article.metaDescription||'—'}</dd>{article.metaDescription&&<CopyButton text={article.metaDescription} label="Copy SEO description" className="mt-2 min-h-9 px-3 text-[10px]"/>}<p className="mt-2 text-[10px] leading-relaxed text-amber-800">Blogger’s API does not document setting this post’s search description. Copy it into Blogger’s post settings if you need that field; PinCraft will not claim it was applied.</p></div></dl>{article.secondaryKeywords?.length>0&&<div className="mt-4"><p className="text-[10px] font-bold uppercase tracking-wide text-neutral-400">Secondary keywords · AI suggestions</p><div className="mt-2 flex flex-wrap gap-1.5">{article.secondaryKeywords.map(keyword=><span key={keyword} className="rounded-full bg-white px-2.5 py-1 text-[10px] font-semibold text-neutral-600">{keyword}</span>)}</div></div>}</section>
+  </div>
+ </article>;
 }

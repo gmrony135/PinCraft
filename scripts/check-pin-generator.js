@@ -23,21 +23,24 @@ async function run() {
 
   // ---------- load ----------
   await page.goto(`${BASE}/pin-generator`, { waitUntil: "networkidle" });
-  ok("Page title heading", await page.getByRole("heading", { name: "Viral Pin Generator", exact: true }).isVisible());
-  ok("Sub-text", await page.getByText(/PinCraft will create everything automatically/i).isVisible());
-  ok("Topic input with placeholder", (await page.getByPlaceholder("Sad Quotes").count()) === 1);
-  ok("Generate button", await page.getByRole("button", { name: /Generate Viral Pin/i }).isVisible());
+  ok("Page title heading", await page.getByRole("heading", { name: "Pin Generator", exact: true }).isVisible());
+  ok("Sub-text explains categories and Pin artwork", await page.getByText(/custom Pin artwork option/i).isVisible());
+  ok("Topic input with placeholder", (await page.getByPlaceholder("e.g. Balcony garden ideas").count()) === 1);
+  ok("Generate button", await page.getByRole("button", { name: "Generate Pin", exact: true }).isVisible());
+  const categories = page.getByTestId("pin-category-suggestion");
+  ok("Ten product categories are suggested", await categories.count() === 10);
 
   // ---------- validation ----------
-  await page.getByRole("button", { name: /Generate Viral Pin/i }).click();
+  await page.getByRole("button", { name: "Generate Pin", exact: true }).click();
   await page.waitForTimeout(300);
   ok("Empty topic shows error", await page.getByText(/Please type a topic first/i).isVisible());
 
-  // ---------- generate via example chip ----------
-  await page.getByRole("button", { name: "Sad Quotes", exact: true }).click();
-  ok("Example chip fills input", (await page.getByLabel("Enter your topic").inputValue()) === "Sad Quotes");
+  // ---------- generate via canonical product category ----------
+  const selectedCategory = await categories.nth(1).innerText();
+  await categories.nth(1).click();
+  ok("Category suggestion fills input", (await page.getByLabel("Enter your topic").inputValue()) === selectedCategory);
 
-  await page.getByRole("button", { name: /Generate Viral Pin/i }).click();
+  await page.getByRole("button", { name: "Generate Pin", exact: true }).click();
   await page.waitForTimeout(1600);
 
   ok("5 viral titles shown", (await page.getByRole("button", { name: /Copy to clipboard/i }).count()) >= 5);
@@ -62,7 +65,7 @@ async function run() {
   ok(`Description copied (${descWords} words, 100–150)`, descWords >= 100 && descWords <= 150);
 
   // ---------- hashtags ----------
-  await page.getByRole("button", { name: /Viral Hashtags/i }).click();
+  await page.getByRole("button", { name: /Hashtags/i }).click();
   await page.waitForTimeout(350);
   const tagCount = await page.locator("button", { hasText: /^#/ }).count();
   ok(`10 hashtags rendered (${tagCount})`, tagCount === 10);
@@ -74,13 +77,21 @@ async function run() {
      tags.split(" ").filter((t) => t.startsWith("#")).length === 10);
 
   // single hashtag click copies it
-  await page.locator("button", { hasText: /^#SadQuotes$/ }).first().click();
+  await page.locator("button", { hasText: /^#/ }).first().click();
   await page.waitForTimeout(250);
   ok("Single hashtag copies", (await clip()).startsWith("#"));
 
-  // ---------- image idea ----------
+  // ---------- image idea and in-flow artwork ----------
   await page.getByRole("button", { name: /Pin Image Idea/i }).click();
   await page.waitForTimeout(350);
+  const artwork = page.getByTestId("ai-image-generator");
+  ok("Artwork generator is available in the Pin flow", await artwork.isVisible());
+  ok("Sign-in requirement and allowance are clear", await page.getByText(/A verified account is required for AI artwork/).isVisible());
+  ok("Pin prompt pre-fills artwork description", (await page.getByLabel("Visual description", { exact: true }).inputValue()).includes("Vertical 2:3"));
+  await artwork.getByRole("button", { name: "Generate image with AI", exact: true }).click();
+  await page.getByRole("button", { name: "Close login popup", exact: true }).waitFor();
+  ok("Guest artwork generation opens sign-in", await page.getByRole("dialog").isVisible());
+  await page.getByRole("button", { name: "Close login popup", exact: true }).click();
   await page.getByRole("button", { name: /Copy prompt to clipboard/i }).click();
   await page.waitForTimeout(250);
   ok("Image prompt copied", (await clip()).includes("Vertical 2:3"));
@@ -115,10 +126,10 @@ async function run() {
   const m = await mctx.newPage();
   m.on("pageerror", (e) => errors.push("mobile PAGEERROR: " + e.message));
   await m.goto(`${BASE}/pin-generator`, { waitUntil: "networkidle" });
-  await m.getByPlaceholder("Sad Quotes").fill("Home Decor Ideas");
-  await m.getByRole("button", { name: /Generate Viral Pin/i }).click();
+  await m.getByPlaceholder("e.g. Balcony garden ideas").fill("Home Decor Ideas");
+  await m.getByRole("button", { name: "Generate Pin", exact: true }).click();
   await m.waitForTimeout(1600);
-  ok("Mobile: results render", await m.getByRole("button", { name: /Step 01 Viral Pin Titles/i }).isVisible());
+  ok("Mobile: results render", await m.getByRole("button", { name: /Step 01 Pin Title Ideas/i }).isVisible());
   const overflow = await m.evaluate(
     () => document.documentElement.scrollWidth - document.documentElement.clientWidth
   );

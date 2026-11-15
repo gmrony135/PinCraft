@@ -15,6 +15,7 @@ import { handoffPin } from "@/lib/publishing/review-content.mjs";
 import {
   Sparkles,
   FileText,
+  ImagePlus,
   Loader2,
   AlertCircle,
   Wand2,
@@ -30,10 +31,10 @@ import {
 } from "lucide-react";
 
 const EXAMPLES = [
-  "10 Sad Quotes That Will Make You Cry",
-  "Easy 15 Minute Dinner Recipes",
-  "Home Decor Ideas for Small Rooms",
-  "Motivation for Students",
+  "Simple Balcony Garden Ideas for Small Spaces",
+  "Easy Weeknight Dinner Planning for Busy Families",
+  "Warm Neutral Bedroom Ideas for a Rental Home",
+  "A Beginner’s Guide to Caring for Indoor Herbs",
 ];
 
 export default function ArticleWriter() {
@@ -42,6 +43,7 @@ export default function ArticleWriter() {
   const { mode, setMode, status: aiStatus } = useGenerationMode(user);
   const [language, setLanguage] = useState('en');
   const generationRequest = useRef({ sequence: 0, controller: null });
+  const imageRequest = useRef({ sequence: 0, controller: null, keys: {}, lastStartedAt: 0 });
   const [saving, setSaving] = useState(false);
   const saveRequest = useRef(null), saveSequence = useRef(0), savePending = useRef(false);
   const [saveError, setSaveError] = useState('');
@@ -49,6 +51,8 @@ export default function ArticleWriter() {
   identity.current = user?.id || "device";
   const [title, setTitle] = useState("");
   const [loading, setLoading] = useState(false);
+  const [imageBusy, setImageBusy] = useState(false);
+  const [imageMessage, setImageMessage] = useState("");
   const [article, setArticle] = useState(null);
   const currentContent = useRef(null);
   currentContent.current = article?.id;
@@ -62,8 +66,9 @@ export default function ArticleWriter() {
   useEffect(() => () => clearTimeout(toastTimer.current), []);
   useEffect(() => {
     generationRequest.current.sequence++; generationRequest.current.controller?.abort();
+    imageRequest.current.sequence++; imageRequest.current.controller?.abort();imageRequest.current.keys={};imageRequest.current.lastStartedAt=0;setImageBusy(false);setImageMessage('');
     setLoading(false); setError(''); setArticle(previous => previous?.generation ? null : previous);
-    return () => { generationRequest.current.sequence++; generationRequest.current.controller?.abort(); };
+    return () => { generationRequest.current.sequence++; generationRequest.current.controller?.abort();imageRequest.current.sequence++;imageRequest.current.controller?.abort(); };
   }, [user?.id]);
 
   // Pull title/topic handed over by the Pin Generator
@@ -84,34 +89,56 @@ export default function ArticleWriter() {
     toastTimer.current = setTimeout(() => setToast(""), 2400);
   }
 
+  async function generateArticleImages(target, ownerId=identity.current) {
+    if(!user){setImageMessage('Sign in to generate and privately save the three required article images.');openLogin();return;}
+    if(!Array.isArray(target?.imageBriefs)||target.imageBriefs.length!==3){setImageMessage('This offline template has no verified AI image briefs. Choose Live AI for a complete illustrated article.');return;}
+    const imageSequence=++imageRequest.current.sequence;imageRequest.current.controller?.abort();const controller=new AbortController();imageRequest.current.controller=controller;
+    let next={...target,images:Array.isArray(target.images)?[...target.images]:[],imageStatus:'pending',imageError:''};setImageBusy(true);setImageMessage('Preparing the featured image and two section illustrations…');
+    try{
+      for(let index=0;index<target.imageBriefs.length;index++){
+        const brief=target.imageBriefs[index];if(next.images.some(image=>image.role===brief.role&&image.sectionIndex===brief.sectionIndex&&image.assetId))continue;
+        if(imageRequest.current.sequence!==imageSequence||identity.current!==ownerId)return;
+        setImageMessage(`Generating article image ${index+1} of 3…`);
+        const key=`${target.id}:${brief.role}:${brief.sectionIndex===null?'cover':brief.sectionIndex}`,requestKey=imageRequest.current.keys[key]||(imageRequest.current.keys[key]=crypto.randomUUID());
+        const cooldown=Math.max(0,15100-(Date.now()-imageRequest.current.lastStartedAt));
+        if(cooldown){setImageMessage(`Waiting ${Math.ceil(cooldown/1000)} seconds for the existing image-quota cooldown…`);await new Promise((resolve,reject)=>{const abort=()=>{clearTimeout(timer);const issue=new Error('Image generation was cancelled.');issue.name='AbortError';reject(issue);};const timer=setTimeout(()=>{controller.signal.removeEventListener('abort',abort);resolve();},cooldown);controller.signal.addEventListener('abort',abort,{once:true});});}
+        imageRequest.current.lastStartedAt=Date.now();
+        const result=await generateWithAI('image',{prompt:brief.prompt,useCase:brief.role==='cover'?'article-cover':'article-section',language},{signal:controller.signal,requestKey});
+        if(imageRequest.current.sequence!==imageSequence||identity.current!==ownerId)return;
+        if(!/^[a-f0-9]{64}$/.test(result.result?.assetId||''))throw new Error('The image was not saved to private durable storage.');
+        next={...next,images:[...next.images,{assetId:result.result.assetId,role:brief.role,sectionIndex:brief.sectionIndex,sectionHeading:brief.sectionIndex===null?'':next.sections[brief.sectionIndex]?.heading||'',altText:brief.altText,width:result.result.width,height:result.result.height}],imageStatus:'pending',imageError:''};
+        setArticle(next);setImageMessage(`Saved image ${index+1} of 3 to your private Library.`);
+      }
+      next={...next,imageStatus:next.images.length===3?'complete':'incomplete',imageError:next.images.length===3?'':'One or more article images are missing.'};setArticle(next);setImageMessage(next.imageStatus==='complete'?'All three AI images are saved privately and ready for review.':next.imageError);
+    }catch(issue){
+      if(issue.name==='AbortError'||imageRequest.current.sequence!==imageSequence||identity.current!==ownerId)return;
+      next={...next,imageStatus:'incomplete',imageError:`Image generation stopped before all three images were saved: ${issue.message}`};setArticle(next);setImageMessage(next.imageError);
+    }finally{if(imageRequest.current.sequence===imageSequence&&identity.current===ownerId)setImageBusy(false);}
+  }
+
   async function handleGenerate(e) {
     e?.preventDefault?.();
     const value = title.trim();
-    if (!value) {
-      setError("Enter a pin title first — e.g. “10 Sad Quotes That Will Make You Cry”.");
-      return;
-    }
-    if (value.length < 10) {
-      setError("That title is a little short. Try at least 10 characters for a better article.");
-      return;
-    }
-    if (loading || authLoading) return;
+    if (!value) { setError("Enter a topic or title first — for example, “Simple Balcony Garden Ideas for Small Spaces”."); return; }
+    if (value.length < 10) { setError("That title is a little short. Try at least 10 characters for a clearer article."); return; }
+    if (loading || imageBusy || authLoading) return;
     if (mode === 'ai' && !user) { setError('Sign in with a verified account to use live AI, or choose Offline template.'); openLogin(); return; }
     const owner = identity.current, sequence = ++generationRequest.current.sequence;
-    generationRequest.current.controller = new AbortController();
-    setError(''); setSaved(false); setArticle(null); setLoading(true);
+    imageRequest.current.sequence++;imageRequest.current.controller?.abort();imageRequest.current.keys={};imageRequest.current.lastStartedAt=0;generationRequest.current.controller = new AbortController();
+    setError('');setImageMessage('');setSaved(false);setArticle(null);setLoading(true);
     try {
-      const topic = params.get('topic')?.slice(0, 160) || undefined;
-      let generated;
+      const topic = params.get('topic')?.slice(0, 160) || undefined;let generated;
       if (mode === 'ai') {
         const result = await generateWithAI('article', { title: value, ...(topic ? { topic } : {}), language }, { signal: generationRequest.current.controller.signal });
-        generated = { ...result.result, generation: result.generation };
+        generated = { ...result.result, generation: result.generation, images:[], imageStatus:'pending', imageError:'' };
       } else {
-        await new Promise(resolve => requestAnimationFrame(resolve)); generated = generateArticle(value, topic);
+        await new Promise(resolve => requestAnimationFrame(resolve));generated = generateArticle(value, topic);
       }
       if (sequence !== generationRequest.current.sequence || identity.current !== owner) return;
-      setArticle(generated); flash(mode === 'ai' ? 'AI article generated' : 'Offline article template generated');
+      setArticle(generated);setLoading(false);flash(mode === 'ai' ? 'AI article draft ready' : 'Offline article template generated');
       setTimeout(() => resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+      if(mode==='ai')await generateArticleImages(generated,owner);
+      else setImageMessage('The offline template is text-only. Live AI is required for the featured image and two section images.');
     } catch (issue) { if (issue.name !== 'AbortError' && sequence === generationRequest.current.sequence && identity.current === owner) setError(issue.message); }
     finally { if (sequence === generationRequest.current.sequence) setLoading(false); }
   }
@@ -133,7 +160,9 @@ export default function ArticleWriter() {
     return () => { active = false; };
   }, [authLoading, user?.id]);
   async function storeArticle(openReview = false) {
-    if (!article || savePending.current || authLoading) return;
+    if (!article || savePending.current || authLoading || imageBusy) return;
+    if(openReview&&(article.wordCount<1000||article.wordCount>1600)){setSaveError('Publishing review accepts articles between 1,000 and 1,600 words. Generate a complete Live AI article first. No job was created.');return;}
+    if(openReview&&(article.imageStatus!=='complete'||article.images?.length!==3)){setSaveError(article.imageError||'Generate and save the AI cover plus both section images before opening publishing review. No job was created.');return;}
     if (openReview && !user) { openLogin(); return; }
     const owner = identity.current, contentId = article.id, request = ++saveSequence.current;
     savePending.current = true; setSaving(true); setSaveError('');
@@ -186,14 +215,12 @@ export default function ArticleWriter() {
           </nav>
 
           <span className="eyebrow">
-            <Sparkles size={13} /> SEO blog writer · 500–800 words
+            <Sparkles size={13} /> Professional SEO article · 1,000–1,600 words
           </span>
 
           <h1 className="h1 mt-4 text-neutral-900">Auto Article Writer</h1>
           <p className="lead mt-3 max-w-2xl">
-            PinCraft will write a full SEO Blog Article for your Pin
-            automatically — headline, intro, 3 sub-headings, a quotes list and a
-            conclusion.
+            Create a practical, search-aware article draft with a linked contents list, useful H2/H3 sections, FAQs, a suggested meta description and three original AI illustrations. Review sources and facts before publishing.
           </p>
         </div>
       </section>
@@ -212,7 +239,7 @@ export default function ArticleWriter() {
                 htmlFor="pin-title"
                 className="mb-2 block text-[13px] font-bold uppercase tracking-[0.08em] text-neutral-500"
               >
-                Enter your pin title
+                Enter a topic or working title
               </label>
 
               <div className="relative">
@@ -227,7 +254,7 @@ export default function ArticleWriter() {
                     setTitle(e.target.value);
                     setError("");
                   }}
-                  placeholder="10 Sad Quotes That Will Make You Cry"
+                  placeholder="Simple Balcony Garden Ideas for Small Spaces"
                   autoComplete="off"
                   maxLength={200}
                   aria-invalid={!!error}
@@ -303,7 +330,7 @@ export default function ArticleWriter() {
                 </div>
               </div>
 
-              <button type="submit" disabled={loading || authLoading} className="btn-primary mt-5 w-full">
+              <button type="submit" disabled={loading || imageBusy || authLoading} className="btn-primary mt-5 w-full">
                 {loading ? (
                   <>
                     <Loader2 size={18} className="animate-spin" /> Writing your article…
@@ -316,7 +343,7 @@ export default function ArticleWriter() {
               </button>
               <p className="mt-2.5 text-center text-[11.5px] text-neutral-400">
                 {titleWords ? `${titleWords} words in title · ` : ""}
-                H1 + intro + 3 sections + quotes list + conclusion
+                H1 + linked contents + 4 H2/H3 sections + tips + FAQs
               </p>
             </form>
 
@@ -343,12 +370,13 @@ export default function ArticleWriter() {
                 <GenerationReceipt generation={article.generation} />
                 {saveError && <p role="alert" className="mb-4 rounded-xl border border-brand-100 bg-brand-50 p-3 text-[12px] leading-relaxed text-brand-800">{saveError} Your article is still on this page; use Save to retry.</p>}
                 <ArticleView article={article} />
-                <div className="mt-4 flex flex-col justify-between gap-3 rounded-xl border border-neutral-200 bg-neutral-50 p-4 sm:flex-row sm:items-center"><p className="text-[11px] leading-relaxed text-neutral-500">Need a featured image? The artwork tool opens in a new tab, keeping this draft here.</p><Link href="/content-studio/artwork?format=featured" target="_blank" rel="noopener noreferrer" prefetch={false} className="inline-flex min-h-11 shrink-0 items-center gap-2 text-[12px] font-bold text-brand-700">Create featured artwork<ArrowRight size={14} aria-hidden="true"/></Link></div>
+                {article.generation?.kind==='ai'&&<section className={`mt-4 rounded-2xl border p-4 sm:p-5 ${article.imageStatus==='complete'?'border-emerald-200 bg-emerald-50/40':'border-amber-200 bg-amber-50/50'}`} data-testid="article-image-status" aria-live="polite"><div className="flex items-start gap-3"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-white text-brand-700"><ImagePlus size={17} aria-hidden="true"/></span><div className="min-w-0 flex-1"><h2 className="text-[13px] font-extrabold">Three article images · {article.images?.length||0}/3 saved</h2><p className="mt-1 text-[11px] leading-relaxed text-neutral-600">{imageBusy?imageMessage:article.imageStatus==='complete'?'All three original AI images are stored privately and ready for publication review.':article.imageError||imageMessage||'The cover and two section images are required before publication. Image generation uses the existing daily allowance.'}</p>{article.imageStatus!=='complete'&&<button type="button" disabled={imageBusy||!user||!article.imageBriefs?.length} onClick={()=>generateArticleImages(article)} className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-xl border border-neutral-300 bg-white px-4 text-[11px] font-bold text-neutral-700 disabled:opacity-50">{imageBusy?<Loader2 size={14} className="animate-spin" aria-hidden="true"/>:<ImagePlus size={14} aria-hidden="true"/>}{imageBusy?'Generating image…':article.images?.length?'Generate missing image':'Generate three AI images'}</button>}</div></div></section>}
 
                 <section className="mt-4 rounded-2xl border border-brand-100 bg-brand-50/30 p-5" data-testid="article-publishing-handoff">
                   <h2 className="text-[15px] font-extrabold">Ready to publish this article?</h2>
-                  <p className="mt-2 text-[12px] leading-relaxed text-neutral-600">Save a private copy and open the publishing review. Choose your blog, then Publish now or Schedule. No job or recurring permission is created by this step.</p>
-                  <button type="button" disabled={saving || authLoading} onClick={() => storeArticle(true)} className="btn-primary mt-4 !min-h-11 !px-4 !text-[12px]">{saving ? <Loader2 size={15} className="animate-spin" aria-hidden="true"/> : <ArrowRight size={15} aria-hidden="true"/>}{saved ? 'Open publishing review' : 'Save & open publishing review'}</button>
+                  <p className="mt-2 text-[12px] leading-relaxed text-neutral-600">Publishing review requires 1,000–1,600 words and the original AI cover plus both section illustrations. Choose your verified blog and add two to five relevant live internal links in the review. This step creates no job or recurring permission.</p>
+                  {(article.wordCount<1000||article.wordCount>1600||article.imageStatus!=='complete'||article.images?.length!==3)&&<p role="status" className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-[11px] leading-relaxed text-amber-900">Not publish-ready: {article.wordCount<1000||article.wordCount>1600?'the word count is outside 1,000–1,600. ':''}{article.imageStatus!=='complete'||article.images?.length!==3?'one or more required AI images are missing.':''} Offline templates can be saved, but they cannot enter publishing review.</p>}
+                  <button type="button" disabled={saving || imageBusy || authLoading || article.wordCount<1000 || article.wordCount>1600 || article.imageStatus!=='complete' || article.images?.length!==3} onClick={() => storeArticle(true)} className="btn-primary mt-4 !min-h-11 !px-4 !text-[12px]">{saving ? <Loader2 size={15} className="animate-spin" aria-hidden="true"/> : <ArrowRight size={15} aria-hidden="true"/>}{saved ? 'Open publishing review' : 'Save & open publishing review'}</button>
                 </section>
 
                 {/* stats + actions */}
@@ -405,7 +433,7 @@ export default function ArticleWriter() {
                     <button
                       type="button"
                       onClick={handleSave}
-                      disabled={saved || saving || authLoading}
+                      disabled={saved || saving || imageBusy || authLoading}
                       className={`w-full !px-3 !text-[14px] sm:flex-1 ${
                         saved ? "btn-outline border-emerald-200 text-emerald-600" : "btn-dark"
                       }`}
@@ -426,6 +454,7 @@ export default function ArticleWriter() {
                   <button
                     type="button"
                     onClick={() => {
+                      imageRequest.current.sequence++;imageRequest.current.controller?.abort();setImageBusy(false);setImageMessage('');
                       setArticle(null);
                       setTitle("");
                       setSaved(false);
@@ -466,8 +495,8 @@ export default function ArticleWriter() {
                 {[
                   ["H1", "Main heading", "Your pin title, exactly"],
                   ["¶", "Intro", "80–100 words, emotional"],
-                  ["H2", "3 sub-headings", "2–3 paragraphs each"],
-                  ["☰", "Quotes / list", "Snippet-ready list section"],
+                  ["H2", "4 main sections", "2 paragraphs + one H3 each"],
+                  ["☰", "3–5 FAQs", "Answers to real search questions"],
                   ["✓", "Conclusion", "Clear takeaway + next step"],
                 ].map(([n, t, s]) => (
                   <li key={t} className="flex items-start gap-2.5">
@@ -508,8 +537,8 @@ export default function ArticleWriter() {
             <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
               <p className="text-[11.5px] leading-relaxed text-neutral-500">
                 <b className="text-neutral-700">Tip:</b> publish at least one
-                article per pin. Each post is a new page that can rank on Google
-                and collect Adsterra impressions for months.
+                article per Pin. Each post is a new page that may attract search visits
+                and ad impressions over time.
               </p>
             </div>
           </aside>

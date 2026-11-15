@@ -1,96 +1,70 @@
-// Homepage verification: desktop + mobile screenshots + a11y/console checks
-const { chromium } = require("playwright");
+// Homepage smoke test: message hierarchy, hero animation, primary navigation,
+// reduced-motion support and mobile overflow. Requires a running Next.js server
+// and an installed Playwright Chromium browser.
+const assert = require('node:assert/strict');
+const { chromium } = require('playwright');
 
-const BASE = process.env.BASE_URL || "http://127.0.0.1:3000";
-const OUT = "/home/user/.shots";
+const BASE = process.env.BASE_URL || 'http://127.0.0.1:3000';
 
 async function run() {
   const browser = await chromium.launch();
-  const steps = [];
-  const ok = (name, cond) => steps.push({ name, pass: !!cond });
+  const checks = [];
   const errors = [];
+  const ok = (name, passed) => checks.push({ name, passed: Boolean(passed) });
 
-  // ---------- desktop ----------
-  const dctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1 });
-  const dpage = await dctx.newPage();
-  dpage.on("console", (m) => m.type() === "error" && errors.push("desktop: " + m.text()));
-  dpage.on("pageerror", (e) => errors.push("desktop PAGEERROR: " + e.message));
-  await dpage.goto(BASE, { waitUntil: "networkidle" });
+  const desktop = await browser.newPage({ viewport: { width: 1440, height: 960 } });
+  desktop.on('console', message => message.type() === 'error' && errors.push(`desktop console: ${message.text()}`));
+  desktop.on('pageerror', error => errors.push(`desktop page: ${error.message}`));
+  await desktop.goto(BASE, { waitUntil: 'networkidle' });
 
-  ok("Hero heading", await dpage.getByRole("heading", { name: /Pinterest Automation Machine/i }).isVisible());
-  ok("Navbar links (5)", (await dpage.getByRole("listitem").filter({ hasText: /Pin Generator|Article Writer|Dashboard|My Library/ }).count()) >= 4);
-  ok("Navbar Google Login button", await dpage.getByRole("banner").getByRole("button", { name: "Sign in or create account", exact: true }).isVisible());
-  ok("CTA Generate Viral Pin", await dpage.getByRole("link", { name: /Generate Viral Pin/i }).first().isVisible());
-  ok("CTA How It Works", await dpage.getByRole("link", { name: /How It Works/i }).first().isVisible());
-  ok("How it works 4 steps", (await dpage.getByRole("heading", { name: /Give Topic|PinCraft Creates Viral Pin|Auto Article \+ Auto Post|Traffic/i }).count()) === 4);
-  ok("3 feature boxes", (await dpage.getByRole("heading", { name: /Viral Pin Generator|Auto Article Writer|Automation Dashboard/i }).count()) === 3);
-  ok("Income formula section", await dpage.getByText("Income formula").isVisible());
-  ok("Footer About", await dpage.getByRole("link", { name: "About" }).isVisible());
-  ok("Footer Contact", await dpage.getByRole("link", { name: "Contact" }).isVisible());
+  ok('Homepage has the new article-focused H1', await desktop.getByRole('heading', { level: 1, name: /Turn your ideas into well-made articles/i }).isVisible());
+  ok('Blogger connection CTA is visible', await desktop.getByRole('link', { name: /Connect Blogger/i }).isVisible());
+  ok('Article-writing CTA is visible', await desktop.getByRole('link', { name: /Create an article/i }).isVisible());
+  ok('Hero contains the animated workflow illustration', await desktop.getByTestId('home-hero-motion').isVisible());
+  ok('Hero animation is clearly marked as a preview', await desktop.getByText(/preview only, not live account activity/i).isVisible());
+  ok('The preview uses a looping CSS animation', await desktop.locator('.home-motion-window').evaluate(node => getComputedStyle(node).animationName.includes('home-window-float')));
+  ok('Workspace section is present', await desktop.getByRole('heading', { name: /Everything has its own place/i }).isVisible());
+  for (const href of ['/connector', '/jobs', '/content-studio', '/library']) {
+    ok(`Workspace navigation includes ${href}`, await desktop.locator(`a[href="${href}"]`).count() > 0);
+  }
+  ok('Review, article length, and manual-Pinterest boundaries are explicit', await desktop.getByText(/1,000–1,600 words/i).isVisible() && await desktop.getByText(/Pinterest uploads are never automatic/i).isVisible());
 
-  await dpage.screenshot({ path: `${OUT}/home-desktop.png`, fullPage: true });
-  await dpage.screenshot({ path: `${OUT}/home-desktop-fold.png` });
-
-  // "How It Works" anchor scroll
-  await dpage.getByRole("link", { name: /How It Works/i }).first().click();
-  await dpage.waitForTimeout(700);
-  ok("How It Works anchor scrolls", (await dpage.evaluate(() => window.scrollY)) > 200);
-
-  // Return to the homepage before mobile checks.
-  await dpage.goto(BASE, { waitUntil: "domcontentloaded" });
-
-  // ---------- mobile ----------
-  const mctx = await browser.newContext({
-    viewport: { width: 390, height: 844 },
-    deviceScaleFactor: 2,
-    isMobile: true,
-    hasTouch: true,
+  const reduced = await browser.newPage({ viewport: { width: 1280, height: 800 }, reducedMotion: 'reduce' });
+  reduced.on('console', message => message.type() === 'error' && errors.push(`reduced-motion console: ${message.text()}`));
+  reduced.on('pageerror', error => errors.push(`reduced-motion page: ${error.message}`));
+  await reduced.goto(BASE, { waitUntil: 'networkidle' });
+  const duration = await reduced.locator('.home-motion-window').evaluate(node => {
+    const value = getComputedStyle(node).animationDuration.split(',')[0].trim();
+    return Number.parseFloat(value) * (value.endsWith('ms') ? 0.001 : 1);
   });
-  const mpage = await mctx.newPage();
-  mpage.on("console", (m) => m.type() === "error" && errors.push("mobile: " + m.text()));
-  mpage.on("pageerror", (e) => errors.push("mobile PAGEERROR: " + e.message));
-  await mpage.goto(BASE, { waitUntil: "networkidle" });
+  ok('Reduced-motion preference reduces animation to a near-instant', duration <= 0.001);
 
-  ok("Mobile: hero visible", await mpage.getByRole("heading", { name: /Pinterest Automation Machine/i }).isVisible());
-  await mpage.screenshot({ path: `${OUT}/home-mobile.png`, fullPage: true });
-
-  // hamburger menu
-  await mpage.getByRole("button", { name: /Open menu/i }).click();
-  await mpage.waitForTimeout(350);
-  ok("Mobile menu opens", await mpage.getByRole("banner").getByRole("link", { name: "My Library" }).isVisible());
-  await mpage.screenshot({ path: `${OUT}/home-mobile-menu.png` });
-  await mpage.getByRole("button", { name: /Close menu/i }).click();
-  await mpage.waitForTimeout(250);
-
-  // no horizontal overflow (key mobile check)
-  const overflow = await mpage.evaluate(
-    () => document.documentElement.scrollWidth - document.documentElement.clientWidth
-  );
-  ok(`No horizontal overflow (got ${overflow}px)`, overflow <= 1);
-
-  // tap targets >= 40px for primary controls
-  const smallTaps = await mpage.evaluate(() => {
-    const nodes = [...document.querySelectorAll("a,button")];
-    return nodes
-      .filter((n) => {
-        const r = n.getBoundingClientRect();
-        return r.width > 0 && r.height > 0 && r.height < 40;
-      })
-      .map((n) => n.textContent.trim().slice(0, 24));
-  });
-  ok(`Tap targets ok (${smallTaps.length} small: ${smallTaps.slice(0, 3).join(", ")})`, smallTaps.length <= 6);
+  for (const width of [390, 320]) {
+    const mobile = await browser.newPage({ viewport: { width, height: 844 }, isMobile: true, hasTouch: true });
+    mobile.on('console', message => message.type() === 'error' && errors.push(`mobile ${width} console: ${message.text()}`));
+    mobile.on('pageerror', error => errors.push(`mobile ${width} page: ${error.message}`));
+    await mobile.goto(BASE, { waitUntil: 'networkidle' });
+    const metrics = await mobile.evaluate(() => ({
+      overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      stageVisible: Boolean(document.querySelector('[data-testid="home-hero-motion"]')?.getBoundingClientRect().width),
+      minHeight: getComputedStyle(document.querySelector('.home-motion-stage')).minHeight,
+    }));
+    ok(`Mobile ${width}px hero is visible`, metrics.stageVisible);
+    ok(`Mobile ${width}px layout has no horizontal overflow (${metrics.overflow}px)`, metrics.overflow <= 1);
+    ok(`Mobile ${width}px uses the compact animation stage`, Number.parseFloat(metrics.minHeight) <= 430);
+    await mobile.close();
+  }
 
   await browser.close();
-
-  const failed = steps.filter((s) => !s.pass);
-  console.log("\n=== HOMEPAGE CHECKS ===");
-  steps.forEach((s) => console.log(`${s.pass ? "PASS" : "FAIL"}  ${s.name}`));
-  console.log(`\n${steps.length - failed.length}/${steps.length} passed`);
-  console.log(errors.length ? "\nCONSOLE ERRORS:\n" + errors.join("\n") : "\nNo console errors ✅");
-  process.exit(failed.length ? 1 : 0);
+  for (const check of checks) console.log(`${check.passed ? 'PASS' : 'FAIL'} ${check.name}`);
+  if (errors.length) console.error(`Browser errors:\n${errors.join('\n')}`);
+  const failed = checks.filter(check => !check.passed);
+  console.log(`\n${checks.length - failed.length}/${checks.length} homepage checks passed`);
+  assert.equal(failed.length, 0, 'One or more homepage checks failed');
+  assert.equal(errors.length, 0, 'The homepage emitted browser errors');
 }
 
-run().catch((e) => {
-  console.error("CRASH:", e);
-  process.exit(1);
+run().catch(error => {
+  console.error(error);
+  process.exitCode = 1;
 });

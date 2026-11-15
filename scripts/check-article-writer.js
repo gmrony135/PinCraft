@@ -1,142 +1,94 @@
-// Article Writer verification: generation, structure, stats, all 3 buttons
+// Browser smoke checks for the explicitly offline Article Writer mode.
+// AI article length, FAQs, SEO fields and image requirements are covered by
+// scripts/check-ai.mjs and the reviewed-publishing contract tests; no provider
+// credentials, billable inference or publication is used here.
 const { chromium } = require("playwright");
-
 const BASE = process.env.BASE_URL || "http://127.0.0.1:3000";
-const OUT = "/home/user/.shots";
+const OUT = ".shots";
 
 async function run() {
+  const fs = require("node:fs");
+  fs.mkdirSync(OUT, { recursive: true });
   const browser = await chromium.launch();
-  const ctx = await browser.newContext({
+  const context = await browser.newContext({
     viewport: { width: 1440, height: 900 },
     permissions: ["clipboard-read", "clipboard-write"],
   });
-  const page = await ctx.newPage();
+  const page = await context.newPage();
   const errors = [];
-  page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
-  page.on("pageerror", (e) => errors.push("PAGEERROR: " + e.message));
-
   const steps = [];
-  const ok = (name, cond) => steps.push({ name, pass: !!cond });
+  page.on("console", message => message.type() === "error" && errors.push(message.text()));
+  page.on("pageerror", error => errors.push("PAGEERROR: " + error.message));
+  const ok = (name, condition) => steps.push({ name, pass: !!condition });
   const clip = () => page.evaluate(() => navigator.clipboard.readText());
 
-  // ---------- load ----------
   await page.goto(`${BASE}/article-writer`, { waitUntil: "networkidle" });
-  ok("Page heading", await page.getByRole("heading", { name: "Auto Article Writer", exact: true }).isVisible());
-  ok("Sub-text", await page.getByText(/write a full SEO Blog Article for your Pin/i).isVisible());
-  ok("Title input placeholder", (await page.getByPlaceholder("10 Sad Quotes That Will Make You Cry").count()) === 1);
-  ok("Generate Article button", await page.getByRole("button", { name: /Generate Article$/i }).isVisible());
-  ok("Use Title From Pin Generator button", await page.getByRole("button", { name: /Use Title From Pin Generator/i }).isVisible());
+  const titleField = page.getByPlaceholder("Simple Balcony Garden Ideas for Small Spaces");
+  ok("Article Writer heading", await page.getByRole("heading", { name: "Auto Article Writer", exact: true }).isVisible());
+  ok("Updated article and image guidance", await page.getByText(/Create a practical, search-aware article draft/).isVisible());
+  ok("Guest starts in the explicit Offline template mode", await page.getByRole("button", { name: "Offline template", exact: true }).getAttribute("aria-pressed") === "true");
+  ok("Generate button and title field", await titleField.isVisible() && await page.getByRole("button", { name: "Generate Article", exact: true }).isVisible());
 
-  // ---------- validation ----------
-  await page.getByRole("button", { name: /Generate Article$/i }).click();
-  await page.waitForTimeout(300);
-  ok("Empty title shows error", await page.getByText(/Enter a pin title first/i).isVisible());
+  await page.getByRole("button", { name: "Generate Article", exact: true }).click();
+  ok("Empty title is rejected", await page.getByRole("alert").filter({ hasText: /Enter a topic or title first/ }).isVisible());
 
-  // ---------- generate ----------
-  await page.getByPlaceholder("10 Sad Quotes That Will Make You Cry").fill("10 Sad Quotes That Will Make You Cry");
-  await page.getByRole("button", { name: /Generate Article$/i }).click();
-  await page.waitForTimeout(1800);
-
-  // structure
-  const h1 = await page.locator("article h1").innerText();
-  ok(`H1 equals pin title`, h1.trim() === "10 Sad Quotes That Will Make You Cry");
-  const h2count = await page.locator("article h2").count();
-  ok(`5 H2 headings (3 sections + list + conclusion) → ${h2count}`, h2count === 5);
-  const paras = await page.locator("article p").count();
-  ok(`Body paragraphs rendered (${paras})`, paras >= 10);
-  const listItems = await page.locator("article ul li").count();
-  ok(`Quotes/list section items (${listItems})`, listItems >= 6);
-
-  // stats
+  await titleField.fill("Easy Balcony Garden Ideas for Small Spaces");
+  await page.getByRole("button", { name: "Generate Article", exact: true }).click();
+  await page.locator("article h1").waitFor();
+  ok("Offline result is explicitly not labeled AI", await page.getByText(/Offline template · not a live AI request/).isVisible());
   const bodyText = await page.locator("article").innerText();
-  const allWords = bodyText.split(/\s+/).filter(Boolean).length;
-  ok(`Article 500–800 words (page text ≈ ${allWords})`, allWords >= 480 && allWords <= 900);
+  const bodyWords = bodyText.split(/\s+/u).filter(Boolean).length;
+  ok(`Offline sample renders content (${bodyWords} visible page words)`, bodyWords >= 400);
+  const toc = page.getByRole("navigation", { name: "Table of contents" });
+  const tocTargets = await toc.locator("a").evaluateAll(nodes => nodes.map(node => node.getAttribute("href")));
+  const tocTargetsExist = await page.evaluate(hrefs => hrefs.every(href => href && document.querySelector(href)), tocTargets);
+  ok("The linked contents list includes tips and final thoughts with matching anchors", tocTargets.includes("#article-tips") && tocTargets.includes("#article-conclusion") && tocTargetsExist);
+  ok("SEO fields are labeled as suggestions, not a ranking promise", await page.getByText("SEO Score", { exact: true }).isVisible() && await page.getByText("SEO fields · suggestions, not a ranking promise", { exact: true }).isVisible());
+  ok("Offline template is blocked from publishing under the 1,000–1,600-word contract", await page.getByTestId("article-publishing-handoff").getByText(/outside 1,000–1,600/).isVisible() && await page.getByRole("button", { name: "Save & open publishing review" }).isDisabled());
+  ok("Offline template discloses missing required AI illustrations", await page.getByTestId("article-publishing-handoff").getByText(/one or more required AI images are missing/i).isVisible());
+  ok("No AI image set is falsely reported as complete", await page.locator('[data-testid="article-image-status"]').count() === 0);
 
-  const statText = await page.locator("text=SEO Score").first().isVisible();
-  ok("SEO Score shown", statText);
-  const seo = await page.locator("text=/^\\d{2,3}\\/100$/").first().innerText();
-  const seoNum = parseInt(seo, 10);
-  ok(`SEO score is realistic (${seo})`, seoNum >= 80 && seoNum <= 100);
-  ok("Word Count shown", await page.locator("text=Word Count").first().isVisible());
-
-  // ---------- copy full article ----------
   await page.getByRole("button", { name: /Copy Full Article to clipboard/i }).click();
-  await page.waitForTimeout(300);
   const copied = await clip();
-  const copiedWords = copied.split(/\s+/).filter(Boolean).length;
-  ok(`Copy Full Article works (${copiedWords} words, has H1 + H2)`,
-     copied.includes("# 10 Sad Quotes") && copied.includes("## ") && copiedWords >= 450);
+  const copiedWords = copied.split(/\s+/u).filter(Boolean).length;
+  ok("Copy Full Article preserves the complete offline draft", copied.includes("# Easy Balcony Garden Ideas") && copied.includes("## ") && copiedWords >= 400 && copiedWords < 1000);
 
-  // ---------- save to library ----------
   await page.getByRole("button", { name: "Save To My Library", exact: true }).click();
-  await page.waitForTimeout(500);
-  ok("Save shows saved state", await page.getByRole("button", { name: "Saved to My Library", exact: true }).isVisible());
-  const lib = await page.evaluate(() => {
+  await page.getByRole("button", { name: "Saved to My Library", exact: true }).waitFor();
+  const saved = await page.evaluate(() => {
     const list = JSON.parse(localStorage.getItem("pincraft.library.v1") || "[]");
-    const art = list.find((x) => x.type === "article");
-    return { count: list.length, words: art?.wordCount, seo: art?.seoScore?.total };
+    const article = list.find(item => item.type === "article");
+    return { count: list.length, words: article?.wordCount, generation: article?.generation?.kind };
   });
-  ok(`Saved article in library (${lib.words} words, SEO ${lib.seo})`, lib.count >= 1 && lib.words >= 500);
+  ok("Offline article saves privately without AI or publication claims", saved.count >= 1 && saved.words >= 400 && !saved.generation);
+  await page.screenshot({ path: `${OUT}/article-writer-offline-desktop.png`, fullPage: true });
 
-  // ---------- auto publish ----------
-  await page.getByRole("button", { name: "Save local demo", exact: true }).click();
-  await page.waitForTimeout(500);
-  await page.getByRole("dialog").waitFor();
-  ok("Local demo opens a truthful confirmation", await page.getByRole("dialog").getByRole("heading", { name: "Local demo saved", exact: true }).isVisible());
-  ok("Publish popup honestly discloses the local demo", await page.getByRole("dialog").getByText(/Nothing was published online/).isVisible());
-  await page.getByRole("button", { name: "Close confirmation", exact: true }).click();
-  ok("Publish shows demo state", await page.getByRole("button", { name: "Demo saved locally", exact: true }).isVisible());
-  const published = await page.evaluate(() => {
-    const list = JSON.parse(localStorage.getItem("pincraft.library.v1") || "[]");
-    return list.some((x) => x.type === "published");
-  });
-  ok("Published item stored", published);
+  await page.goto(`${BASE}/article-writer?title=${encodeURIComponent("5 Home Decor Ideas for Small Rooms")}&topic=Home%20Decor`, { waitUntil: "networkidle" });
+  const prefilled = await titleField.inputValue();
+  ok("Title is prefilled from the URL", prefilled === "5 Home Decor Ideas for Small Rooms");
+  await page.getByRole("button", { name: "Generate Article", exact: true }).click();
+  await page.locator("article h1").waitFor();
+  ok("Topic-aware offline article renders", await page.locator("article").getByText("Home Decor", { exact: true }).first().isVisible());
 
-  await page.screenshot({ path: `${OUT}/article-writer-desktop.png`, fullPage: true });
-
-  // ---------- deep link from Pin Generator ----------
-  await page.goto(
-    `${BASE}/article-writer?title=${encodeURIComponent("5 Home Decor Ideas for Small Rooms")}&topic=Home%20Decor`,
-    { waitUntil: "networkidle" }
-  );
-  const prefilled = await page.getByPlaceholder("10 Sad Quotes").inputValue();
-  ok(`Title prefilled from URL ("${prefilled}")`, prefilled === "5 Home Decor Ideas for Small Rooms");
-  await page.getByRole("button", { name: /Generate Article$/i }).click();
-  await page.waitForTimeout(1700);
-  const niche = await page.locator("article").getByText("Home Decor", { exact: true }).first().isVisible();
-  ok("Niche-aware article for Home Decor", niche);
-
-  // ---------- mobile ----------
-  const mctx = await browser.newContext({
-    viewport: { width: 390, height: 844 },
-    deviceScaleFactor: 2,
-    isMobile: true,
-    hasTouch: true,
-  });
-  const m = await mctx.newPage();
-  m.on("pageerror", (e) => errors.push("mobile PAGEERROR: " + e.message));
-  await m.goto(`${BASE}/article-writer`, { waitUntil: "networkidle" });
-  await m.getByPlaceholder("10 Sad Quotes That Will Make You Cry").fill("Easy 15 Minute Dinner Recipes");
-  await m.getByRole("button", { name: /Generate Article$/i }).click();
-  await m.waitForTimeout(1800);
-  ok("Mobile: article renders", await m.locator("article h1").isVisible());
-  const overflow = await m.evaluate(
-    () => document.documentElement.scrollWidth - document.documentElement.clientWidth
-  );
-  ok(`Mobile: no horizontal overflow (${overflow}px)`, overflow <= 1);
-  await m.screenshot({ path: `${OUT}/article-writer-mobile.png`, fullPage: true });
+  const mobileContext = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
+  const mobile = await mobileContext.newPage();
+  mobile.on("pageerror", error => errors.push("mobile PAGEERROR: " + error.message));
+  await mobile.goto(`${BASE}/article-writer`, { waitUntil: "networkidle" });
+  await mobile.getByPlaceholder("Simple Balcony Garden Ideas for Small Spaces").fill("Easy Weeknight Dinner Planning for Busy Families");
+  await mobile.getByRole("button", { name: "Generate Article", exact: true }).click();
+  await mobile.locator("article h1").waitFor();
+  const overflow = await mobile.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  ok(`Mobile has no horizontal overflow (${overflow}px)`, overflow <= 1);
+  ok("Mobile offline result remains publish-blocked", await mobile.getByRole("button", { name: "Save & open publishing review" }).isDisabled());
+  await mobile.screenshot({ path: `${OUT}/article-writer-offline-mobile.png`, fullPage: true });
 
   await browser.close();
-
-  const failed = steps.filter((s) => !s.pass);
-  console.log("\n=== ARTICLE WRITER CHECKS ===");
-  steps.forEach((s) => console.log(`${s.pass ? "PASS" : "FAIL"}  ${s.name}`));
+  const failed = steps.filter(step => !step.pass);
+  console.log("\n=== ARTICLE WRITER OFFLINE CHECKS ===");
+  for (const step of steps) console.log(`${step.pass ? "PASS" : "FAIL"}  ${step.name}`);
   console.log(`\n${steps.length - failed.length}/${steps.length} passed`);
   console.log(errors.length ? "\nCONSOLE ERRORS:\n" + errors.join("\n") : "\nNo console errors ✅");
-  process.exit(failed.length ? 1 : 0);
+  if (failed.length) process.exitCode = 1;
 }
 
-run().catch((e) => {
-  console.error("CRASH:", e);
-  process.exit(1);
-});
+run().catch(error => { console.error("CRASH:", error); process.exitCode = 1; });

@@ -8,7 +8,7 @@
 
 1. `/publish` খুলুন; নিজের সম্পূর্ণ article paste করুন অথবা নিজের Cloud Library draft নিন। আবার generate করার প্রয়োজন নেই।
 2. **Review this article** → Blogger account, verified blog, title ও HTML preview দেখুন।
-3. Pin pack বন্ধই রাখুন। কোনো Pin artwork, Pin title/description/hashtag, public image host বা manual Pin target লাগবে না। Blog featured image-ও optional।
+3. Pin pack বন্ধই রাখুন—Pinterest Pin artwork/copy বা manual Pin target লাগবে না। AI Article Writer draft হলে তবে ১টি cover ও ২টি section illustration আগেই private Library-তে সম্পূর্ণ saved থাকা বাধ্যতামূলক; এটি Pinterest Pin artwork নয়।
 4. **I reviewed this specific HTML article and chosen blog…** দিয়ে নির্দিষ্ট Blogger প্রকাশ অনুমোদন করুন। এটি আগে থেকে tick করা নয়। Review-এর কোনো মান বদলালে আগের অনুমোদন সঙ্গে সঙ্গে অকার্যকর হয়।
 5. **Publish blog now** অথবা timezone অনুযায়ী **Schedule Blogger post** চাপুন। সেভ হলে আসল immutable **Job ID** দেখাবে; Jobs-এ পরের checkpoint/error দেখুন।
 
@@ -50,15 +50,15 @@ Pin pack চাইলে আলাদাভাবে সেটি চালু �
 
 Source headline topic evidence; পুরো source article পড়া বা independent fact-checking নয়। সেই কারণে output original **trend-inspired practical guide**, breaking-news report, অযাচাইকৃত মূল্য/ঘটনা বা চিকিৎসার নিশ্চয়তা নয়। উপযুক্ত signal না পাওয়া মানে অপেক্ষা/skip—নকল trend নয়।
 
-## ৪. আগের generator-ই ব্যবহার হয়
+## ৪. Article, image ও live-link editorial gates
 
-- `generateForUser` → existing managed article task → existing bounded provider recovery। Generator নতুন করে প্রতিস্থাপন করা হয়নি।
-- Existing 500–850-word complete article validator, তিনটি section ও practical list থাকে। Duplicate/অপূর্ণ paragraph, placeholder এবং category/topic mismatch বাদ যায়।
-- বাস্তব generated article নিজের private Library-তে সেভ হয়।
+- Existing AI providers/fallback এবং transactional account/site text/image quotas-ই ব্যবহৃত হয়; কোনো quota বাড়ানো হয় না। One eligible article needs **1,000–1,600 visible words**; an SEO-aware H1/title (৫০–৬০ অক্ষরের লক্ষ্য), ১০০–১৫০ শব্দের ভূমিকা, linked contents list, চারটি substantive H2/H3 section, ব্যবহারযোগ্য Tips & Common Mistakes list, ৩–৫টি FAQ এবং একটি topic-specific gentle CTA-সহ উপসংহার। SEO suggestion-এ একটি focus keyword, ৫–১০টি প্রাসঙ্গিক secondary keyword, ১৪০–১৬০ অক্ষরের meta description ও ছোট slug থাকে; meta description/slug manual-copy suggestion, Blogger API প্রয়োগ করেছে এমন দাবি নয়।
+- Article draft আগে owner-এর private Library-তে সেভ হয়। তিনটি AI WebP illustration বিদ্যমান image allowance দিয়েই তৈরি ও private Firestore-এ রাখা হয়। Provider failure, cooldown বা quota exhaustion-এ অসম্পূর্ণ image set publish হয় না; draft-এ blocker থাকে। Blogger-এ শুধু signed, unguessable image URL যায়।
+- Selected blog-এর **২–৫টি relevant `LIVE` Blogger post** internal link হিসেবে verified হতে হয়। Draft/scheduled/post-404 বা অন্য blog-এর post accepted হয় না; link না পেলে publication job তৈরি হয় না এবং private draft থাকে। AI কোনো external citation, source URL, statistic, quote বা fact বানায় না; exact public source URL owner যাচাই না করলে claim-টি manual sourcing-এর জন্য flag করতে হবে।
 - আলাদা existing AI quality task চালিয়ে **কমপক্ষে 82/100 এবং সব check pass** লাগবে। Failed-quality draft থেকে publication job হয় না।
 - AI editorial score **fact-check, originality/plagiarism scan, SEO prediction বা quality guarantee নয়**। UI/consent-এ সীমা দেখানো আছে।
 - Existing per-owner/site daily quota, concurrency, cooldown, safety refusal এবং private request-idempotency একই থাকে। একটি spent/uncertain request নতুন key দিয়ে চুপিচুপি আবার করা হয় না।
-- একটি passing post সাধারণত **২টি text request** নেয়: article + editorial review। Default owner text allowance ৩০/day; অন্য tools-ও একই quota ব্যবহার করে। Provider/global limit আগে থামাতে পারে। Images স্বয়ংক্রিয়ভাবে generate হয় না; Pinterest artwork-এর quota/খরচ দিয়ে Blogger আটকে দেওয়া হয় না।
+- Passing post সাধারণত **২টি text request** নেয় (article + editorial review) এবং **৩টি image request** (cover + দুই section image)। Default owner allowance ৩০ text/day ও ৫ image/day; অন্য tools-ও একই existing quota ব্যবহার করে। Provider/global limit আগে থামাতে পারে। SEO meta description কেবল manual-copy suggestion—Blogger API সেটি applied করেছে বলে PinCraft দাবি করে না.
 
 **দৈনিক ৬টি হলো সর্বোচ্চ পরিকল্পিত slot, ৬টি guaranteed success নয়।** Evidence/quality/quota/service failure হলে কম হতে পারে এবং কারণ/retained draft দেখা যাবে। কোনো demo/offline/filler লেখা স্বয়ংক্রিয়ভাবে প্রকাশ হয় না।
 

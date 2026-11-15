@@ -11,6 +11,8 @@ import { useAuth } from "../providers/AppProvider";
 import { copyText } from "@/lib/clipboard";
 import { generateWithAI } from "@/lib/ai-client";
 import GenerationMode, { GenerationReceipt, useGenerationMode } from "../ai/GenerationMode";
+import ImageGenerator from "../ai/ImageGenerator";
+import { CATEGORIES } from "@/lib/product.mjs";
 import { handoffPin } from "@/lib/publishing/review-content.mjs";
 import {
   Sparkles,
@@ -26,15 +28,6 @@ import {
   Search,
   Loader2,
 } from "lucide-react";
-
-const EXAMPLES = [
-  "Sad Quotes",
-  "Home Decor Ideas",
-  "Easy Dinner Recipes",
-  "Motivation for Students",
-  "Skincare Routine",
-  "Balcony Gardening",
-];
 
 export default function PinGenerator() {
   const { user, authLoading, openLogin } = useAuth();
@@ -79,7 +72,7 @@ export default function PinGenerator() {
     e?.preventDefault?.();
     const value = topic.trim();
     if (!value) {
-      setError("Please type a topic first — e.g. “Sad Quotes”.");
+      setError("Please type a topic first — e.g. “Home Decor Ideas”.");
       return;
     }
     if (value.length < 3) {
@@ -163,8 +156,7 @@ export default function PinGenerator() {
 
           <h1 className="h1 mt-4 text-neutral-900">Pin Generator</h1>
           <p className="lead mt-3 max-w-2xl">
-            Just type your topic, PinCraft will create everything automatically —
-            5 title ideas, an SEO description, 10 hashtags and a pin image idea.
+            Create five title ideas, an SEO description, 10 hashtags and a custom Pin artwork option in one flow. Start with a category or enter your own topic.
           </p>
         </div>
       </section>
@@ -200,7 +192,7 @@ export default function PinGenerator() {
                     setTopic(e.target.value);
                     setError("");
                   }}
-                  placeholder="Sad Quotes"
+                  placeholder="e.g. Balcony garden ideas"
                   autoComplete="off"
                   maxLength={160}
                   aria-invalid={!!error}
@@ -223,23 +215,29 @@ export default function PinGenerator() {
                 </p>
               )}
 
-              {/* examples */}
-              <div className="mt-3">
-                <p className="mb-1.5 text-[11.5px] font-bold uppercase tracking-wide text-neutral-400">
-                  Try an example
-                </p>
-                <div className="flex flex-wrap gap-1.5">
-                  {EXAMPLES.map((ex) => (
+              {/* Suggestions stay in sync with the product's canonical categories. */}
+              <div className="mt-4">
+                <div className="mb-2 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+                  <p className="text-[11.5px] font-bold uppercase tracking-wide text-neutral-500">
+                    Top 10 categories
+                  </p>
+                  <p className="text-[11px] font-medium text-neutral-400">
+                    Select one to fill your topic
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {CATEGORIES.map((category) => (
                     <button
-                      key={ex}
+                      key={category.id}
                       type="button"
+                      data-testid="pin-category-suggestion"
                       onClick={() => {
-                        setTopic(ex);
+                        setTopic(category.label);
                         setError("");
                       }}
-                      className="rounded-full border border-neutral-200 bg-neutral-50 px-3 py-1.5 text-[12px] font-semibold text-neutral-600 transition-colors hover:border-brand-200 hover:bg-brand-50 hover:text-brand-700 active:scale-95"
+                      className="min-h-11 max-w-full whitespace-normal rounded-full border border-neutral-200 bg-neutral-50 px-3.5 py-2 text-left text-[11.5px] font-semibold leading-snug text-neutral-600 transition-colors hover:border-brand-200 hover:bg-brand-50 hover:text-brand-700 active:scale-[0.98]"
                     >
-                      {ex}
+                      {category.label}
                     </button>
                   ))}
                 </div>
@@ -397,6 +395,7 @@ export default function PinGenerator() {
                     meta="Design text + AI prompt"
                     icon={ImageIcon}
                     accent="dark"
+                    keepMounted
                   >
                     <div className="space-y-2.5">
                       <div className="rounded-xl border border-neutral-150 bg-neutral-900 p-4">
@@ -435,7 +434,32 @@ export default function PinGenerator() {
                           {pack.imageIdea.prompt}
                         </p>
                       </div>
-                      <div className="rounded-xl border border-neutral-200 p-4"><p className="text-[11px] leading-relaxed text-neutral-500">Copy this prompt, then open the artwork tool in a new tab. Your Pin stays here.</p><Link href="/content-studio/artwork" target="_blank" rel="noopener noreferrer" prefetch={false} className="mt-2 inline-flex min-h-11 items-center gap-2 text-[12px] font-bold text-brand-700">Create Pin artwork<ArrowRight size={14} aria-hidden="true"/></Link></div>
+                      <div className="rounded-xl border border-brand-100 bg-brand-50/40 p-3.5">
+                        <div className="mb-3">
+                          <p className="text-[12px] font-extrabold text-neutral-800">
+                            Create Pin artwork here
+                          </p>
+                          <p className="mt-1 text-[11px] leading-relaxed text-neutral-500">
+                            The prompt is prefilled from this Pin. Generate a 1000 × 1500 WebP, preview it and download it without leaving this page.
+                          </p>
+                        </div>
+                        {!authLoading && !user && (
+                          <div className="mb-3 flex flex-col gap-2 rounded-xl border border-amber-100 bg-amber-50 p-3 sm:flex-row sm:items-center sm:justify-between">
+                            <p className="text-[11px] leading-relaxed text-amber-900">
+                              A verified account is required for AI artwork. Your daily image allowance applies; your Pin stays on this page.
+                            </p>
+                            <button type="button" onClick={openLogin} className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-lg border border-amber-200 bg-white px-3 text-[11px] font-bold text-amber-900 hover:bg-amber-50">
+                              Sign in / create account
+                            </button>
+                          </div>
+                        )}
+                        <ImageGenerator
+                          key={pack.id}
+                          initialPrompt={pack.imageIdea.prompt}
+                          useCase="pin"
+                          editable
+                        />
+                      </div>
                     </div>
                   </ResultSection>
 
@@ -501,8 +525,8 @@ export default function PinGenerator() {
                   Nothing generated yet
                 </p>
                 <p className="mx-auto mt-1 max-w-sm text-[12.5px] leading-relaxed text-neutral-400">
-                  Type a topic above and tap <b>Generate Pin</b>. You&apos;ll get
-                  5 titles, an SEO description, 10 hashtags and a pin image idea.
+                  Choose a category or type a topic and tap <b>Generate Pin</b>. You&apos;ll get
+                  5 titles, an SEO description, 10 hashtags, an image prompt and an optional artwork generator.
                 </p>
               </div>
             )}
@@ -519,7 +543,7 @@ export default function PinGenerator() {
                   ["5", "Pin title ideas", "Five angles to review and personalize"],
                   ["1", "SEO description", "100–150 words with keywords"],
                   ["10", "Hashtags", "Copy all in one tap"],
-                  ["1", "Pin image idea", "Design text + AI prompt"],
+                  ["1", "Pin image idea + artwork", "Prompt, then optional 1000 × 1500 AI download"],
                 ].map(([n, t, s]) => (
                   <li key={t} className="flex items-start gap-2.5">
                     <span className="grid h-6 w-6 shrink-0 place-items-center rounded-lg bg-brand-50 text-[11px] font-extrabold text-brand-700">
@@ -541,7 +565,7 @@ export default function PinGenerator() {
                 Next step
               </p>
               <p className="mt-1.5 text-[14.5px] font-extrabold leading-snug text-white">
-                Turn this pin into a 500–800 word SEO article
+                Turn this pin into a 1,000–1,600 word SEO article
               </p>
               <p className="mt-1.5 text-[12px] leading-relaxed text-neutral-400">
                 Give your Pin a relevant, useful article to link to. Review and

@@ -169,7 +169,7 @@ Workflow-তে:
 ### সরাসরি Publish article — generate আবার করতে হবে না
 
 1. `https://pincraftly.vercel.app/publish` খুলুন, অথবা Connector-এর verified website-এর **Publish article** চাপুন। Website connect করলেই কোনো লেখা queue হয় না।
-2. নিজের আসল title ও সম্পূর্ণ article paste করুন এবং **Review this article** চাপুন। চাইলে **Saved Cloud Library** থেকে নিজের saved article খুলুন; Library-তেও **Review & publish** আছে। অন্য owner-এর draft URL দিয়ে খোলা যায় না।
+2. 1,000–1,600 শব্দের নিজের আসল title ও সম্পূর্ণ article paste করুন এবং **Review this article** চাপুন। চাইলে **Saved Cloud Library** থেকে নিজের saved article খুলুন; Library-তেও **Review & publish** আছে। অন্য owner-এর draft URL দিয়ে খোলা যায় না।
 3. একটিমাত্র connected/ready owned blog থাকলে সেটি আগে থেকে নির্বাচিত থাকবে। একাধিক blog হলে নিজে বেছে নিন। Reconnect-এর পরে stale verification হলে re-verify করতে হবে।
 4. নিচের review সম্পূর্ণ করুন। Publish disabled থাকলে checklist-এ ঠিক কোন field/checkbox/HTML/Pin copy/artwork বাকি আছে দেখাবে—কোনো নীরব submission ধরে নেওয়া হবে না। বাংলা hashtag-এর স্বরচিহ্ন বৈধ; `#বাংলা`, `#রেসিপি` সমর্থিত।
 5. সেভ হলে **Job ID** দেখাবে। সেটি নিয়ে Jobs-এ actual checkpoint/error দেখুন; connection সফল হওয়াকে article প্রকাশ বলা হবে না।
@@ -179,11 +179,11 @@ Workflow-তে:
 1. আগের মতো লেখা generate/open করুন, অথবা নিজের saved article reader খুলুন।
 2. **Publish to Blogger · optional Pin pack** খুলুন।
 3. connected Blogger account এবং verified blog বেছে নিন।
-4. HTML preview, article title এবং chosen blog review করুন। Pin pack ডিফল্টভাবে বন্ধ: text-only Blogger-এর জন্য কোনো Pin copy/artwork লাগে না। পরিবর্তন হলে আগের review সঙ্গে সঙ্গে অকার্যকর।
+4. HTML preview, article title এবং chosen blog review করুন; 2–5 relevant LIVE Blogger internal link বেছে নিন। Pin pack ডিফল্টভাবে বন্ধ—Pinterest Pin copy/artwork লাগে না। তবে AI Article Writer source হলে cover ও দুই section image সম্পূর্ণ saved থাকা বাধ্যতামূলক। পরিবর্তন হলে আগের review সঙ্গে সঙ্গে অকার্যকর।
 5. শুধু optional Pin pack চালু করলে artwork source:
    - **Downloaded to my device:** নিজের downloaded artwork review/save করুন। চাইলে PNG/JPEG/WebP ফাইল local preview করে **Download PNG for Pinterest** করুন। Conversion browser-এর canvas-এ হয়; কোনো image bytes server/Firestore-এ upload হয় না।
    - **Existing public image host:** নিজের existing HTTPS image URL দিন। নতুন hosting service চাপানো হয়নি।
-6. Optional Blogger featured image-এর জন্য নিজের hosted HTTPS URL দিতে পারেন। Local ফাইলকে এই কোড গোপনে Blogger-এ rehost করে না। Blank হলে article text-only হতে পারে।
+6. AI source-এর তিনটি saved image PinCraft private Firestore asset থেকে signed, unguessable Blogger URL-এ যাবে। AI image requirement না থাকলে নিজের hosted HTTPS featured-image URL optional; local file গোপনে rehost করা হয় না।
 7. audience timezone এবং blog time দিন। শুধু Pin pack থাকলে manual Pin target লাগবে, যা blog-এর আগে হতে পারে না। America/New_York-এর 10:00, 12:00, 14:00, 16:00, 20:00, 21:00 শুধু editable suggestions; delivery guarantee নয়। DST-তে না-থাকা বা দুবার-হওয়া local hour প্রত্যাখ্যাত হয়।
 8. নির্দিষ্ট কনটেন্টের review/authorization checkbox দিন; **Schedule Blogger post** বা **Publish blog now** বেছে নিন।
 

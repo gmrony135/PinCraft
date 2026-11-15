@@ -1,73 +1,43 @@
 "use client";
 
-import { useRef } from "react";
+import {useRef} from "react";
 import useDialog from "../useDialog";
 import Link from "next/link";
-import { BookOpen, Clock3, FileText, Info, X } from "lucide-react";
+import {BookOpen,Clock3,FileText,Image as ImageIcon,Info,ShieldCheck,X} from "lucide-react";
 import ContentCopyButton from "./ContentCopyButton";
 
-function RichText({ value }) {
-  return String(value || "").split(/(\*\*[^*]+\*\*)/g).map((part, index) => part.startsWith("**") && part.endsWith("**") ? <strong key={index} className="font-bold text-neutral-900">{part.slice(2, -2)}</strong> : part);
-}
-
-function PlainArticle({ text, title }) {
-  return text.split(/\n\s*\n/).filter(Boolean).map((block, index) => {
-    if (block.trim() === `# ${title}`) return null;
-    if (/^#{1,6}\s/.test(block)) return <h3 key={index} className="pt-3 text-[20px] font-extrabold leading-snug tracking-tight text-neutral-900">{block.replace(/^#{1,6}\s+/, "")}</h3>;
-    const lines = block.split("\n");
-    if (lines.every((line) => /^[-*]\s/.test(line))) return <ul key={index} className="list-disc space-y-2 pl-5">{lines.map((line, i) => <li key={i}><RichText value={line.replace(/^[-*]\s+/, "")} /></li>)}</ul>;
-    return <p key={index} className="whitespace-pre-line"><RichText value={block} /></p>;
-  });
-}
-
-export default function ArticleReader({ article, onClose }) {
-  const dialogRef = useRef(null);
-
-  useDialog(dialogRef);
-
-  return (
-    <dialog
-      ref={dialogRef}
-      aria-labelledby="library-reader-title"
-      onCancel={(event) => { event.preventDefault(); onClose(); }}
-      onClick={(event) => { if (event.target === event.currentTarget) onClose(); }}
-      className="m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-1.5rem)] max-w-3xl overflow-hidden rounded-2xl border border-neutral-200 bg-white p-0 text-neutral-800 shadow-2xl backdrop:bg-neutral-900/55 backdrop:backdrop-blur-sm sm:w-[calc(100%-3rem)]"
-    >
-      <div className="flex max-h-[calc(100dvh-2rem)] flex-col">
-        <div className="flex shrink-0 items-center justify-between gap-2 border-b border-neutral-100 bg-white px-4 py-3 sm:px-6">
-          <span className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.08em] text-neutral-600"><BookOpen aria-hidden="true" size={16} className="shrink-0 text-brand-600" /><span className="hidden sm:inline">Article reader</span><span className="sm:hidden">Reader</span></span>
-          <div className="flex items-center gap-1.5">
-            {article.plainText && <ContentCopyButton text={article.plainText} label="Copy article" ariaLabel="Copy full library article" compact />}
-            <button type="button" onClick={onClose} aria-label="Close article" autoFocus className="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-neutral-500 outline-none transition-colors hover:bg-neutral-100 focus-visible:ring-2 focus-visible:ring-brand-600"><X aria-hidden="true" size={20} /></button>
-          </div>
-        </div>
-
-        <div data-testid="article-reader-scroll" className="min-h-0 overflow-y-auto overscroll-contain px-5 pb-8 pt-6 sm:px-9 sm:pb-10 sm:pt-8">
-          <article className="[overflow-wrap:anywhere]">
-            <div className="flex flex-wrap items-center gap-2 text-[10.5px] font-semibold">
-              <span className="rounded-full bg-brand-50 px-2.5 py-1.5 text-brand-700">{article.category}</span>
-              <span className="inline-flex items-center gap-1 text-neutral-500"><Clock3 aria-hidden="true" size={12} /> {article.readMinutes} min read</span>
-              <span className="inline-flex items-center gap-1 text-neutral-500"><FileText aria-hidden="true" size={12} /> {article.wordCount.toLocaleString("en-US")} words</span>
-            </div>
-            <h2 id="library-reader-title" className="mt-4 text-[26px] font-extrabold leading-[1.18] tracking-[-0.035em] text-neutral-900 sm:text-[34px]">{article.title}</h2>
-            <p className="mb-6 mt-3 border-b border-neutral-100 pb-5 text-[11px] text-neutral-500">{article.storage === "cloud" ? "From your private Cloud Library · Stored in Firestore" : "From your saved library · Stored on this device"}</p>
-
-            {article.structured ? (
-              <>
-                {article.intro && <p className="text-[16px] leading-[1.85] text-neutral-700 sm:text-[17px]"><RichText value={article.intro} /></p>}
-                {article.sections.map((section, index) => <section key={index} className="mt-7"><h3 className="text-[20px] font-extrabold leading-snug tracking-tight text-neutral-900 sm:text-[21px]">{section.heading}</h3><div className="mt-3 space-y-3.5">{section.paragraphs.map((paragraph, i) => <p key={i} className="text-[15px] leading-[1.85] text-neutral-700 sm:text-[16px]"><RichText value={paragraph} /></p>)}</div></section>)}
-                {article.listSection?.items.length > 0 && <section className="mt-7 rounded-2xl border border-brand-100 bg-brand-50/40 p-4 sm:p-5"><h3 className="text-[19px] font-extrabold leading-snug tracking-tight text-neutral-900">{article.listSection.heading || "Ideas to save"}</h3>{article.listSection.intro && <p className="mt-2 text-[12px] font-medium leading-relaxed text-brand-800"><RichText value={article.listSection.intro} /></p>}<ul className="mt-4 list-disc space-y-2.5 pl-4 text-[15px] leading-relaxed text-neutral-700 marker:text-brand-600">{article.listSection.items.map((item, index) => <li key={index}><RichText value={item} /></li>)}</ul></section>}
-                {article.conclusion && <section className="mt-7"><h3 className="text-[20px] font-extrabold tracking-tight text-neutral-900">Final thoughts</h3><p className="mt-3 text-[15px] leading-[1.85] text-neutral-700 sm:text-[16px]"><RichText value={article.conclusion} /></p></section>}
-              </>
-            ) : article.plainText ? (
-              <div className="space-y-4 text-[15px] leading-[1.85] text-neutral-700 sm:text-[16px]"><PlainArticle text={article.plainText} title={article.title} /></div>
-            ) : (
-              <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4"><p className="flex items-start gap-2 text-[13px] leading-relaxed text-neutral-600"><Info aria-hidden="true" size={16} className="mt-0.5 shrink-0" />This saved item contains a title, but no article body. You can write the full post in Article Writer.</p><Link href={`/article-writer?title=${encodeURIComponent(article.title)}`} prefetch={false} className="mt-4 inline-flex min-h-11 items-center rounded-xl bg-brand-600 px-4 text-[12px] font-bold text-white">Write this article</Link></div>
-            )}
-            {(article.structured || article.plainText) && <div className="mt-7 rounded-xl border border-neutral-200 bg-neutral-50 p-4"><p className="text-[12px] leading-relaxed text-neutral-600">Publishing has one separate review step. Opening it does not authorize a post.</p><Link href={'/publish?' + (article.storage === 'cloud' ? 'draft=' : 'deviceDraft=') + encodeURIComponent(article.id)} prefetch={false} onClick={onClose} className="mt-3 inline-flex min-h-11 items-center rounded-xl bg-brand-600 px-4 text-[12px] font-bold text-white">Open publishing review</Link></div>}
-          </article>
-        </div>
-      </div>
-    </dialog>
-  );
+function RichText({value}){return String(value||"").split(/(\*\*[^*]+\*\*)/g).map((part,index)=>part.startsWith("**")&&part.endsWith("**")?<strong key={index} className="font-bold text-neutral-900">{part.slice(2,-2)}</strong>:part);}
+function PlainArticle({text,title}){return text.split(/\n\s*\n/).filter(Boolean).map((block,index)=>{if(block.trim()===`# ${title}`)return null;if(/^#{1,6}\s/.test(block))return <h3 key={index} className="pt-3 text-[20px] font-extrabold leading-snug tracking-tight text-neutral-900">{block.replace(/^#{1,6}\s+/,"")}</h3>;const lines=block.split("\n");if(lines.every(line=>/^[-*]\s/.test(line)))return <ul key={index} className="list-disc space-y-2 pl-5">{lines.map((line,i)=><li key={i}><RichText value={line.replace(/^[-*]\s+/,"")}/></li>)}</ul>;return <p key={index} className="whitespace-pre-line"><RichText value={block}/></p>;});}
+const assetURL=id=>typeof id==="string"&&/^[a-f0-9]{64}$/.test(id)?`/api/library/article-images/${id}`:"";
+function ArticleImage({image,label}){const src=assetURL(image?.assetId);if(!src)return null;return <figure className="mt-5 overflow-hidden rounded-2xl border border-neutral-100 bg-neutral-50"><img src={src} alt={image.altText||label} width={1200} height={630} loading="lazy" className="h-auto max-h-[440px] w-full object-cover"/><figcaption className="px-3 py-2 text-[10px] text-neutral-500">{label} · {image.altText||"AI-generated illustration"}</figcaption></figure>;}
+export default function ArticleReader({article,onClose}){
+ const dialogRef=useRef(null);useDialog(dialogRef);
+ const sections=Array.isArray(article.sections)?article.sections:[],images=article.storage==="cloud"&&Array.isArray(article.images)?article.images:[],cover=images.find(image=>image.role==="cover"),faqs=Array.isArray(article.faqs)?article.faqs:[],links=Array.isArray(article.relatedArticles)?article.relatedArticles:[];
+ return <dialog ref={dialogRef} aria-labelledby="library-reader-title" onCancel={event=>{event.preventDefault();onClose();}} onClick={event=>{if(event.target===event.currentTarget)onClose();}} className="m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-1.5rem)] max-w-3xl overflow-hidden rounded-2xl border border-neutral-200 bg-white p-0 text-neutral-800 shadow-2xl backdrop:bg-neutral-900/55 backdrop:backdrop-blur-sm sm:w-[calc(100%-3rem)]">
+  <div className="flex max-h-[calc(100dvh-2rem)] flex-col">
+   <div className="flex shrink-0 items-center justify-between gap-2 border-b border-neutral-100 bg-white px-4 py-3 sm:px-6"><span className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.08em] text-neutral-600"><BookOpen aria-hidden="true" size={16} className="shrink-0 text-brand-600"/><span className="hidden sm:inline">Article reader</span><span className="sm:hidden">Reader</span></span><div className="flex items-center gap-1.5">{article.plainText&&<ContentCopyButton text={article.plainText} label="Copy article" ariaLabel="Copy full library article" compact/>}<button type="button" onClick={onClose} aria-label="Close article" autoFocus className="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-neutral-500 outline-none transition-colors hover:bg-neutral-100 focus-visible:ring-2 focus-visible:ring-brand-600"><X aria-hidden="true" size={20}/></button></div></div>
+   <div data-testid="article-reader-scroll" className="min-h-0 overflow-y-auto overscroll-contain px-5 pb-8 pt-6 sm:px-9 sm:pb-10 sm:pt-8">
+    <article className="[overflow-wrap:anywhere]">
+     <div className="flex flex-wrap items-center gap-2 text-[10.5px] font-semibold"><span className="rounded-full bg-brand-50 px-2.5 py-1.5 text-brand-700">{article.category}</span><span className="inline-flex items-center gap-1 text-neutral-500"><Clock3 size={12} aria-hidden="true"/>{article.readMinutes} min read</span><span className="inline-flex items-center gap-1 text-neutral-500"><FileText size={12} aria-hidden="true"/>{article.wordCount.toLocaleString("en-US")} words</span>{article.generation?.kind==="ai"&&<span className="rounded-full bg-neutral-100 px-2 py-1 text-neutral-500">AI-generated draft</span>}</div>
+     <h2 id="library-reader-title" className="mt-4 text-[26px] font-extrabold leading-[1.18] tracking-[-0.035em] text-neutral-900 sm:text-[34px]">{article.title}</h2>
+     <p className="mb-6 mt-3 border-b border-neutral-100 pb-5 text-[11px] text-neutral-500">{article.storage==="cloud"?"From your private Cloud Library · Stored securely online":"From your saved library · Stored on this device"}</p>
+     {cover&&<ArticleImage image={cover} label="AI featured image"/>}
+     {article.generation?.kind==="ai"&&article.imageStatus!=="complete"&&<p role="status" className="mb-5 rounded-xl border border-amber-200 bg-amber-50 p-3 text-[11px] leading-relaxed text-amber-900">{article.imageError||"This draft does not yet contain all three AI illustrations. It cannot be sent to publishing review until the cover and two section images are saved."}</p>}
+     {article.structured?(
+      <>
+       {article.intro&&<p className="text-[15px] leading-[1.85] text-neutral-700 sm:text-[16px]"><RichText value={article.intro}/></p>}
+       {sections.length>0&&<nav aria-label="Article table of contents" className="mt-6 rounded-2xl border border-brand-100 bg-brand-50/40 p-4"><h3 className="flex items-center gap-2 text-[13px] font-extrabold"><BookOpen size={15} aria-hidden="true" className="text-brand-700"/>In this guide</h3><ol className="mt-3 grid gap-x-5 gap-y-2 text-[11px] font-semibold text-brand-800 sm:grid-cols-2">{sections.map((section,index)=><li key={`section-${index}`}><a href={`#library-section-${index+1}`} className="underline decoration-brand-200 underline-offset-4">{section.heading}</a></li>)}{article.listSection?.items?.length>0&&<li key="article-tips"><a href="#library-article-tips" className="underline decoration-brand-200 underline-offset-4">{article.listSection.heading||"Practical tips"}</a></li>}{faqs.length>0&&<li key="article-faq"><a href="#library-article-faq" className="underline decoration-brand-200 underline-offset-4">Frequently asked questions</a></li>}{article.conclusion&&<li key="article-conclusion"><a href="#library-article-conclusion" className="underline decoration-brand-200 underline-offset-4">Final thoughts</a></li>}</ol></nav>}
+       {sections.map((section,index)=>{const illustration=images.find(image=>image.role==="section"&&(image.sectionIndex===index||image.sectionHeading===section.heading));return <section id={`library-section-${index+1}`} key={`${index}-${section.heading}`} className="mt-7 scroll-mt-24"><h3 className="text-[20px] font-extrabold leading-snug tracking-tight text-neutral-900 sm:text-[21px]">{section.heading}</h3><div className="mt-3 space-y-3.5">{section.paragraphs.map((paragraph,i)=><p key={i} className="text-[15px] leading-[1.85] text-neutral-700 sm:text-[16px]"><RichText value={paragraph}/></p>)}</div>{(section.subsections||[]).map((subsection,i)=><div key={`${i}-${subsection.heading}`} className="mt-5"><h4 className="text-[17px] font-bold leading-snug text-neutral-900">{subsection.heading}</h4><div className="mt-2 space-y-3">{subsection.paragraphs.map((paragraph,j)=><p key={j} className="text-[15px] leading-[1.85] text-neutral-700 sm:text-[16px]"><RichText value={paragraph}/></p>)}</div></div>)}{illustration&&<ArticleImage image={illustration} label={`AI section image · ${section.heading}`}/>}</section>;})}
+       {article.listSection?.items?.length>0&&<section id="library-article-tips" className="mt-7 scroll-mt-24 rounded-2xl border border-brand-100 bg-brand-50/40 p-4 sm:p-5"><h3 className="text-[19px] font-extrabold leading-snug tracking-tight text-neutral-900">{article.listSection.heading||"Ideas to save"}</h3>{article.listSection.intro&&<p className="mt-2 text-[12px] font-medium leading-relaxed text-brand-800"><RichText value={article.listSection.intro}/></p>}<ul className="mt-4 list-disc space-y-2.5 pl-4 text-[15px] leading-relaxed text-neutral-700 marker:text-brand-600">{article.listSection.items.map((item,index)=><li key={index}><RichText value={item}/></li>)}</ul></section>}
+       {faqs.length>0&&<section id="library-article-faq" className="mt-7 scroll-mt-24"><h3 className="text-[20px] font-extrabold">Frequently asked questions</h3><div className="mt-3 divide-y divide-neutral-100 rounded-xl border border-neutral-200 px-4">{faqs.map((faq,index)=><details key={`${index}-${faq.question}`} className="py-4" open={index===0}><summary className="cursor-pointer text-[13px] font-bold text-neutral-800">{faq.question}</summary><p className="mt-3 text-[14px] leading-[1.8] text-neutral-600"><RichText value={faq.answer}/></p></details>)}</div></section>}
+       {article.conclusion&&<section id="library-article-conclusion" className="mt-7 scroll-mt-24"><h3 className="text-[20px] font-extrabold tracking-tight text-neutral-900">Final thoughts</h3><p className="mt-3 text-[15px] leading-[1.85] text-neutral-700 sm:text-[16px]"><RichText value={article.conclusion}/></p></section>}
+       {links.length>0&&<section className="mt-7 rounded-xl border border-neutral-200 p-4"><h3 className="text-[14px] font-extrabold">Related articles</h3><ul className="mt-3 space-y-2">{links.map((link,index)=><li key={`${index}-${link.url}`}><a href={link.url} target="_blank" rel="noopener noreferrer" className="text-[12px] font-semibold text-brand-700 underline decoration-brand-200 underline-offset-4">{link.title}</a></li>)}</ul></section>}
+      </>
+     ):article.plainText?(<div className="space-y-4 text-[15px] leading-[1.85] text-neutral-700 sm:text-[16px]"><PlainArticle text={article.plainText} title={article.title}/></div>):(<div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4"><p className="flex items-start gap-2 text-[13px] leading-relaxed text-neutral-600"><Info size={16} className="mt-0.5 shrink-0" aria-hidden="true"/>This saved item contains a title, but no article body. You can write the full post in Article Writer.</p><Link href={`/article-writer?title=${encodeURIComponent(article.title)}`} prefetch={false} className="mt-4 inline-flex min-h-11 items-center rounded-xl bg-brand-600 px-4 text-[12px] font-bold text-white">Write this article</Link></div>)}
+     {(article.focusKeyword||article.metaDescription||article.secondaryKeywords?.length>0)&&<section className="mt-7 rounded-xl border border-neutral-200 bg-neutral-50 p-4"><div className="flex items-center gap-2"><ShieldCheck size={16} className="text-brand-700" aria-hidden="true"/><h3 className="text-[13px] font-extrabold">SEO suggestions · not applied by Blogger API</h3></div><p className="mt-2 text-[10.5px] leading-relaxed text-neutral-500">Copy the description into Blogger’s post settings manually if you want it there. PinCraft does not claim that its API applied the search description.</p>{article.focusKeyword&&<p className="mt-3 text-[11px]"><strong>Focus keyword:</strong> {article.focusKeyword}</p>}{article.slug&&<p className="mt-2 break-all text-[11px]"><strong>Suggested slug:</strong> <span className="font-mono">{article.slug}</span> · not applied automatically</p>}{article.metaDescription&&<div className="mt-3 rounded-lg border border-neutral-200 bg-white p-3"><p className="text-[10px] font-bold text-neutral-500">Meta description · {article.metaDescription.length}/160</p><p className="mt-1 text-[12px] leading-relaxed text-neutral-700">{article.metaDescription}</p><ContentCopyButton text={article.metaDescription} label="Copy SEO description"/></div>}{article.secondaryKeywords?.length>0&&<p className="mt-3 break-words text-[10.5px]"><strong>Secondary keywords:</strong> {article.secondaryKeywords.join(" · ")}</p>}</section>}
+     {(article.structured||article.plainText)&&<div className="mt-7 rounded-xl border border-neutral-200 bg-neutral-50 p-4"><p className="text-[12px] leading-relaxed text-neutral-600">Publishing requires two to five relevant links from live posts on your verified Blogger blog. No job is created by opening the review.</p><Link href={'/publish?'+(article.storage==="cloud"?'draft=':'deviceDraft=')+encodeURIComponent(article.id)} prefetch={false} onClick={onClose} className="mt-3 inline-flex min-h-11 items-center rounded-xl bg-brand-600 px-4 text-[12px] font-bold text-white">Open publishing review</Link></div>}
+    </article>
+   </div>
+  </div>
+ </dialog>;
 }

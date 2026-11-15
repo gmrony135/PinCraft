@@ -5,12 +5,18 @@ import { addWebsite } from '@/lib/automation/channels.mjs';
 import { listOAuthResources } from '@/lib/automation/oauth-resources.mjs';
 import { createPublishingJob,publishingStatus,listPublishingJobs,processPublishingJob,retryPublishingJob,reviewPublishingJob,inspectPublishingJob,recoverPublishingArticle,markManualPin } from '@/lib/publishing/repository.mjs';
 import { blogAutomationStatus,saveBlogAutomation,pauseBlogAutomation } from '@/lib/publishing/automations.mjs';
+import {listLiveBloggerPosts,selectRelevantBloggerPosts} from '@/lib/publishing/related-posts.mjs';
 export const runtime='nodejs';export const dynamic='force-dynamic';export const maxDuration=90;
 export async function GET(request,{params}){
  try{const user=await sessionUser(request),{path}=await params,key=path.join('/'),db=getDatabase();
   if(key==='status')return json(await publishingStatus(db,user.id));
   if(key==='jobs')return json(await listPublishingJobs(db,user.id));
   if(key==='automation')return json(await blogAutomationStatus(db,user.id));
+  if(key==='related'){
+   const q=new URL(request.url).searchParams,connectionId=q.get('connectionId')||'',websiteId=q.get('websiteId')||'',title=q.get('title')||'',focusKeyword=q.get('focusKeyword')||'',keywords=(q.get('keywords')||'').split(',').map(value=>value.trim()).filter(Boolean).slice(0,10);
+   if(title.length<3||title.length>200||focusKeyword.length>100||keywords.some(value=>value.length>100))throw new AutomationError('invalid_request','Enter a valid article title and keywords to find relevant internal links.');
+   const posts=await listLiveBloggerPosts(db,user.id,connectionId,websiteId);return json({items:selectRelevantBloggerPosts(posts,{title,focusKeyword,secondaryKeywords:keywords}),verifiedSource:'selected Blogger blog · live posts only'});
+  }
   if(path.length===3&&path[0]==='jobs'&&path[2]==='article')return json(await recoverPublishingArticle(db,user.id,path[1]));
   if(key==='connections/blogger/resources'){const q=new URL(request.url).searchParams;return json(await listOAuthResources(db,user.id,'blogger',q.get('cursor'),undefined,q.get('connectionId')||'blogger'));}
   throw new AutomationError('not_found','Publishing endpoint not found. Pinterest is manually uploaded/scheduled in your own account.',{status:404});

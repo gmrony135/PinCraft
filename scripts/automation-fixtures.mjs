@@ -6,13 +6,14 @@ import { emptyConnection,saveOAuthGrant } from '../lib/automation/oauth-store.mj
 import { ensureSettings,saveAI,saveDestinations,setMode,updatePreferences } from '../lib/automation/repository.mjs';
 import { DEFAULT_TOPICS } from '../lib/automation/shared.mjs';
 import { validateContent } from '../lib/automation/content.mjs';
+import {rawArticle} from './article-fixtures.mjs';
 import { accountRef,connectionRef,data,recalculateDue } from '../lib/automation/firestore.mjs';
 import { firebaseEmulatorsAllowed,firebaseProjectId } from '../lib/firebase/admin.mjs';
 export const BOARD='12345678901',BLOG='123456789012';
 export const ai={aiProvider:'openai',aiKey:'isolated-ai-api-key',model:'gpt-4.1-mini'};
 export const paragraph='A thoughtful routine begins with a small decision that you can repeat with care. Set aside a quiet moment, notice what matters to you, and write one practical intention for the day. You do not need to solve everything at once. Focus instead on a useful action that fits your situation. Give yourself room to learn, adjust your expectations, and build a steady habit through patient practice. Reflection can help you recognize patterns without judging yourself harshly or comparing your progress with somebody else’s experience. Choose an approach that feels honest, simple, and sustainable. Your next step can be modest while still making your daily life more intentional and grounded.';
-export const raw={title:'Small Habits for a More Intentional Day',description:'Build a thoughtful daily routine with practical, gentle steps.',hashtags:['#DailyHabits','#MindfulLiving','#Motivation','#PersonalGrowth','#SimpleLiving','#Reflection'],intro:paragraph,sections:[{heading:'Choose your focus',paragraphs:[paragraph,paragraph]},{heading:'Make room to reflect',paragraphs:[paragraph]},{heading:'Keep the next step small',paragraphs:[paragraph]}],conclusion:paragraph};
-export const content=validateContent(raw,'Motivation');
+export const raw={...rawArticle};
+export const content=validateContent(raw,'Gardening');
 export const fixturePinterestId=user=>(BigInt('0x'+createHash('sha256').update(user).digest('hex').slice(0,16))+100000n).toString();
 export const grant=(provider,user='test')=>({accessToken:`isolated-${provider}-access-${user}`,refreshToken:`isolated-${provider}-refresh-${user}`,expiresAt:new Date(Date.now()+86400000),refreshExpiresAt:provider==='pinterest'?new Date(Date.now()+60*86400000):null,scopes:provider==='pinterest'?PINTEREST_SCOPES:[BLOGGER_SCOPE],identity:{id:fixturePinterestId(user),username:user,name:'Isolated test account'}});
 export function isolatedFirebase(){if(!firebaseEmulatorsAllowed()||firebaseProjectId()!=='demo-pincraft-local'||process.env.VERCEL_ENV==='production')throw new Error('Only the explicit demo Firebase emulators may run these fixtures.');}

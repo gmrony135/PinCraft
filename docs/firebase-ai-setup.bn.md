@@ -95,14 +95,15 @@ Model listing-এ দেখা গেলেও পুরোনো Gemini 2.5 Fla
 ## AI সুবিধা ও সীমা
 
 - Pin: পাঁচ title, description, hashtags, keyword suggestions ও image prompt।
-- Article: সম্পূর্ণ 500–850 word draft, headings/list/keywords ও একটি ব্যাখ্যাসহ editorial SEO checklist।
+- AI Article: 1,000–1,600 visible-word draft, SEO title-এর ৫০–৬০ অক্ষর লক্ষ্য, ১০০–১৫০ শব্দের ভূমিকা, linked contents list, চারটি substantive H2/H3 section, practical tips/common mistakes, 3–5 FAQ এবং topic-specific gentle CTA-সহ উপসংহার। এক focus keyword, 5–10 secondary keyword, 140–160 character meta-description ও short slug manual suggestions; Blogger API meta-description সেট করেছে এমন দাবি নয়।
+- প্রতিটি AI article image brief-এ accurate ALT description থাকে; একটি cover ও দুই distinct section image বাস্তবে AI দিয়ে তৈরি, 1200×630 WebP normalize এবং private Firestore-এ save হওয়া আবশ্যক। পাশাপাশি 2–5 relevant live internal Blogger link যাচাই হয়। AI কোনো external source/citation/URL বানিয়ে যোগ করে না; external source-এর exact URL owner যাচাই করলেই কেবল অন্তর্ভুক্ত হয়।
 - Studio: grouped keywords/hashtags, সাত দিনের content plan, editorial quality review এবং Pin/featured artwork।
 - Text: সর্বোচ্চ তিন provider/model attempt; Gemini → Groq → alternate Groq model।
 - Image: FLUX.1 schnell → FLUX.2 klein 4B; সর্বোচ্চ দুই attempt। REST FLUX.2-এ multipart ব্যবহার হয়।
 - Safety refusal অন্য provider/model দিয়ে bypass করা হয় না।
 - Cloudflare-wide outage/account quota exhaustion হলে model fallback-ও ব্যর্থ হতে পারে। “কখনো বন্ধ হবে না” এমন নিশ্চয়তা নেই।
 - কোনো API key, provider error body বা private key browser-এ ফেরত দেওয়া হয় না।
-- Image result সত্যিকারের WebP: Pin `1000×1500`, featured `1200×630`। **Download করতে হবে**; image bytes cloud Library/Firestore-এ সংরক্ষণ বা public hosting করা হয় না। Pin lettering চাইলে design editor-এ যোগ করুন।
+- Image result সত্যিকারের WebP: Pinterest Pin `1000×1500`, article illustration `1200×630`। Pin/standalone artwork download-only; AI article-এর তিনটি asset private Firestore-এ রাখা হয় এবং Blogger-কে শুধু signed, unguessable URL দিয়ে দেখানো হয়। Pin lettering চাইলে design editor-এ যোগ করুন।
 - Keywords measured search-volume data নয়; quality score factual/plagiarism verification বা ranking guarantee নয়। Content plan নিজে থেকে schedule বা publish করে না।
 
 ### ব্যবহারের খরচ নিয়ন্ত্রণ

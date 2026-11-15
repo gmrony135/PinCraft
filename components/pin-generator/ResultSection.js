@@ -9,10 +9,12 @@ export default function ResultSection({
   meta,
   icon: Icon,
   defaultOpen = false,
+  keepMounted = false,
   children,
   accent = "brand",
 }) {
   const [open, setOpen] = useState(defaultOpen);
+  const [hasBeenOpened, setHasBeenOpened] = useState(defaultOpen);
 
   const iconWrap =
     accent === "dark"
@@ -25,7 +27,11 @@ export default function ResultSection({
     <section className="overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-sm">
       <button
         type="button"
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => {
+          const next = !open;
+          setOpen(next);
+          if (next) setHasBeenOpened(true);
+        }}
         aria-expanded={open}
         className="flex w-full items-center gap-3 px-4 py-4 text-left transition-colors hover:bg-neutral-50/70"
       >
@@ -55,8 +61,8 @@ export default function ResultSection({
         />
       </button>
 
-      {open && (
-        <div className="animate-fade-in border-t border-neutral-100 p-3.5 sm:p-4">
+      {(open || (keepMounted && hasBeenOpened)) && (
+        <div hidden={!open} className="animate-fade-in border-t border-neutral-100 p-3.5 sm:p-4">
           {children}
         </div>
       )}

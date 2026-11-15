@@ -8,10 +8,15 @@ import { connectionRef } from '../lib/automation/firestore.mjs';
 import { addWebsite } from '../lib/automation/channels.mjs';
 import { BLOGGER_SCOPE } from '../lib/automation/oauth-config.mjs';
 import { AutomationError } from '../lib/automation/errors.mjs';
+import {textTask} from '../lib/ai/tasks.mjs';
+import {articleToHTML} from '../lib/publishing/review-content.mjs';
+import {rawArticle} from './article-fixtures.mjs';
 import { isolatedFirebase, firebaseIdentity, grant, BLOG } from './automation-fixtures.mjs';
 export { BLOG, grant, isolatedFirebase, firebaseIdentity };
 export const POST = '12345678901234';
-export const reviewedRequest = (extra = {}) => ({ requestId: randomUUID(), article: { title: 'A small garden with real everyday detail', html: '<h2>Start with one plant</h2><p>A small, carefully chosen garden can be a useful place to slow down. Review sunlight, drainage and space before choosing your next plant.</p>', featuredImageUrl: '' }, pin: { title: 'Make room for a small garden', description: 'Save this thoughtful guide for your next small garden project.', hashtags: ['#SmallGarden', '#HomeIdeas'], imageSource: 'local_download', imageUrl: '', altText: 'A bright small balcony with a few green plants' }, bloggerConnectionId: 'blogger', websiteId: 'blogger_' + BLOG, blogPublishAtUTC: 'now', pinReadyAtUTC: 'now', timezone: 'America/New_York', reviewed: true, ...extra });
+const reviewedArticle=textTask({task:'article',title:rawArticle.title,topic:'balcony garden',language:'en'}).validate(rawArticle);
+const reviewedHTML=articleToHTML({...reviewedArticle,relatedArticles:[]});
+export const reviewedRequest = (extra = {}) => ({ requestId: randomUUID(), article: { title: rawArticle.title, html: reviewedHTML, featuredImageUrl: '', wordCount: reviewedArticle.wordCount, focusKeyword: rawArticle.focusKeyword, secondaryKeywords: rawArticle.secondaryKeywords, metaDescription: rawArticle.metaDescription, slug: rawArticle.slug, relatedArticles: [{id:'223456789012301',title:'Balcony Container Garden Layout Ideas',url:'https://example.com/blog/balcony-container-layout'},{id:'223456789012302',title:'Small Balcony Container Planting Guide',url:'https://example.com/blog/small-balcony-planting'}] }, pin: { title: 'Make room for a small garden', description: 'Save this thoughtful guide for your next small garden project.', hashtags: ['#SmallGarden', '#HomeIdeas'], imageSource: 'local_download', imageUrl: '', altText: 'A bright small balcony with a few green plants' }, bloggerConnectionId: 'blogger', websiteId: 'blogger_' + BLOG, blogPublishAtUTC: 'now', pinReadyAtUTC: 'now', timezone: 'America/New_York', reviewed: true, ...extra });
 export function bloggerDouble(options = {}) {
   const calls = { refresh: 0, verify: 0, draft: 0, publish: 0, get: 0, list: 0, public: 0 }, posts = new Map(), requests = [];
   let at = Date.now();
@@ -34,7 +39,7 @@ export function bloggerDouble(options = {}) {
 export async function reviewedFixture(options = {}) {
   isolatedFirebase();
   const db = getDatabase(), identity = await firebaseIdentity('reviewed-' + randomUUID()), uid = identity.id;
-  const transport = bloggerDouble(options);
+  const transport = bloggerDouble(options), linkTransport = bloggerDouble();
   await ensureSettings(db, uid);
   await connectionRef(db, uid, 'blogger').create(emptyConnection(uid, 'blogger'));
   await saveOAuthGrant(db, uid, 'blogger', grant('blogger', uid), 1);
@@ -42,6 +47,12 @@ export async function reviewedFixture(options = {}) {
   // Ignore setup calls when asserting actual reviewed publishing behavior.
   for (const key of Object.keys(transport.calls)) transport.calls[key] = 0;
   transport.requests.length = 0;
-  let now = Date.now(); transport.setTime(now);
-  return { db, uid, identity, ...transport, now: () => now, advance: amount => { now += amount; transport.setTime(now); }, request: reviewedRequest };
+  let now = Date.now(); transport.setTime(now); linkTransport.setTime(now);
+  const livePosts=[
+    {id:'223456789012301',title:'Balcony Container Garden Layout Ideas',url:'https://example.com/blog/balcony-container-layout',status:'LIVE',published:new Date(now-5*86400000).toISOString(),labels:['balcony','container garden']},
+    {id:'223456789012302',title:'Small Balcony Container Planting Guide',url:'https://example.com/blog/small-balcony-planting',status:'LIVE',published:new Date(now-3*86400000).toISOString(),labels:['small balcony','container planting']},
+    {id:'223456789012303',title:'Balcony Garden Care Notes',url:'https://example.com/blog/balcony-garden-care',status:'LIVE',published:new Date(now-86400000).toISOString(),labels:['balcony','garden care']}
+  ];
+  for(const post of livePosts)linkTransport.posts.set(post.id,post);
+  return { db, uid, identity, ...transport, linkSend:linkTransport.send, now: () => now, advance: amount => { now += amount; transport.setTime(now); linkTransport.setTime(now); }, request: reviewedRequest };
 }

@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import {readFile,readdir} from 'node:fs/promises';
-import {PRODUCT_NAV,WORKSPACE_NAV} from '../lib/product.mjs';
+import {CATEGORIES,PRODUCT_NAV,WORKSPACE_NAV} from '../lib/product.mjs';
 import {STUDIO_TOOLS,WRITING_TOOLS,studioTool} from '../lib/studio-tools.mjs';
 const source=path=>readFile(new URL('../'+path,import.meta.url),'utf8');
 async function javascript(dir){const rows=await readdir(new URL('../'+dir,import.meta.url),{withFileTypes:true});return (await Promise.all(rows.map(row=>row.isDirectory()?javascript(dir+'/'+row.name):row.name.endsWith('.js')?[dir+'/'+row.name]:[]))).flat();}
@@ -38,10 +38,15 @@ test('Each auxiliary route validates its slug and has a canonical metadata desti
 test('A tool page has one fixed task, not another duplicated tool selector',async()=>{
  const ui=await source('components/ai/AIStudio.js');assert.match(ui,/const task=tool.id/);assert(!/setTask|role="tablist"|aria-label="AI tool"/.test(ui));assert.match(ui,/href="\/content-studio"/);
 });
-test('Artwork generation is rendered in only its canonical Studio tool',async()=>{
+test('Pin Generator suggestions always use the ten canonical product categories',async()=>{
+ const ui=await source('components/pin-generator/PinGenerator.js');assert.equal(CATEGORIES.length,10);assert.match(ui,/CATEGORIES\.map\(\(category\)/);assert.match(ui,/data-testid="pin-category-suggestion"/);assert.match(ui,/setTopic\(category\.label\)/);assert(!ui.includes('const EXAMPLES'));
+});
+test('The shared artwork generator is available in Studio and inline in the Pin flow',async()=>{
  const files=await javascript('components'),renderers=[];for(const file of files)if((await source(file)).includes('<ImageGenerator'))renderers.push(file);
- assert.deepEqual(renderers,['components/ai/AIStudio.js']);
- for(const file of ['components/article-writer/ArticleWriter.js','components/pin-generator/PinGenerator.js']){const ui=await source(file);assert.match(ui,/href="\/content-studio\/artwork/);assert.match(ui,/target="_blank" rel="noopener noreferrer"/);}
+ assert.deepEqual(renderers,['components/ai/AIStudio.js','components/pin-generator/PinGenerator.js']);
+ const pin=await source('components/pin-generator/PinGenerator.js'),writer=await source('components/article-writer/ArticleWriter.js'),section=await source('components/pin-generator/ResultSection.js');
+ assert(pin.includes('<ImageGenerator')&&pin.includes('initialPrompt={pack.imageIdea.prompt}')&&pin.includes('useCase="pin"'));assert(pin.includes('keepMounted'));assert(section.includes('keepMounted && hasBeenOpened'));assert(pin.includes('A verified account is required for AI artwork'));assert(pin.includes('onClick={openLogin}'));assert(!pin.includes('href="/content-studio/artwork'));
+ assert(writer.includes('async function generateArticleImages'));assert(writer.includes('Generate three AI images'));assert(!writer.includes('<ImageGenerator'));
 });
 test('Reviewed Blogger publishing has one canonical form, not forms inside writing or reader tools',async()=>{
  const files=await javascript('components'),renderers=[];for(const file of files)if((await source(file)).includes('<PublishComposer'))renderers.push(file);
@@ -49,7 +54,7 @@ test('Reviewed Blogger publishing has one canonical form, not forms inside writi
  const writer=await source('components/article-writer/ArticleWriter.js');assert.match(writer,/await saveCloudDraft\("article", article, saveRequest.current\)/);assert.match(writer,/router.push\('\/publish\?draft='/);assert(!writer.includes('/api/publish/jobs'));
 });
 test('Cloud and device Library readers enter that same review without issuing publishing commands',async()=>{
- const reader=await source('components/library/ArticleReader.js'),center=await source('components/publishing/PublishingCenter.js');assert.match(reader,/draft=' : 'deviceDraft='/);assert(!reader.includes('publishRequest'));
+ const reader=await source('components/library/ArticleReader.js'),center=await source('components/publishing/PublishingCenter.js');assert(reader.includes("article.storage===\"cloud\"?'draft=':'deviceDraft='"));assert(!reader.includes('publishRequest'));
  assert.match(center,/partitionLibrary\(getLibrary\(\)\).articles.find\(row=>row.id===requestedDevice\)/);assert.match(center,/setPrepared\(\{owner:user.id,article:saved,source:'device'\}\)/);
 });
 test('Connector embeds the recurring editor only once and never nests WorkspaceFrame',async()=>{

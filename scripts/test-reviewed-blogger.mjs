@@ -33,7 +33,7 @@ if (process.env.PINCRAFT_PUBLISHING_MODE === 'legacy_api') throw new Error('The 
 const db = getDatabase(), evidence = [];
 const row = async id => data(await db.collection('publish_jobs').doc(id).get());
 const run = (f, id, extra = {}) => processPublishingJob(db, id, { uid: f.uid, send: f.send, now: f.now, ...extra });
-async function create(f, extra = {}) { return (await createPublishingJob(db, f.uid, reviewedRequest(extra), { now: f.now() })).job; }
+async function create(f, extra = {}) { return (await createPublishingJob(db, f.uid, reviewedRequest(extra), { now: f.now(), send: f.linkSend })).job; }
 async function complete(f, id) { let result; for (let i = 0; i < 3; i++) result = await run(f, id); return result.job; }
 // Explicit, local-only Firestore fault injection. No production switch, API
 // parameter or runtime repository hook can select this test proxy.
@@ -75,6 +75,10 @@ check('Google aliases and the existing vault key are strict, without rotating ke
 check('Strict reviewed inputs reject provider credentials, old Pinterest API fields and unreviewed content', () => {
   for (const patch of [{ reviewed: false }, { pinterestConnectionId: 'pinterest' }, { boardId: '123' }, { pinPublishAtUTC: 'now' }, { sessionCookie: 'not-collected' }, { bloggerConnectionId: 'pinterest' }, { article: [] }]) assert.throws(() => reviewedInput(reviewedRequest(patch)));
   const good = reviewedInput(reviewedRequest()); assert.equal(good.pin.imageSource, 'local_download'); assert.equal(good.pin.imageUrl, null);
+  const short = reviewedRequest(); short.article.html = '<p>' + Array(20).fill('short').join(' ') + '</p>';
+  assert.throws(() => reviewedInput(short), rejectCode('invalid_article_length'));
+  const staleCount = reviewedRequest(); staleCount.article.wordCount--;
+  assert.throws(() => reviewedInput(staleCount), rejectCode('invalid_article_length'));
 });
 check('HTML is restricted to balanced article tags, with no script, event attributes, comments or image bytes', () => {
   const safe = '<p>This is a sufficiently long and safe plain text article paragraph.</p>';
@@ -112,18 +116,18 @@ check('Status exposes disconnected/stale site readiness without returning provid
   assert(!JSON.stringify(status).includes('encrypted_tokens')); assert(!JSON.stringify(status).includes('refreshToken'));
 });
 check('Creation is owner-scoped, idempotent and does not call any publishing provider', async () => {
-  const f = await reviewedFixture(), raw = reviewedRequest(); const first = await createPublishingJob(db, f.uid, raw), again = await createPublishingJob(db, f.uid, raw);
+  const f = await reviewedFixture(), raw = reviewedRequest(); const first = await createPublishingJob(db, f.uid, raw,{now:f.now(),send:f.linkSend}), again = await createPublishingJob(db, f.uid, raw,{now:f.now(),send:f.linkSend});
   assert.equal(first.job.id, again.job.id); assert(again.replayed); assert.equal(f.calls.draft, 0); assert.equal(f.calls.publish, 0); assert.equal(first.job.status, 'queued');
   await assert.rejects(createPublishingJob(db, f.uid, { ...raw, article: { ...raw.article, title: 'Different reviewed title' } }), rejectCode('request_changed'));
   const other = await firebaseIdentity('other-' + randomUUID()); await assert.rejects(createPublishingJob(db, other.id, raw), rejectCode('not_found'));
   assert.equal((await listPublishingJobs(db, other.id)).jobs.length, 0); await assert.rejects(processPublishingJob(db, first.job.id, { uid: other.id }), rejectCode('not_found'));
 });
 check('Concurrent identical creation persists exactly one parent and one immutable manual-task ID', async () => {
-  const f = await reviewedFixture(), raw = reviewedRequest(), results = await Promise.all([createPublishingJob(db, f.uid, raw), createPublishingJob(db, f.uid, raw)]);
+  const f = await reviewedFixture(), raw = reviewedRequest(), results = await Promise.all([createPublishingJob(db, f.uid, raw,{now:f.now(),send:f.linkSend}), createPublishingJob(db, f.uid, raw,{now:f.now(),send:f.linkSend})]);
   assert.equal(results[0].job.manualTaskId, results[1].job.manualTaskId); assert.equal((await listPublishingJobs(db, f.uid)).jobs.length, 1);
 });
 check('An accepted request can be replayed after time passes and after disconnection without creating a new job', async () => {
-  const f = await reviewedFixture(), raw = reviewedRequest(), first = await createPublishingJob(db, f.uid, raw); await removeOAuthLocally(db, f.uid, 'blogger');
+  const f = await reviewedFixture(), raw = reviewedRequest(), first = await createPublishingJob(db, f.uid, raw,{now:f.now(),send:f.linkSend}); await removeOAuthLocally(db, f.uid, 'blogger');
   const replay = await createPublishingJob(db, f.uid, raw, { now: f.now() + 2 * 86400000 }); assert.equal(replay.job.id, first.job.id); assert(replay.replayed);
 });
 check('Draft -> publish -> public verification uses one saved post and only then releases the manual pack', async () => {
@@ -349,14 +353,14 @@ check('Blogger-only input omits the entire Pin contract but never bypasses final
 });
 check('A Blogger-only job verifies live without allocating or creating a manual Pin child',async()=>{
  const f=await reviewedFixture(),raw=reviewedRequest();delete raw.pin;delete raw.pinReadyAtUTC;
- const job=(await createPublishingJob(db,f.uid,raw,{now:f.now()})).job;assert.equal(job.manualTaskId,null);assert.equal(job.hasManualPin,false);
+ const job=(await createPublishingJob(db,f.uid,raw,{now:f.now(),send:f.linkSend})).job;assert.equal(job.manualTaskId,null);assert.equal(job.hasManualPin,false);
  const result=await complete(f,job.id);assert.equal(result.status,'completed');assert.equal(result.verification,'blogger_live_verified');
  assert.equal((await listPublishingJobs(db,f.uid)).jobs.length,1);assert.equal(f.calls.draft,1);assert.equal(f.calls.publish,1);
  assert.equal((await createPublishingJob(db,f.uid,raw)).job.id,job.id);assert.equal((await listPublishingJobs(db,f.uid)).jobs.length,1);
 });
 check('A future Blogger-only publishDate is accepted with no Pin artwork, copy or target',async()=>{
  const f=await reviewedFixture(),raw=reviewedRequest({blogPublishAtUTC:new Date(f.now()+3600000).toISOString()});delete raw.pin;delete raw.pinReadyAtUTC;
- const job=(await createPublishingJob(db,f.uid,raw,{now:f.now()})).job;await run(f,job.id);const scheduled=await run(f,job.id);assert.equal(scheduled.job.status,'scheduled');assert.equal(scheduled.job.resultURL,null);
+ const job=(await createPublishingJob(db,f.uid,raw,{now:f.now(),send:f.linkSend})).job;await run(f,job.id);const scheduled=await run(f,job.id);assert.equal(scheduled.job.status,'scheduled');assert.equal(scheduled.job.resultURL,null);
  f.advance(3600001);const live=await run(f,job.id);assert.equal(live.job.status,'completed');assert.equal((await listPublishingJobs(db,f.uid)).jobs.length,1);
 });
 
@@ -468,7 +472,7 @@ check('Recovery returns only the stopped owner’s exact saved article and never
  const f=await inspectionFixture(),before=await row(f.job.id),count=(await db.collection('publish_jobs').get()).size;await assert.rejects(recoverPublishingArticle(db,f.uid,f.job.id),rejectCode('stop_before_recovery'));await assert.rejects(recoverPublishingArticle(db,'isolated-other-owner',f.job.id),rejectCode('not_found'));await reviewPublishingJob(db,f.uid,f.job.id,{action:'abandon',inspected:true},{now:f.now()});const result=await recoverPublishingArticle(db,f.uid,f.job.id);assert.equal(result.accountId,f.uid);assert.equal(result.sourceStatus,'cancelled');assert.equal(result.article.title,before.payload.article.title);assert.equal(result.article.reviewedHTML,before.payload.article.html);assert.equal(result.websiteId,before.payload.websiteId);assert(!('reviewedAt' in result));assert(!('reviewed' in result.article));assert(!('publishAtUTC' in result));assert.equal((await db.collection('publish_jobs').get()).size,count);const after=await row(f.job.id);assert.equal(after.remoteId,before.remoteId);assert.equal(after.attempts,before.attempts);assert.equal(f.calls.draft,1);assert.equal(f.calls.publish,0);assert.equal((await listPublishingJobs(db,f.uid)).jobs[0].canRecoverArticle,true);
 });
 check('A new request ID cannot bypass an unresolved exact article, but replay and genuinely different reviewed articles remain valid',async()=>{
- const f=await reviewedFixture({draft:()=>{throw new AutomationError('publication_uncertain','Explicit local uncertain insert',{uncertain:true});}}),raw=reviewedRequest(),first=await createPublishingJob(db,f.uid,raw,{now:f.now()});await run(f,first.job.id);assert.equal((await createPublishingJob(db,f.uid,raw,{now:f.now()})).replayed,true);await assert.rejects(createPublishingJob(db,f.uid,{...raw,requestId:randomUUID()},{now:f.now()}),rejectCode('unresolved_article'));const other=await createPublishingJob(db,f.uid,{...raw,requestId:randomUUID(),article:{...raw.article,title:'A genuinely different owner-reviewed article'}},{now:f.now()});assert.equal(other.job.status,'queued');assert.equal(f.calls.draft,1);assert.equal((await row(first.job.id)).attempts,1);
+ const f=await reviewedFixture({draft:()=>{throw new AutomationError('publication_uncertain','Explicit local uncertain insert',{uncertain:true});}}),raw=reviewedRequest(),first=await createPublishingJob(db,f.uid,raw,{now:f.now(),send:f.linkSend});await run(f,first.job.id);assert.equal((await createPublishingJob(db,f.uid,raw,{now:f.now(),send:f.linkSend})).replayed,true);await assert.rejects(createPublishingJob(db,f.uid,{...raw,requestId:randomUUID()},{now:f.now(),send:f.linkSend}),rejectCode('unresolved_article'));const other=await createPublishingJob(db,f.uid,{...raw,requestId:randomUUID(),article:{...raw.article,title:'A genuinely different owner-reviewed article'}},{now:f.now(),send:f.linkSend});assert.equal(other.job.status,'queued');assert.equal(f.calls.draft,1);assert.equal((await row(first.job.id)).attempts,1);
 });
 check('Old first-page-only missing diagnostics cannot be projected as complete paginated absence',()=>{
  const result=publicInspection({outcome:'missing',adminConfirmed:true,primaryHTTP:404,scanPosts:25,scanLimited:true});assert.equal(result.outcome,'limited');assert.equal(result.scanComplete,false);assert(!result.message.includes('All returned pages'));assert.match(result.message,/some posts remain unchecked/);
