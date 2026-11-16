@@ -32,7 +32,7 @@ Open **`/publish`**, paste the complete article or select an owned Cloud Library
 
 Open **`/connector` → Blogger → Recurring Blogger posts** and expand **Set up recurring posts** (or **Edit recurring posts**). Select your verified blog, 1–3 categories, optional narrowing topic, English/Bengali, trend region, IANA timezone, daily ceiling **1–6**, and each editable time. New schedules start at one daily slot; selecting six suggests **08:00, 10:30, 13:00, 15:30, 18:00, 20:30** in the chosen timezone. They are suggestions, not measured or universal “perfect” times.
 
-Saving paused settings or connecting Blogger starts nothing. A separate unchecked authorization explains that future AI articles can publish **without individual owner review**, using the existing AI quota. Saving new active settings requires fresh recurring consent. Pause stops new generation/unsent Blogger mutations; already in-flight calls may finish, and schedules already registered in Blogger must be managed there.
+Saving paused settings or connecting Blogger starts nothing. A separate unchecked authorization explains that future AI articles can publish **without individual owner review**, subject to shared website-wide AI caps, cooldowns, and provider quotas; there is no per-account daily AI cap. Saving new active settings requires fresh recurring consent. Pause stops new generation/unsent Blogger mutations; already in-flight calls may finish, and schedules already registered in Blogger must be managed there.
 
 ## Evidence and quality, without fake trends or filler
 

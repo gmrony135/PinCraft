@@ -26,12 +26,12 @@ async function run() {
   ok("Page title heading", await page.getByRole("heading", { name: "Pin Generator", exact: true }).isVisible());
   ok("Sub-text explains categories and Pin artwork", await page.getByText(/custom Pin artwork option/i).isVisible());
   ok("Topic input with placeholder", (await page.getByPlaceholder("e.g. Balcony garden ideas").count()) === 1);
-  ok("Generate button", await page.getByRole("button", { name: "Generate Pin", exact: true }).isVisible());
+  ok("Generate button", await page.getByRole("button", { name: "Pin ideas", exact: true }).isVisible());
   const categories = page.getByTestId("pin-category-suggestion");
   ok("Ten product categories are suggested", await categories.count() === 10);
 
   // ---------- validation ----------
-  await page.getByRole("button", { name: "Generate Pin", exact: true }).click();
+  await page.getByRole("button", { name: "Pin ideas", exact: true }).click();
   await page.waitForTimeout(300);
   ok("Empty topic shows error", await page.getByText(/Please type a topic first/i).isVisible());
 
@@ -40,7 +40,7 @@ async function run() {
   await categories.nth(1).click();
   ok("Category suggestion fills input", (await page.getByLabel("Enter your topic").inputValue()) === selectedCategory);
 
-  await page.getByRole("button", { name: "Generate Pin", exact: true }).click();
+  await page.getByRole("button", { name: "Pin ideas", exact: true }).click();
   await page.waitForTimeout(1600);
 
   // ---------- removed generated-result sections ----------
@@ -73,7 +73,7 @@ async function run() {
   m.on("pageerror", (e) => errors.push("mobile PAGEERROR: " + e.message));
   await m.goto(`${BASE}/pin-generator`, { waitUntil: "networkidle" });
   await m.getByPlaceholder("e.g. Balcony garden ideas").fill("Home Decor Ideas");
-  await m.getByRole("button", { name: "Generate Pin", exact: true }).click();
+  await m.getByRole("button", { name: "Pin ideas", exact: true }).click();
   await m.waitForTimeout(1600);
   ok("Mobile: generated-result sections remain hidden", await m.getByRole("button", { name: /Step 01 Pin Title Ideas/i }).count() === 0 && await m.getByText("SEO keyword suggestions · not measured search data", { exact: true }).count() === 0 && await m.getByText("Next action", { exact: true }).count() === 0);
   const overflow = await m.evaluate(

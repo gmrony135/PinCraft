@@ -36,7 +36,7 @@ Pin pack চাইলে আলাদাভাবে সেটি চালু �
 ### দুটি আলাদা save
 
 - **Save paused settings:** শুধু settings সেভ হয়। AI request, publishing job বা publication শুরু হয় না।
-- **Enable recurring Blogger automation:** আলাদা recurring consent দিতে হবে। এতে ভবিষ্যতের AI article প্রতিবার আপনার individual review ছাড়াই, দেখানো evidence/quality gate পাস করলে, নির্বাচিত blog-এ schedule করার অনুমতি হয়। Existing AI quota ব্যবহারের অনুমতিও এতে অন্তর্ভুক্ত।
+- **Enable recurring Blogger automation:** আলাদা recurring consent দিতে হবে। এতে ভবিষ্যতের AI article প্রতিবার আপনার individual review ছাড়াই, দেখানো evidence/quality gate পাস করলে, নির্বাচিত blog-এ schedule করার অনুমতি হয়। Per-account daily AI cap নেই; shared site-wide caps, cooldowns এবং provider quotas তবু প্রযোজ্য।
 
 একটি article review, website connect, Library save বা কোনো পুরোনো automation record-কে recurring consent ধরা হয় না। নতুন settings/reconnect-এর পরে স্পষ্টভাবে আবার authorize করতে হবে। Category ডিফল্টভাবে owner-এর হয়ে বেছে নেওয়া বা নিজে থেকে automation enable করা হয় না।
 
@@ -52,13 +52,13 @@ Source headline topic evidence; পুরো source article পড়া বা ind
 
 ## ৪. Article, image ও live-link editorial gates
 
-- Existing AI providers/fallback এবং transactional account/site text/image quotas-ই ব্যবহৃত হয়; কোনো quota বাড়ানো হয় না। One eligible article needs **1,000–1,600 visible words**; an SEO-aware H1/title (৫০–৬০ অক্ষরের লক্ষ্য), ১০০–১৫০ শব্দের ভূমিকা, linked contents list, চারটি substantive H2/H3 section, ব্যবহারযোগ্য Tips & Common Mistakes list, ৩–৫টি FAQ এবং একটি topic-specific gentle CTA-সহ উপসংহার। SEO suggestion-এ একটি focus keyword, ৫–১০টি প্রাসঙ্গিক secondary keyword, ১৪০–১৬০ অক্ষরের meta description ও ছোট slug থাকে; meta description/slug manual-copy suggestion, Blogger API প্রয়োগ করেছে এমন দাবি নয়।
-- Article draft আগে owner-এর private Library-তে সেভ হয়। তিনটি AI WebP illustration বিদ্যমান image allowance দিয়েই তৈরি ও private Firestore-এ রাখা হয়। Provider failure, cooldown বা quota exhaustion-এ অসম্পূর্ণ image set publish হয় না; draft-এ blocker থাকে। Blogger-এ শুধু signed, unguessable image URL যায়।
+- Existing AI providers/fallback এবং transactional shared site-wide text/image daily caps ব্যবহৃত হয়; per-account daily AI cap নেই। Per-account concurrency ও cooldown safeguards থাকে। One eligible article needs **1,000–1,600 visible words**; an SEO-aware H1/title (৫০–৬০ অক্ষরের লক্ষ্য), ১০০–১৫০ শব্দের ভূমিকা, linked contents list, চারটি substantive H2/H3 section, ব্যবহারযোগ্য Tips & Common Mistakes list, ৩–৫টি FAQ এবং একটি topic-specific gentle CTA-সহ উপসংহার। SEO suggestion-এ একটি focus keyword, ৫–১০টি প্রাসঙ্গিক secondary keyword, ১৪০–১৬০ অক্ষরের meta description ও ছোট slug থাকে; meta description/slug manual-copy suggestion, Blogger API প্রয়োগ করেছে এমন দাবি নয়।
+- Article draft আগে owner-এর private Library-তে সেভ হয়। তিনটি AI WebP illustration shared site-wide image cap, cooldown ও provider availability সাপেক্ষে তৈরি ও private Firestore-এ রাখা হয়। Provider failure বা capacity exhaustion-এ অসম্পূর্ণ image set publish হয় না; draft-এ blocker থাকে। Blogger-এ শুধু signed, unguessable image URL যায়।
 - Selected blog-এর **২–৫টি relevant `LIVE` Blogger post** internal link হিসেবে verified হতে হয়। Draft/scheduled/post-404 বা অন্য blog-এর post accepted হয় না; link না পেলে publication job তৈরি হয় না এবং private draft থাকে। AI কোনো external citation, source URL, statistic, quote বা fact বানায় না; exact public source URL owner যাচাই না করলে claim-টি manual sourcing-এর জন্য flag করতে হবে।
 - আলাদা existing AI quality task চালিয়ে **কমপক্ষে 82/100 এবং সব check pass** লাগবে। Failed-quality draft থেকে publication job হয় না।
 - AI editorial score **fact-check, originality/plagiarism scan, SEO prediction বা quality guarantee নয়**। UI/consent-এ সীমা দেখানো আছে।
-- Existing per-owner/site daily quota, concurrency, cooldown, safety refusal এবং private request-idempotency একই থাকে। একটি spent/uncertain request নতুন key দিয়ে চুপিচুপি আবার করা হয় না।
-- Passing post সাধারণত **২টি text request** নেয় (article + editorial review) এবং **৩টি image request** (cover + দুই section image)। Default owner allowance ৩০ text/day ও ৫ image/day; অন্য tools-ও একই existing quota ব্যবহার করে। Provider/global limit আগে থামাতে পারে। SEO meta description কেবল manual-copy suggestion—Blogger API সেটি applied করেছে বলে PinCraft দাবি করে না.
+- Shared site-wide daily quota, per-account concurrency/cooldown, safety refusal এবং private request-idempotency থাকে; per-account দৈনিক AI cap নেই। একটি spent/uncertain request নতুন key দিয়ে চুপিচুপি আবার করা হয় না।
+- Passing post সাধারণত **২টি text request** নেয় (article + editorial review) এবং **৩টি image request** (cover + দুই section image)। Default shared site-wide cap ১৫০ text/day ও ২০ image/day (operator-configurable); সব AI tools একই counter ব্যবহার করে, কিন্তু per-account daily cap নেই। Provider limits আলাদাভাবে generation থামাতে পারে। SEO meta description কেবল manual-copy suggestion—Blogger API সেটি applied করেছে বলে PinCraft দাবি করে না.
 
 **দৈনিক ৬টি হলো সর্বোচ্চ পরিকল্পিত slot, ৬টি guaranteed success নয়।** Evidence/quality/quota/service failure হলে কম হতে পারে এবং কারণ/retained draft দেখা যাবে। কোনো demo/offline/filler লেখা স্বয়ংক্রিয়ভাবে প্রকাশ হয় না।
 

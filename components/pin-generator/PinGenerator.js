@@ -213,23 +213,25 @@ export default function PinGenerator() {
                 </div>
               </div>
 
-              <button
-                type="submit"
-                disabled={loading || authLoading}
-                className="btn-primary mt-5 w-full"
-              >
-                {loading ? (
-                  <>
-                    <Loader2 size={18} className="animate-spin" /> Generating…
-                  </>
-                ) : (
-                  <>
-                    <Wand2 size={18} /> Generate Pin
-                  </>
-                )}
-              </button>
-              <p className="mt-2.5 text-center text-[11.5px] text-neutral-400">
-                Generate title ideas, a description, hashtags and an image prompt from your topic.
+              <div className="mt-5 flex justify-end">
+                <button
+                  type="submit"
+                  disabled={loading || authLoading}
+                  className="btn-primary min-w-[150px] px-5 text-[13px]"
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin" aria-hidden="true" /> Generating ideas…
+                    </>
+                  ) : (
+                    <>
+                      <Wand2 size={16} aria-hidden="true" /> Pin ideas
+                    </>
+                  )}
+                </button>
+              </div>
+              <p className="mt-2.5 text-right text-[11.5px] text-neutral-400">
+                Suggest a matching Pin artwork prompt from your topic.
               </p>
             </form>
 
@@ -247,7 +249,7 @@ export default function PinGenerator() {
                 <button type="button" onClick={() => setArtworkPrompt(createPinArtworkPrompt(topic))} className="min-h-11 shrink-0 rounded-lg px-2 text-[11px] font-bold text-brand-700 hover:bg-brand-50">Use topic for artwork prompt</button>
               </div>}
               {!authLoading && !user && <div className="mb-3 flex flex-col gap-2 rounded-xl border border-amber-100 bg-amber-50 p-3 sm:flex-row sm:items-center sm:justify-between">
-                <p className="text-[11px] leading-relaxed text-amber-900">A verified account is required for AI artwork. Your daily image allowance applies; the Pin stays on this page.</p>
+                <p className="text-[11px] leading-relaxed text-amber-900">A verified account is required for AI artwork. Shared website-wide capacity and provider limits still apply; the Pin stays on this page.</p>
                 <button type="button" onClick={openLogin} className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-lg border border-amber-200 bg-white px-3 text-[11px] font-bold text-amber-900 hover:bg-amber-50">Sign in / create account</button>
               </div>}
               <ImageGenerator initialPrompt={artworkPrompt} useCase="pin" editable topic={topic} categoryId={CATEGORIES.find(category => category.label.toLocaleLowerCase() === topic.trim().toLocaleLowerCase())?.id || ''} language={language} />
