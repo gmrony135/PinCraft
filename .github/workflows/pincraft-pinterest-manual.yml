@@ -1,0 +1,36 @@
+name: PinCraft manual Pinterest job validation
+
+on:
+  schedule:
+    # Bounded integrity checks only. This workflow never publishes or clicks Pinterest.
+    - cron: '13,28,43,58 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: pincraft-pinterest-manual-validation
+  cancel-in-progress: false
+
+jobs:
+  validate-prepared-pins:
+    # Deliberately opt-in; only the exact public repository's main branch may run.
+    if: github.repository == 'gmrony135/PinCraft' && github.event.repository.private == false && github.ref == 'refs/heads/main' && vars.PINCRAFT_PIN_MANUAL_WORKFLOW_ENABLED == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Check out trusted workflow code
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '24.22.3'
+      - name: Request a short-lived OIDC validation run
+        run: node scripts/run-pinterest-publishing.mjs
+      # The runner receives no Pin bytes, user identity, Pinterest secrets,
+      # browser session, cookie, board, or publication command. The locked
+      # server-side Node/Sharp handler revalidates at most ten private jobs.

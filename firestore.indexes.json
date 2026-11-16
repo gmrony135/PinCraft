@@ -167,6 +167,48 @@
           "order": "ASCENDING"
         }
       ]
+    },
+    {
+      "collectionGroup": "pincraft_pinterest_publish_jobs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "ownerUID",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "pincraft_pinterest_publish_jobs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "validationStatus",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "nextValidationAtUTC",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "pincraft_pinterest_publish_jobs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "validationStatus",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "validationLeaseUntilUTC",
+          "order": "ASCENDING"
+        }
+      ]
     }
   ],
   "fieldOverrides": [
@@ -223,6 +265,46 @@
     {
       "collectionGroup": "aiRequests",
       "fieldPath": "lease",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "pincraft_pinterest_images",
+      "fieldPath": "bytes",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "pincraft_pinterest_publish_jobs",
+      "fieldPath": "description",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "pincraft_pinterest_publish_jobs",
+      "fieldPath": "destinationURL",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "pincraft_pinterest_publish_jobs",
+      "fieldPath": "activity",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "pincraft_pinterest_publish_jobs",
+      "fieldPath": "error",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "pincraft_pinterest_publish_jobs",
+      "fieldPath": "requestFingerprint",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "pincraft_pinterest_publish_jobs",
+      "fieldPath": "reportedPinURL",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "pincraft_pinterest_settings",
+      "fieldPath": "defaultDestinationURL",
       "indexes": []
     }
   ]

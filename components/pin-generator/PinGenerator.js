@@ -168,7 +168,7 @@ export default function PinGenerator() {
 
           <h1 className="h1 mt-4 text-neutral-900">Pin Generator</h1>
           <p className="lead mt-3 max-w-2xl">
-            Explore the Top 10 categories, create Pin copy, or generate downloadable artwork here—no Pin text is required to make an image.
+            Explore ten categories, create Pin copy, or use the custom Pin artwork option to generate downloadable art—no Pin text is required to make an image.
           </p>
         </div>
       </section>

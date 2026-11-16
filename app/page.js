@@ -42,7 +42,7 @@ export default function HomePage() {
           <Link href="/dashboard" prefetch={false} className="inline-flex min-h-11 items-center gap-2 text-[12px] font-bold text-brand-700">Open your workspace<ArrowRight size={14} aria-hidden="true" /></Link>
         </div>
         <div className="mt-7 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {[[Link2, 'Connector', 'Blogger permissions, verified blogs and recurring settings.', '/connector'], [CalendarClock, 'Publishing jobs', 'Blogger checkpoints and separate manual Pinterest packs.', '/jobs'], [WandSparkles, 'Content Studio', 'A simple hub for writing, Pin artwork, planning and review.', '/content-studio'], [FolderHeart, 'My Library', 'Your saved drafts and confirmed publication links.', '/library']].map(([Icon, title, description, href]) => (
+          {[[Link2, 'Connector', 'Blogger permissions, verified blogs and recurring settings.', '/connector'], [CalendarClock, 'Publishing jobs', 'Owner-scoped Blogger checkpoints and manual Pinterest Pin jobs.', '/jobs'], [WandSparkles, 'Content Studio', 'A simple hub for writing, Pin artwork, planning and review.', '/content-studio'], [FolderHeart, 'My Library', 'Your saved drafts and confirmed publication links.', '/library']].map(([Icon, title, description, href]) => (
             <Link key={href} href={href} prefetch={false} className="group min-w-0 rounded-2xl border border-neutral-200 bg-white p-5 transition hover:border-brand-200 hover:shadow-sm">
               <Icon size={22} className="text-brand-600" aria-hidden="true" />
               <h3 className="mt-5 flex items-center justify-between gap-2 text-[15px] font-extrabold">{title}<ArrowUpRight size={15} className="text-neutral-400 group-hover:text-brand-600" aria-hidden="true" /></h3>
