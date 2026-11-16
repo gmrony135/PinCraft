@@ -1,4 +1,4 @@
-// Pin Generator verification: generation, every copy button, save, next action
+// Pin Generator verification: generation, removed result sections, artwork, and remaining article handoff
 const { chromium } = require("playwright");
 
 const BASE = process.env.BASE_URL || "http://127.0.0.1:3000";
@@ -43,75 +43,21 @@ async function run() {
   await page.getByRole("button", { name: "Generate Pin", exact: true }).click();
   await page.waitForTimeout(1600);
 
-  ok("5 viral titles shown", (await page.getByRole("button", { name: /Copy to clipboard/i }).count()) >= 5);
-  const titleItems = await page.locator("li", { has: page.locator("text=Copy") }).count();
-  ok("Title rows rendered", titleItems >= 5);
-
-  // ---------- copy a title ----------
-  const firstCopy = page.getByRole("button", { name: "Copy to clipboard" }).first();
-  await firstCopy.click();
-  await page.waitForTimeout(250);
-  const copiedTitle = await clip();
-  ok(`Title copied → "${copiedTitle.slice(0, 40)}…"`, copiedTitle.length > 12);
-  ok("Copy shows Copied state", await page.getByRole("button", { name: /Copied to clipboard/i }).first().isVisible());
-
-  // ---------- description section ----------
-  await page.getByRole("button", { name: /Pin Description/i }).click();
-  await page.waitForTimeout(350);
-  await page.getByRole("button", { name: /Copy description to clipboard/i }).click();
-  await page.waitForTimeout(250);
-  const desc = await clip();
-  const descWords = desc.split(/\s+/).filter(Boolean).length;
-  ok(`Description copied (${descWords} words, 100–150)`, descWords >= 100 && descWords <= 150);
-
-  // ---------- hashtags ----------
-  await page.getByRole("button", { name: /Hashtags/i }).click();
-  await page.waitForTimeout(350);
-  const tagCount = await page.locator("button", { hasText: /^#/ }).count();
-  ok(`10 hashtags rendered (${tagCount})`, tagCount === 10);
-
-  await page.getByRole("button", { name: /Copy all hashtags to clipboard/i }).click();
-  await page.waitForTimeout(250);
-  const tags = await clip();
-  ok(`All hashtags copied (${tags.split(" ").filter((t) => t.startsWith("#")).length} tags)`,
-     tags.split(" ").filter((t) => t.startsWith("#")).length === 10);
-
-  // single hashtag click copies it
-  await page.locator("button", { hasText: /^#/ }).first().click();
-  await page.waitForTimeout(250);
-  ok("Single hashtag copies", (await clip()).startsWith("#"));
-
-  // ---------- image idea and in-flow artwork ----------
-  await page.getByRole("button", { name: /Pin Image Idea/i }).click();
-  await page.waitForTimeout(350);
+  // ---------- removed generated-result sections ----------
+  ok("Generated Pin copy results are hidden", await page.getByText("SEO keyword suggestions · not measured search data", { exact: true }).count() === 0 && await page.getByRole("button", { name: /Step 01 Pin Title Ideas/i }).count() === 0 && await page.getByRole("button", { name: /Step 02 Pin Description/i }).count() === 0 && await page.getByRole("button", { name: /Step 03 Hashtags/i }).count() === 0 && await page.getByRole("button", { name: /Step 04 Pin Image Idea/i }).count() === 0 && await page.getByText("Next action", { exact: true }).count() === 0);
   const artwork = page.getByTestId("ai-image-generator");
-  ok("Artwork generator is available in the Pin flow", await artwork.isVisible());
-  ok("Sign-in requirement and allowance are clear", await page.getByText(/A verified account is required for AI artwork/).isVisible());
-  ok("Pin prompt pre-fills artwork description", (await page.getByLabel("Visual description", { exact: true }).inputValue()).includes("Vertical 2:3"));
+  ok("Artwork generator remains available", await artwork.isVisible());
+  ok("Pin prompt still pre-fills artwork description", (await page.getByLabel("Visual description", { exact: true }).inputValue()).includes("Vertical 2:3"));
   await artwork.getByRole("button", { name: "Generate image with AI", exact: true }).click();
   await page.getByRole("button", { name: "Close login popup", exact: true }).waitFor();
   ok("Guest artwork generation opens sign-in", await page.getByRole("dialog").isVisible());
   await page.getByRole("button", { name: "Close login popup", exact: true }).click();
-  await page.getByRole("button", { name: /Copy prompt to clipboard/i }).click();
-  await page.waitForTimeout(250);
-  ok("Image prompt copied", (await clip()).includes("Vertical 2:3"));
 
-  // ---------- next actions ----------
-  ok("Generate Article button", await page.getByRole("link", { name: /Generate Article For This Pin/i }).isVisible());
-  const href = await page.getByRole("link", { name: /Generate Article For This Pin/i }).getAttribute("href");
+  const articleLink = page.getByRole("link", { name: "Open Article Writer", exact: true });
+  ok("Separate sidebar article handoff remains available", await articleLink.isVisible());
+  const href = await articleLink.getAttribute("href");
   ok(`Article link carries the title (${href.slice(0, 44)}…)`, href.startsWith("/article-writer?title="));
-
-  await page.getByRole("button", { name: /Save To My Library/i }).click();
-  await page.waitForTimeout(400);
-  ok("Save shows saved state", await page.getByRole("button", { name: /Saved to My Library/i }).isVisible());
-
-  const stored = await page.evaluate(() => {
-    const raw = localStorage.getItem("pincraft.library.v1");
-    const list = raw ? JSON.parse(raw) : [];
-    return { count: list.length, topic: list[0]?.topic, titles: list[0]?.titles?.length };
-  });
-  ok(`Saved to localStorage (${stored.count} item, "${stored.topic}", ${stored.titles} titles)`,
-     stored.count === 1 && stored.titles === 5);
+  ok("Removed Pin save action is not rendered", await page.getByRole("button", { name: /Save To My Library/i }).count() === 0);
 
   await page.screenshot({ path: `${OUT}/pin-generator-desktop.png`, fullPage: true });
 
@@ -129,7 +75,7 @@ async function run() {
   await m.getByPlaceholder("e.g. Balcony garden ideas").fill("Home Decor Ideas");
   await m.getByRole("button", { name: "Generate Pin", exact: true }).click();
   await m.waitForTimeout(1600);
-  ok("Mobile: results render", await m.getByRole("button", { name: /Step 01 Pin Title Ideas/i }).isVisible());
+  ok("Mobile: generated-result sections remain hidden", await m.getByRole("button", { name: /Step 01 Pin Title Ideas/i }).count() === 0 && await m.getByText("SEO keyword suggestions · not measured search data", { exact: true }).count() === 0 && await m.getByText("Next action", { exact: true }).count() === 0);
   const overflow = await m.evaluate(
     () => document.documentElement.scrollWidth - document.documentElement.clientWidth
   );

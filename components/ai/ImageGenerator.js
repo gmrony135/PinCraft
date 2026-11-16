@@ -5,7 +5,6 @@ import { generateWithAI } from '@/lib/ai-client';
 import { useAuth } from '../providers/AppProvider';
 import { GenerationReceipt } from './GenerationMode';
 import CopyButton from '../CopyButton';
-import PinterestPublishComposer from '../publishing/PinterestPublishComposer';
 
 export default function ImageGenerator({ initialPrompt = '', useCase = 'pin', editable = true, onUsageChange, onBusyChange, topic = '', categoryId = '', language = 'en' }) {
   const { user, authLoading, openLogin } = useAuth();
@@ -107,8 +106,7 @@ export default function ImageGenerator({ initialPrompt = '', useCase = 'pin', ed
           </>}
         </section>}
       </div>}
-      {useCase === 'pin' && <PinterestPublishComposer key={image.downloadName || image.dataUrl.length} image={image} postInfo={postInfo} />}
     </div>}
-    <p className="text-[10px] leading-relaxed text-neutral-500">Artwork only; add lettering in your design editor if needed. Post Info sends this generated image and the visual prompt used to create it for AI analysis and uses your daily text allowance. By default the generated image stays in page memory. If you explicitly prepare a Pinterest job, PinCraft saves a normalized copy to your private job and provides a signed, publicly fetchable image URL for Pinterest; no account data is collected. Nothing is published automatically. Temporary service limits may prevent generation even with automatic recovery.</p>
+    <p className="text-[10px] leading-relaxed text-neutral-500">Artwork only; add lettering in your design editor if needed. Post Info sends this generated image and the visual prompt used to create it for AI analysis and uses your daily text allowance. By default the generated image stays in page memory. Nothing is published automatically. Temporary service limits may prevent generation even with automatic recovery.</p>
   </div>;
 }

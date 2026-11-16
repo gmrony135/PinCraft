@@ -1,29 +1,17 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import CopyButton from "../CopyButton";
-import ResultSection from "./ResultSection";
-import { generatePinPack, wordCount } from "@/lib/generator";
-import { saveToLibrary } from "@/lib/library";
-import { saveCloudDraft } from "@/lib/cloud-library";
+import { generatePinPack } from "@/lib/generator";
 import { useAuth } from "../providers/AppProvider";
-import { copyText } from "@/lib/clipboard";
 import { generateWithAI } from "@/lib/ai-client";
-import { GenerationReceipt } from "../ai/GenerationMode";
 import ImageGenerator from "../ai/ImageGenerator";
 import { CATEGORIES } from "@/lib/product.mjs";
 import { handoffPin } from "@/lib/publishing/review-content.mjs";
 import {
   Sparkles,
   Wand2,
-  Hash,
-  Type,
-  FileText,
-  Image as ImageIcon,
   ArrowRight,
-  Bookmark,
-  Check,
   AlertCircle,
   Search,
   Loader2,
@@ -43,21 +31,14 @@ export default function PinGenerator() {
   const mode = user ? 'ai' : 'local';
   const generationRequest = useRef({ sequence: 0, controller: null });
   const [language, setLanguage] = useState('en');
-  const [saving, setSaving] = useState(false);
-  const saveRequest = useRef(null), saveSequence = useRef(0);
-  const [saveError, setSaveError] = useState('');
   const identity = useRef(null);
   identity.current = user?.id || "device";
   const [topic, setTopic] = useState("");
   const [artworkPrompt, setArtworkPrompt] = useState("");
   const [loading, setLoading] = useState(false);
   const [pack, setPack] = useState(null);
-  const currentContent = useRef(null);
-  currentContent.current = pack?.id;
   const [error, setError] = useState("");
-  const [saved, setSaved] = useState(false);
   const [toast, setToast] = useState("");
-  const resultsRef = useRef(null);
   const toastTimer = useRef(null);
   useEffect(() => () => clearTimeout(toastTimer.current), []);
   useEffect(() => { const value = new URLSearchParams(window.location.search).get('topic'); if (value) { const clean = value.slice(0, 160); setTopic(clean); setArtworkPrompt(createPinArtworkPrompt(clean)); } }, []);
@@ -66,11 +47,6 @@ export default function PinGenerator() {
     setLoading(false); setError(''); setPack(previous => previous?.generation ? null : previous);
     return () => { generationRequest.current.sequence++; generationRequest.current.controller?.abort(); };
   }, [user?.id]);
-
-  const descWords = useMemo(
-    () => (pack ? wordCount(pack.description) : 0),
-    [pack]
-  );
 
   function flash(msg) {
     setToast(msg);
@@ -93,7 +69,7 @@ export default function PinGenerator() {
     if (mode === 'ai' && !user) { setError('Sign in with a verified account to use live Pin generation.'); openLogin(); return; }
     const owner = identity.current, sequence = ++generationRequest.current.sequence;
     generationRequest.current.controller = new AbortController();
-    setError(''); setSaved(false); setPack(null); setLoading(true);
+    setError(''); setPack(null); setLoading(true);
     try {
       let generated;
       if (mode === 'ai') {
@@ -107,26 +83,8 @@ export default function PinGenerator() {
       setPack(generated);
       setArtworkPrompt(generated.imageIdea?.prompt || createPinArtworkPrompt(generated.topic || value));
       flash(mode === 'ai' ? 'AI Pin pack generated' : 'Offline pin template generated');
-      setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
     } catch (issue) { if (issue.name !== 'AbortError' && sequence === generationRequest.current.sequence && identity.current === owner) setError(issue.message); }
     finally { if (sequence === generationRequest.current.sequence) setLoading(false); }
-  }
-
-  useEffect(() => { saveSequence.current++; setSaving(false); setSaved(false); setSaveError(''); saveRequest.current = null; }, [user?.id, pack?.id]);
-  async function handleSave() {
-    if (!pack || saving || authLoading) return;
-    const owner = identity.current, contentId = pack.id, request = ++saveSequence.current;
-    setSaving(true); setSaveError('');
-    try {
-      if (user) {
-        if (!saveRequest.current) saveRequest.current = crypto.randomUUID();
-        await saveCloudDraft("pin", pack, saveRequest.current);
-      } else saveToLibrary({ type: "pin", ...pack });
-      if (identity.current !== owner || currentContent.current !== contentId || request !== saveSequence.current) return;
-      setSaved(true);
-      flash(user ? "Saved privately to your Cloud Library." : "Saved to My Library on this device 📚");
-    } catch (issue) { if (identity.current === owner && currentContent.current === contentId && request === saveSequence.current) setSaveError(issue.message || 'Your draft could not be saved. Keep this page open and try again.'); }
-    finally { if (request === saveSequence.current) setSaving(false); }
   }
 
   const articleHref = pack
@@ -314,232 +272,6 @@ export default function PinGenerator() {
               </div>
             )}
 
-            {/* ---------------------------- results ---------------------------- */}
-            {pack && !loading && (
-              <div ref={resultsRef} className="animate-fade-up mt-6 scroll-mt-20">
-                <GenerationReceipt generation={pack.generation} />
-                {saveError && <p role="alert" className="mb-4 rounded-xl border border-brand-100 bg-brand-50 p-3 text-[12px] leading-relaxed text-brand-800">{saveError} Your draft is still on this page; use Save to retry.</p>}
-                {pack.keywords?.length > 0 && <div className="mb-3 rounded-xl border border-neutral-200 bg-white p-3.5"><p className="text-[11px] font-bold text-neutral-600">SEO keyword suggestions · not measured search data</p><div className="mt-2 flex flex-wrap gap-1.5">{pack.keywords.map(keyword => <span key={keyword} className="rounded-full bg-neutral-100 px-2.5 py-1 text-[11px] text-neutral-600">{keyword}</span>)}</div></div>}
-                {/* result header */}
-                <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <span className="grid h-9 w-9 place-items-center rounded-xl bg-brand-50 text-[15px]">
-                      {pack.emoji}
-                    </span>
-                    <div>
-                      <p className="text-[15px] font-extrabold leading-tight text-neutral-900">
-                        {pack.topic}
-                      </p>
-                      <p className="text-[11.5px] font-semibold text-neutral-400">
-                        Detected niche: {pack.category}
-                      </p>
-                    </div>
-                  </div>
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-600">
-                    <Check size={12} strokeWidth={3} /> Generated
-                  </span>
-                </div>
-
-                <div className="space-y-3">
-                  {/* 1 · titles */}
-                  <ResultSection
-                    step="01"
-                    title="Pin Title Ideas"
-                    meta={`${pack.titles.length} clickable titles`}
-                    icon={Type}
-                    defaultOpen
-                  >
-                    <ul className="space-y-2">
-                      {pack.titles.map((title, i) => (
-                        <li
-                          key={i}
-                          className="group flex items-start gap-3 rounded-xl border border-neutral-150 bg-neutral-50/60 p-3 transition-colors hover:border-neutral-300"
-                        >
-                          <span className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full bg-brand-600 text-[11px] font-extrabold text-white">
-                            {i + 1}
-                          </span>
-                          <p className="min-w-0 flex-1 text-[13.5px] font-semibold leading-relaxed text-neutral-800">
-                            {title}
-                          </p>
-                          <CopyButton text={title} label="Copy" />
-                        </li>
-                      ))}
-                    </ul>
-                  </ResultSection>
-
-                  {/* 2 · description */}
-                  <ResultSection
-                    step="02"
-                    title="Pin Description"
-                    meta={`SEO friendly · ${descWords} words`}
-                    icon={FileText}
-                  >
-                    <div className="rounded-xl border border-neutral-150 bg-neutral-50/60 p-3.5">
-                      <p className="whitespace-pre-wrap text-[13.5px] leading-relaxed text-neutral-700">
-                        {pack.description}
-                      </p>
-                      <div className="mt-3 flex items-center justify-between">
-                        <span className="text-[11px] font-bold uppercase tracking-wide text-neutral-400">
-                          {descWords} words
-                        </span>
-                        <CopyButton text={pack.description} label="Copy description" />
-                      </div>
-                    </div>
-                  </ResultSection>
-
-                  {/* 3 · hashtags */}
-                  <ResultSection
-                    step="03"
-                    title="Hashtags"
-                    meta={`${pack.hashtags.length} hashtags`}
-                    icon={Hash}
-                  >
-                    <div className="flex flex-wrap gap-1.5">
-                      {pack.hashtags.map((tag) => (
-                        <button
-                          key={tag}
-                          type="button"
-                          onClick={async () => { const copied = await copyText(tag); flash(copied ? `Copied ${tag}` : "Copy failed. Select and copy the hashtag manually, or try again."); }}
-                          title="Click to copy this hashtag"
-                          className="min-h-11 rounded-full bg-brand-50 px-3 py-1.5 text-[12.5px] font-bold text-brand-700 transition-colors hover:bg-brand-100 active:scale-95"
-                        >
-                          {tag}
-                        </button>
-                      ))}
-                    </div>
-                    <div className="mt-3 flex items-center justify-between gap-2">
-                      <span className="text-[11px] font-semibold text-neutral-400">
-                        Tap any tag to copy it
-                      </span>
-                      <CopyButton
-                        text={pack.hashtags.join(" ")}
-                        label="Copy all hashtags"
-                        variant="solid"
-                        className="h-10 px-3.5 text-[12.5px]"
-                      />
-                    </div>
-                  </ResultSection>
-
-                  {/* 4 · image idea */}
-                  <ResultSection
-                    step="04"
-                    title="Pin Image Idea"
-                    meta="Design text + AI prompt"
-                    icon={ImageIcon}
-                    accent="dark"
-                  >
-                    <div className="space-y-2.5">
-                      <div className="rounded-xl border border-neutral-150 bg-neutral-900 p-4">
-                        <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-neutral-400">
-                          Headline on the pin
-                        </p>
-                        <p className="mt-1.5 text-[16px] font-extrabold leading-snug text-white">
-                          {pack.imageIdea.headline}
-                        </p>
-                        <div className="mt-3 h-[3px] w-12 rounded-full bg-brand-600" />
-                        <p className="mt-3 text-[10.5px] font-semibold text-neutral-400">
-                          {pack.imageIdea.palette}
-                        </p>
-                      </div>
-
-                      <ul className="space-y-1.5 rounded-xl border border-neutral-150 bg-neutral-50/60 p-3.5">
-                        {[
-                          ["Layout", pack.imageIdea.layout],
-                          ["Style", pack.imageIdea.style],
-                        ].map(([k, v]) => (
-                          <li key={k} className="text-[12.5px] leading-relaxed text-neutral-600">
-                            <span className="font-bold text-neutral-800">{k}: </span>
-                            {v}
-                          </li>
-                        ))}
-                      </ul>
-
-                      <div className="rounded-xl border border-neutral-150 bg-neutral-50/60 p-3.5">
-                        <div className="flex items-center justify-between gap-2">
-                          <p className="text-[10.5px] font-bold uppercase tracking-wide text-neutral-400">
-                            AI image prompt
-                          </p>
-                          <CopyButton text={pack.imageIdea.prompt} label="Copy prompt" />
-                        </div>
-                        <p className="mt-2 text-[12.5px] leading-relaxed text-neutral-600">
-                          {pack.imageIdea.prompt}
-                        </p>
-                      </div>
-                      <div className="flex flex-col justify-between gap-2 rounded-xl border border-brand-100 bg-brand-50/40 p-3.5 sm:flex-row sm:items-center">
-                        <p className="text-[11px] leading-relaxed text-neutral-600">This Pin’s image prompt is ready in the artwork section above.</p>
-                        <button type="button" onClick={() => document.getElementById('pin-artwork-generator')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} className="inline-flex min-h-11 shrink-0 items-center justify-center gap-1.5 rounded-lg px-2 text-[11px] font-bold text-brand-700 hover:bg-brand-50">
-                          Open Pin artwork generator <ArrowRight size={13} aria-hidden="true" />
-                        </button>
-                      </div>
-                    </div>
-                  </ResultSection>
-
-                  {/* 5 · next action */}
-                  <section className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm">
-                    <div className="flex items-center gap-2">
-                      <span className="grid h-9 w-9 place-items-center rounded-xl bg-neutral-900 text-white">
-                        <ArrowRight size={17} />
-                      </span>
-                      <div>
-                        <p className="text-[10.5px] font-bold uppercase tracking-[0.1em] text-neutral-400">
-                          Step 05
-                        </p>
-                        <p className="text-[15px] font-extrabold tracking-tight text-neutral-900">
-                          Next action
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="mt-3.5 flex flex-col gap-2.5 sm:flex-row">
-                      <Link
-                        href={articleHref} onClick={() => handoffPin(user?.id, pack)}
-                        prefetch={false}
-                        className="btn-primary w-full whitespace-normal px-4 text-[14px] sm:flex-1"
-                      >
-                        <FileText size={17} /> Generate Article For This Pin
-                      </Link>
-                      <button
-                        type="button"
-                        onClick={handleSave}
-                        disabled={saved || saving || authLoading}
-                        className={`w-full whitespace-normal px-4 text-[14px] sm:flex-1 ${
-                          saved ? "btn-outline border-emerald-200 text-emerald-600" : "btn-dark"
-                        }`}
-                      >
-                        {saved ? (
-                          <>
-                            <Check size={17} strokeWidth={3} /> Saved to My Library
-                          </>
-                        ) : (
-                          <>
-                            {saving ? <Loader2 size={17} className="animate-spin" aria-hidden="true" /> : <Bookmark size={17} />} {saving ? 'Saving…' : 'Save To My Library'}
-                          </>
-                        )}
-                      </button>
-                    </div>
-
-                    <p className="mt-2.5 text-center text-[11px] text-neutral-400 sm:text-left">
-                      The article writer opens with this title already filled in.
-                    </p>
-                  </section>
-                </div>
-              </div>
-            )}
-
-            {/* empty state */}
-            {!pack && !loading && (
-              <div className="mt-5 rounded-2xl border-2 border-dashed border-neutral-200 p-8 text-center">
-                <div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-neutral-100 text-neutral-400">
-                  <Wand2 size={22} />
-                </div>
-                <p className="mt-3 text-[14px] font-bold text-neutral-700">
-                  Nothing generated yet
-                </p>
-                <p className="mx-auto mt-1 max-w-sm text-[12.5px] leading-relaxed text-neutral-400">
-                  Choose a category to fill the topic and suggest a matching artwork prompt, then tap <b>Generate Pin</b> for copy—or generate the Pin artwork above without creating text.
-                </p>
-              </div>
-            )}
           </div>
 
           {/* ---------------------------- sidebar ---------------------------- */}
@@ -594,7 +326,7 @@ export default function PinGenerator() {
               <p className="text-[11.5px] leading-relaxed text-neutral-500">
                 <b className="text-neutral-700">Tip:</b> pins with a clear
                 emotional hook and 3–4 keywords in the description get the most
-                saves. All titles above are built that way.
+                saves.
               </p>
             </div>
           </aside>
