@@ -7,9 +7,9 @@ import {STUDIO_TOOLS,WRITING_TOOLS,studioTool} from '../lib/studio-tools.mjs';
 const source=path=>readFile(new URL('../'+path,import.meta.url),'utf8');
 async function javascript(dir){const rows=await readdir(new URL('../'+dir,import.meta.url),{withFileTypes:true});return (await Promise.all(rows.map(row=>row.isDirectory()?javascript(dir+'/'+row.name):row.name.endsWith('.js')?[dir+'/'+row.name]:[]))).flat();}
 
-test('Product and workspace navigation have no standalone Automation entry',()=>{
+test('Product and workspace navigation remove Publishing Jobs and standalone Automation links',()=>{
  for(const nav of [PRODUCT_NAV,WORKSPACE_NAV]){
-  assert(!nav.some(item=>item.href==='/automation'||/automation setup/i.test(item.label)));
+  assert(!nav.some(item=>item.href==='/automation'||item.href==='/jobs'||/automation setup/i.test(item.label)));
   assert.equal(new Set(nav.map(item=>item.href)).size,nav.length);
   assert(nav.some(item=>item.href==='/connector'));
  }
@@ -63,6 +63,9 @@ test('Cloud and device Library readers enter that same review without issuing pu
 });
 test('Connector embeds the recurring editor only once and never nests WorkspaceFrame',async()=>{
  const connector=await source('components/workspace/Connector.js'),editor=await source('components/publishing/BlogAutomationSetup.js');assert.equal((connector.match(/<WorkspaceFrame/g)||[]).length,1);assert.equal((connector.match(/<BlogAutomationSetup/g)||[]).length,1);assert(!/<WorkspaceFrame|usePublisher\(/.test(editor));assert(!editor.includes('Automation Blogger account'));
+});
+test('Connector organizes Blogger, recurring posts and manual Pinterest into accessible tabs; Jobs route remains',async()=>{
+ const connector=await source('components/workspace/Connector.js'),jobs=await source('app/jobs/page.js');assert.match(connector,/role="tablist" aria-label="Connector sections"/);assert.match(connector,/role="tab" id=\{`connector-tab-/);assert.equal((connector.match(/role="tabpanel"/g)||[]).length,3);assert.match(connector,/onKeyDown=\{handleTabKeyDown\}/);assert.match(connector,/ArrowRight/);assert.match(connector,/ArrowLeft/);assert.match(connector,/window\.location\.hash!=='#blogger-recurring'/);assert.match(connector,/setActiveTab\('recurring'\)/);assert.match(connector,/label:'Blogger'/);assert.match(connector,/label:'Recurring'/);assert.match(connector,/label:'Pinterest'/);assert.match(connector,/No Pinterest API connection required/);assert.match(jobs,/<PublishingJobs\/>/);
 });
 test('Recurring consent starts false, is cleared by edits, and uses the edited revision rather than silently following a poll',async()=>{
  const editor=await source('components/publishing/BlogAutomationSetup.js');assert.match(editor,/\[consent,setConsent\]=useState\(false\)/);assert.match(editor,/function change\(patch\).*setConsent\(false\)/);assert.match(editor,/expectedRevision:editRevision.current/);assert.match(editor,/observedRevision.current!==nextRevision\)setConsent\(false\)/);assert.match(editor,/Reload saved settings/);

@@ -55,7 +55,22 @@ try {
   // A fixture browser does not visit any real external service or CDN.
   await context.route('**/*', route => route.request().url().startsWith(origin + '/') || /^(blob:|data:)/.test(route.request().url()) ? route.continue() : route.abort());
   page = await context.newPage(); page.setDefaultTimeout(10000); watch(page);
-  await test('Connector presents Blogger consent and manual Pinterest instructions, with no boards or Trial controls', async () => { await page.goto(BASE + '/connector', { waitUntil: 'networkidle' }); await page.getByRole('heading', { name: 'Pinterest · manual upload', exact: true }).waitFor(); await page.getByText('Manage permission',{exact:true}).click(); assert(await page.getByRole('button', { name: 'Reconnect Blogger', exact: true }).isEnabled()); assert.equal(await page.getByTestId('workspace-root').count(),1); assert.equal(await page.getByLabel('Automation verified blog',{exact:true}).count(),0); assert.equal(await page.locator('a[href="/automation"]').count(),0); assert.equal(await page.getByRole('button', { name: 'Connect Pinterest', exact: true }).count(), 0); const body = await page.locator('main').innerText(); assert(!body.includes('Trial API Pins')); assert(body.includes('No Pinterest API connection required')); });
+  await test('Connector tabs preserve Blogger access, recurring controls and manual-only Pinterest with no Jobs menu link', async () => {
+    await page.goto(BASE + '/connector', { waitUntil: 'networkidle' });
+    const bloggerTab=page.getByRole('tab',{name:/^Blogger/}),recurringTab=page.getByRole('tab',{name:/^Recurring/}),pinterestTab=page.getByRole('tab',{name:/^Pinterest/});
+    assert.equal(await bloggerTab.getAttribute('aria-selected'),'true');
+    assert.equal(await page.locator('nav[aria-label="Main navigation"] a[href="/jobs"]').count(),0);
+    assert.equal(await page.locator('nav[aria-label="Workspace pages"] a[href="/jobs"]').count(),0);
+    await bloggerTab.press('ArrowRight');assert.equal(await recurringTab.getAttribute('aria-selected'),'true');
+    await page.keyboard.press('ArrowRight');assert.equal(await pinterestTab.getAttribute('aria-selected'),'true');
+    await page.getByRole('heading',{name:'Pinterest · manual upload',exact:true}).waitFor();
+    const pinterestPanel=page.locator('#connector-panel-pinterest');assert(await pinterestPanel.getByText('No Pinterest API connection required',{exact:true}).isVisible());
+    const pinText=await pinterestPanel.innerText();assert(pinText.includes('Pinterest remains manual')||pinText.includes('does not log in, upload or schedule Pins'));
+    await page.keyboard.press('ArrowRight');assert.equal(await bloggerTab.getAttribute('aria-selected'),'true');
+    await page.getByText('Manage permission',{exact:true}).click();assert(await page.getByRole('button',{name:'Reconnect Blogger',exact:true}).isEnabled());
+    assert.equal(await page.getByTestId('workspace-root').count(),1);assert.equal(await page.getByLabel('Automation verified blog',{exact:true}).count(),0);assert.equal(await page.locator('a[href="/automation"]').count(),0);assert.equal(await page.getByRole('button',{name:'Connect Pinterest',exact:true}).count(),0);
+    const body=await page.locator('main').innerText();assert(!body.includes('Trial API Pins'));
+  });
   const articleTitle = rawArticle.title, preparedArticle = textTask({ task: 'article', title: rawArticle.title, topic: 'balcony garden', language: 'en' }).validate(rawArticle);
   let fullArticleDraftId;
   await test('Guest Article Writer keeps private offline generation without mode controls or publishing', async () => {
@@ -203,7 +218,7 @@ try {
       assert.equal((await jobs(foreignSession)).length,0);
     }finally{await context.addCookies([{name:'pincraft.session.v2',value:session,url:origin,httpOnly:true,sameSite:'Lax'}]);}
   });
-  await test('Dashboard links to Connector and old Automation bookmarks redirect there without a second setup page',async()=>{ await page.goto(BASE+'/dashboard',{waitUntil:'networkidle'}); assert(await page.getByRole('heading',{name:'Reviewed content. Real blog results.',exact:true}).isVisible()); assert.equal(await page.getByText('Pins published',{exact:true}).count(),0); assert.equal(await page.locator('a[href="/automation"]').count(),0); const old=await request('/automation'); assert.equal(old.status,308); assert.equal(old.headers.get('location'),'/connector#blogger-recurring'); await page.goto(BASE+'/automation',{waitUntil:'networkidle'}); assert.equal(new URL(page.url()).pathname,'/connector'); assert(await page.getByRole('heading',{name:'Recurring Blogger posts',exact:true}).isVisible()); assert.equal(await page.getByRole('button',{name:'Start automation',exact:true}).count(),0); assert.equal(await page.getByLabel('Automation verified blog',{exact:true}).count(),0); });
+  await test('Dashboard links to Connector and old Automation bookmarks redirect there without a second setup page',async()=>{ await page.goto(BASE+'/dashboard',{waitUntil:'networkidle'}); assert(await page.getByRole('heading',{name:'Reviewed content. Real blog results.',exact:true}).isVisible()); assert.equal(await page.getByText('Pins published',{exact:true}).count(),0); assert.equal(await page.locator('a[href="/automation"]').count(),0); const old=await request('/automation'); assert.equal(old.status,308); assert.equal(old.headers.get('location'),'/connector#blogger-recurring'); await page.goto(BASE+'/automation',{waitUntil:'networkidle'}); assert.equal(new URL(page.url()).pathname,'/connector'); assert.equal(await page.getByRole('tab',{name:/^Recurring/}).getAttribute('aria-selected'),'true'); assert(await page.getByRole('heading',{name:'Recurring Blogger posts',exact:true}).isVisible()); assert.equal(await page.getByRole('button',{name:'Start automation',exact:true}).count(),0); assert.equal(await page.getByLabel('Automation verified blog',{exact:true}).count(),0); });
   const automationSettings={bloggerConnectionId:'blogger',websiteId:'blogger_'+BLOG,categoryIds:['home-decor'],topic:'',language:'en',trendRegion:'BD',timezone:'Asia/Dhaka',dailyLimit:6,postingTimes:['08:00','10:30','13:00','15:30','18:00','20:30']};
   await test('Actual recurring APIs require owner auth, same origin, strict input and separate recurring consent',async()=>{
     assert.equal((await request('/api/publish/automation',{token:null})).status,401);
