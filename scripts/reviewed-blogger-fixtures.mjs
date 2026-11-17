@@ -48,11 +48,11 @@ export async function reviewedFixture(options = {}) {
   for (const key of Object.keys(transport.calls)) transport.calls[key] = 0;
   transport.requests.length = 0;
   let now = Date.now(); transport.setTime(now); linkTransport.setTime(now);
-  const livePosts=[
+  const defaultLivePosts=[
     {id:'223456789012301',title:'Balcony Container Garden Layout Ideas',url:'https://example.com/blog/balcony-container-layout',status:'LIVE',published:new Date(now-5*86400000).toISOString(),labels:['balcony','container garden']},
     {id:'223456789012302',title:'Small Balcony Container Planting Guide',url:'https://example.com/blog/small-balcony-planting',status:'LIVE',published:new Date(now-3*86400000).toISOString(),labels:['small balcony','container planting']},
     {id:'223456789012303',title:'Balcony Garden Care Notes',url:'https://example.com/blog/balcony-garden-care',status:'LIVE',published:new Date(now-86400000).toISOString(),labels:['balcony','garden care']}
   ];
-  for(const post of livePosts)linkTransport.posts.set(post.id,post);
-  return { db, uid, identity, ...transport, linkSend:linkTransport.send, now: () => now, advance: amount => { now += amount; transport.setTime(now); linkTransport.setTime(now); }, request: reviewedRequest };
+  for(const post of options.linkPosts??defaultLivePosts)linkTransport.posts.set(post.id,post);
+  return { db, uid, identity, ...transport, linkSend:linkTransport.send, linkCalls:linkTransport.calls, now: () => now, advance: amount => { now += amount; transport.setTime(now); linkTransport.setTime(now); }, request: reviewedRequest };
 }

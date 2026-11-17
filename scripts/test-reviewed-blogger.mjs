@@ -363,6 +363,15 @@ check('Blogger-only input omits the entire Pin contract but never bypasses final
  assert.throws(()=>reviewedInput({...raw,reviewed:false}));assert.throws(()=>reviewedInput({...raw,automation:{enabled:true}}));
  assert.throws(()=>reviewedInput({...raw,pinReadyAtUTC:'now'}));assert.throws(()=>reviewedInput({...raw,pin:false}));
 });
+check('Manual seed articles may omit links only after the server confirms fewer than two relevant live posts',async()=>{
+ const empty=await reviewedFixture({linkPosts:[]}),raw=reviewedRequest({allowNoInternalLinks:true});raw.article={...raw.article,relatedArticles:[]};delete raw.pin;delete raw.pinReadyAtUTC;
+ const job=(await createPublishingJob(db,empty.uid,raw,{now:empty.now(),send:empty.linkSend})).job;assert.equal(job.internalLinksOmitted,true);assert.equal((await row(job.id)).internalLinksOmitted,true);assert.equal((await row(job.id)).payload.article.relatedArticles.length,0);assert.equal(empty.linkCalls.list,1);
+ const populated=await reviewedFixture(),blocked=reviewedRequest({allowNoInternalLinks:true});blocked.article={...blocked.article,relatedArticles:[]};delete blocked.pin;delete blocked.pinReadyAtUTC;
+ await assert.rejects(createPublishingJob(db,populated.uid,blocked,{now:populated.now(),send:populated.linkSend}),error=>error.code==='article_internal_links_available');assert.equal(populated.linkCalls.list,1);
+ const unavailable=await reviewedFixture({linkPosts:[]}),unavailableRequest=reviewedRequest({allowNoInternalLinks:true});unavailableRequest.article={...unavailableRequest.article,relatedArticles:[]};delete unavailableRequest.pin;delete unavailableRequest.pinReadyAtUTC;
+ const failingSend=async(url,options)=>{if(url.includes('/blogger/v3/blogs/')&&url.includes('/posts?'))throw new Error('Synthetic live-post lookup failure.');return unavailable.linkSend(url,options);};
+ await assert.rejects(createPublishingJob(db,unavailable.uid,unavailableRequest,{now:unavailable.now(),send:failingSend}),/Synthetic live-post lookup failure/);assert.equal((await listPublishingJobs(db,unavailable.uid)).jobs.length,0);
+});
 check('A Blogger-only job verifies live without allocating or creating a manual Pin child',async()=>{
  const f=await reviewedFixture(),raw=reviewedRequest();delete raw.pin;delete raw.pinReadyAtUTC;
  const job=(await createPublishingJob(db,f.uid,raw,{now:f.now(),send:f.linkSend})).job;assert.equal(job.manualTaskId,null);assert.equal(job.hasManualPin,false);

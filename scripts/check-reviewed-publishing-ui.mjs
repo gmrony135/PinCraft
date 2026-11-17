@@ -175,6 +175,19 @@ try {
     assert.equal((await jobs()).length,pastedCount+1);
     assert.match(await page.getByTestId('saved-publishing-job-id').innerText(),new RegExp(job.id));
   });
+  await test('Cold-start manual review offers a no-links choice only after a successful empty live-post lookup',async()=>{
+    await page.goto(BASE+'/publish',{waitUntil:'networkidle'});
+    await page.route('**/api/publish/related**',route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({items:[],verifiedSource:'synthetic empty live-post fixture'})}),{times:1});
+    const before=(await jobs()).length,title='A reviewed first article for a new Blogger blog';
+    await page.getByLabel('Existing article title',{exact:true}).fill(title);await page.getByLabel('Complete existing article',{exact:true}).fill(preparedArticle.plainText);await page.getByRole('button',{name:'Review this article',exact:true}).click();
+    const choice=page.getByTestId('manual-no-internal-links-review');await choice.waitFor();assert.equal(await choice.getByRole('checkbox').isChecked(),false);assert.match(await choice.innerText(),/one-time choice/);
+    assert(await page.getByRole('button',{name:'Publish blog now',exact:true}).isDisabled());await choice.getByRole('checkbox').check();
+    assert.match(await page.getByTestId('publish-readiness').innerText(),/Tick the final review and Blogger publication authorization/);assert.equal(await page.getByRole('checkbox',{name:/^I reviewed this specific HTML article/}).isChecked(),false);
+    await page.getByRole('checkbox',{name:/^I reviewed this specific HTML article/}).check();assert(await page.getByRole('button',{name:'Publish blog now',exact:true}).isEnabled());assert.equal((await jobs()).length,before);
+    await page.goto(BASE+'/publish',{waitUntil:'networkidle'});await page.route('**/api/publish/related**',route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({verifiedSource:'synthetic malformed live-post fixture'})}),{times:1});
+    await page.getByLabel('Existing article title',{exact:true}).fill('Malformed live-post lookup must remain blocked');await page.getByLabel('Complete existing article',{exact:true}).fill(preparedArticle.plainText);await page.getByRole('button',{name:'Review this article',exact:true}).click();
+    const failedLinks=page.getByTestId('article-related-links');await failedLinks.getByRole('alert').waitFor();assert.match(await failedLinks.innerText(),/could not be verified/);assert.equal(await page.getByTestId('manual-no-internal-links-review').count(),0);assert(await page.getByRole('button',{name:'Publish blog now',exact:true}).isDisabled());assert.equal((await jobs()).length,before);
+  });
   await test('Broken HTML shows a specific visible blocker before any create/publish request is possible', async () => {
     await page.goto(BASE+'/publish',{waitUntil:'networkidle'});
     await page.getByLabel('Existing article title',{exact:true}).fill('Review invalid formatting without queuing an article');
@@ -238,7 +251,7 @@ try {
     const other=await (await request('/api/publish/automation',{token:foreignSession})).json();assert.equal(other.automation,null);assert.deepEqual(other.slots,[]);
   });
   await test('Connector expands one owner-scoped recurring editor with the saved six slots and fresh unchecked authorization',async()=>{
-    await page.goto(BASE+'/connector',{waitUntil:'networkidle'});await page.getByTestId('blog-automation-status').waitFor(); await page.getByRole('button',{name:'Edit recurring posts',exact:true}).click(); assert.equal(await page.getByTestId('workspace-root').count(),1);
+    await page.goto(BASE+'/connector',{waitUntil:'networkidle'});await page.getByRole('tab',{name:/^Recurring/}).click();await page.getByTestId('blog-automation-status').waitFor(); await page.getByRole('button',{name:'Edit recurring posts',exact:true}).click(); assert.equal(await page.getByTestId('workspace-root').count(),1);
     assert.match(await page.getByTestId('blog-automation-status').innerText(),/Paused/);assert.equal(await page.getByLabel('Authorize recurring generation and Blogger publication',{exact:true}).isChecked(),false);
     assert.equal(await page.getByLabel(/Automation posting time [1-6]/).count(),6);assert.equal(await page.getByLabel('Automation audience timezone',{exact:true}).inputValue(),'Asia/Dhaka');
     assert.equal(await page.getByLabel('Automation Blogger account',{exact:true}).count(),0);assert.equal(await page.getByLabel('Automation verified blog',{exact:true}).inputValue(),'blogger_'+BLOG);
@@ -268,11 +281,11 @@ try {
   });
   await test('A collapsed editor still lets its real owner pause a synthetic enabled schedule even when enable-readiness is unavailable',async()=>{
     const current=await (await request('/api/publish/automation')).json(); await saveBlogAutomation(db,owner.id,{requestId:randomUUID(),expectedRevision:current.automation.revision,settings:current.automation.settings,enabled:true,consent:true},{aiConfigured:true,workloadConfigured:true});
-    await page.goto(BASE+'/connector',{waitUntil:'networkidle'}); assert.equal(await page.getByLabel('Automation verified blog',{exact:true}).count(),0); assert.match(await page.getByTestId('blog-automation-status').innerText(),/Enabled/);
+    await page.goto(BASE+'/connector',{waitUntil:'networkidle'});await page.getByRole('tab',{name:/^Recurring/}).click(); assert.equal(await page.getByLabel('Automation verified blog',{exact:true}).count(),0); assert.match(await page.getByTestId('blog-automation-status').innerText(),/Enabled/);
     await page.getByRole('button',{name:'Pause recurring posts',exact:true}).click(); await page.getByText('Recurring posts paused. New work is stopped; posts already scheduled inside Blogger remain there.',{exact:true}).waitFor(); assert.equal((await (await request('/api/publish/automation')).json()).automation.enabled,false);
   });
   await test('A late recurring-settings response cannot expose the previous owner’s saved editor after an account switch',async()=>{
-    const separate=await browser.newContext(),race=await separate.newPage(); watch(race); await separate.addCookies([{name:'pincraft.session.v2',value:session,url:origin,httpOnly:true,sameSite:'Lax'}]); await race.goto(BASE+'/connector',{waitUntil:'networkidle'}); await race.getByRole('button',{name:'Edit recurring posts',exact:true}).click();
+    const separate=await browser.newContext(),race=await separate.newPage(); watch(race); await separate.addCookies([{name:'pincraft.session.v2',value:session,url:origin,httpOnly:true,sameSite:'Lax'}]); await race.goto(BASE+'/connector',{waitUntil:'networkidle'});await race.getByRole('tab',{name:/^Recurring/}).click();await race.getByRole('button',{name:'Edit recurring posts',exact:true}).click();
     let release,captured; const held=new Promise(resolve=>{release=resolve;}),ready=new Promise(resolve=>{captured=resolve;}); await race.route('**/api/publish/automation',async route=>{const response=await route.fetch();captured();await held;await route.fulfill({response});},{times:1});
     try{await race.getByRole('button',{name:'Refresh workspace',exact:true}).click();await ready;await separate.addCookies([{name:'pincraft.session.v2',value:foreignSession,url:origin,httpOnly:true,sameSite:'Lax'}]);await race.evaluate(()=>document.dispatchEvent(new Event('visibilitychange')));await race.getByRole('button',{name:'Set up recurring posts',exact:true}).waitFor();release();await race.waitForLoadState('networkidle');assert.equal(await race.getByLabel('Automation topic focus',{exact:true}).count(),0);assert(!(await race.locator('main').innerText()).includes('saved in another explicit request'));}
     finally{release();await separate.close();}

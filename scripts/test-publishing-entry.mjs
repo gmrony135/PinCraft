@@ -4,6 +4,7 @@ import {test} from 'node:test';
 import {articleHTML} from '../lib/publishing/article-format.mjs';
 import {articleToHTML,countArticleWordsFromHTML,externalSourceLinks,hasProfessionalArticleStructure,plainArticleToHTML} from '../lib/publishing/review-content.mjs';
 import {defaultPublishingDestination,publishingReadiness} from '../lib/publishing/composer-state.mjs';
+import {reviewedInput,automatedArticleInput} from '../lib/publishing/content.mjs';
 const html='<p>A complete actual article must be reviewed by its owner before any publishing command is accepted.</p>';
 const data={providers:{blogger:{configured:true}},profiles:[{id:'blogger',provider:'blogger',connected:true}],websites:[{id:'blogger_123456789012',connectionId:'blogger',connected:true,authorizationChanged:false}]};
 const valid={data,includePin:true,connectionId:'blogger',websiteId:'blogger_123456789012',title:'An article supplied by the owner',html,wordCount:1200,relatedArticles:[{id:'223456789012301',title:'Useful related post one',url:'https://example.com/one'},{id:'223456789012302',title:'Useful related post two',url:'https://example.com/two'}],relatedLoaded:true,pinTitle:'A reviewed manual Pin',description:'Keep this useful article for later.',hashtags:'#UsefulArticle',imageReviewed:true,reviewed:true};
@@ -44,6 +45,27 @@ test('A fully valid review is ready; short articles and missing live-link select
  assert(!publishingReadiness({...valid,relatedLoaded:false}).find(row=>row.id==='internal-links').ready);
  assert(!publishingReadiness({...valid,relatedArticles:valid.relatedArticles.slice(0,1)}).find(row=>row.id==='internal-links').ready);
 });
+test('A one-time manual no-links confirmation only unlocks a verified cold-start review',()=>{
+ const noLinks={...valid,includePin:false,relatedArticles:[],relatedLoaded:true,relatedCandidatesCount:0,relatedError:'Only 0 relevant live posts were found.'};
+ assert(!publishingReadiness(noLinks).find(row=>row.id==='internal-links').ready);
+ assert(publishingReadiness({...noLinks,allowNoInternalLinks:true}).find(row=>row.id==='internal-links').ready);
+ assert(!publishingReadiness({...noLinks,allowNoInternalLinks:true,relatedFetchFailed:true}).find(row=>row.id==='internal-links').ready);
+ assert(!publishingReadiness({...noLinks,allowNoInternalLinks:true,relatedCandidatesCount:2}).find(row=>row.id==='internal-links').ready);
+ assert(!publishingReadiness({...noLinks,allowNoInternalLinks:true,relatedArticles:valid.relatedArticles.slice(0,1)}).find(row=>row.id==='internal-links').ready);
+});
+
+test('Manual no-link opt-out is explicit, empty-only and unavailable to recurring jobs',()=>{
+ const html='<p>'+Array(1000).fill('word').join(' ')+'</p>',request={requestId:'12345678-1234-4234-8234-123456789abc',article:{title:'A New Blog Seed Article',html,wordCount:countArticleWordsFromHTML(html),relatedArticles:[],images:[]},bloggerConnectionId:'blogger',websiteId:'blogger_123456789012',blogPublishAtUTC:'now',timezone:'Asia/Dhaka',reviewed:true};
+ assert.throws(()=>reviewedInput(request),error=>error.code==='article_internal_links_missing');
+ const manual=reviewedInput({...request,allowNoInternalLinks:true});assert.equal(manual.allowNoInternalLinks,true);assert.deepEqual(manual.article.relatedArticles,[]);
+ const oneLink={id:'223456789012301',title:'One relevant live article',url:'https://example.com/blog/one'},twoLinks=[oneLink,{id:'223456789012302',title:'Another relevant live article',url:'https://example.com/blog/two'}];
+ assert.equal(reviewedInput({...request,article:{...request.article,relatedArticles:twoLinks}}).allowNoInternalLinks,false);
+ assert.throws(()=>reviewedInput({...request,article:{...request.article,relatedArticles:[oneLink]}}),error=>error.code==='article_internal_links_missing');
+ assert.throws(()=>reviewedInput({...request,allowNoInternalLinks:true,article:{...request.article,relatedArticles:[oneLink]}}),error=>error.code==='article_internal_links_missing');
+ const automatic={...request};delete automatic.reviewed;automatic.allowNoInternalLinks=true;
+ assert.throws(()=>automatedArticleInput(automatic),error=>error.code==='review_required');
+});
+
 test('Word counts use visible article content, excluding duplicate contents and related-link lists',()=>{
  const prose=Array(1000).fill('article').join(' '),html='<h2>In this guide</h2><ol><li><a href="#section-1">Repeated contents words</a></li></ol><h2 id="section-1">Section heading</h2><p>'+prose+'</p><p><strong>Q: A question</strong></p><p>A: A specific answer.</p><h2>Related articles</h2><ul><li><a href="https://example.com/post">Uncounted related link words</a></li></ul>';
  assert.equal(countArticleWordsFromHTML(html),1007);
