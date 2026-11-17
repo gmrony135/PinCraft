@@ -15,6 +15,9 @@ export const metadata = {
     "SEO article writer",
     "Manual Pinterest scheduling",
   ],
+  other: {
+    monetag: "6ee3743bd403adb975405089ff32f9fe",
+  },
   applicationName: "PinCraft",
   openGraph: {
     title: "PinCraft — Blogger Publishing & Manual Pin Packs",
