@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Download, ImagePlus, Loader2 } from 'lucide-react';
 import { generateWithAI } from '@/lib/ai-client';
+import { saveCloudDraft } from '@/lib/cloud-library';
 import { useAuth } from '../providers/AppProvider';
 import { GenerationReceipt } from './GenerationMode';
 import CopyButton from '../CopyButton';
@@ -9,7 +10,9 @@ import CopyButton from '../CopyButton';
 export default function ImageGenerator({ initialPrompt = '', useCase = 'pin', editable = true, onUsageChange, onBusyChange, topic = '', categoryId = '', language = 'en' }) {
   const { user, authLoading, openLogin } = useAuth();
   const [prompt, setPrompt] = useState(initialPrompt), [image, setImage] = useState(null), [error, setError] = useState(''), [busy, setBusy] = useState(false);
+  const [historySave, setHistorySave] = useState({ status: 'idle', content: null, requestKey: null, message: '' });
   const [showPostInfo, setShowPostInfo] = useState(false), [postInfo, setPostInfo] = useState(null), [postInfoBusy, setPostInfoBusy] = useState(false), [postInfoError, setPostInfoError] = useState('');
+  const [postInfoSave, setPostInfoSave] = useState({ status: 'idle', content: null, requestKey: null, message: '' });
   const sequence = useRef(0), postInfoSequence = useRef(0), controller = useRef(null), postInfoController = useRef(null), owner = useRef(null), imageRef = useRef(null);
   owner.current = user?.id || null;
   imageRef.current = image;
@@ -19,13 +22,65 @@ export default function ImageGenerator({ initialPrompt = '', useCase = 'pin', ed
   useEffect(() => {
     sequence.current++; postInfoSequence.current++;
     controller.current?.abort(); postInfoController.current?.abort();
-    setImage(null); setError(''); setBusy(false); setShowPostInfo(false); setPostInfo(null); setPostInfoBusy(false); setPostInfoError('');
+    setImage(null); setError(''); setBusy(false); setHistorySave({ status: 'idle', content: null, requestKey: null, message: '' }); setShowPostInfo(false); setPostInfo(null); setPostInfoBusy(false); setPostInfoError(''); setPostInfoSave({ status: 'idle', content: null, requestKey: null, message: '' });
     return () => { sequence.current++; postInfoSequence.current++; controller.current?.abort(); postInfoController.current?.abort(); };
   }, [useCase, user?.id]);
   useEffect(() => { onBusyChange?.(busy || postInfoBusy); }, [busy, postInfoBusy, onBusyChange]);
   useEffect(() => () => onBusyChange?.(false), [onBusyChange]);
 
   const allPostInfo = postInfo ? [`Title: ${postInfo.title}`, `Description: ${postInfo.description}`, `Hashtags: ${postInfo.hashtags.join(' ')}`].join('\n\n') : '';
+
+  function artworkHistoryContent(artwork) {
+    const pin = useCase === 'pin', historyTopic = String(artwork.topic || artwork.prompt).trim().slice(0, 160);
+    return {
+      historyType: pin ? 'pin_artwork' : 'featured_image',
+      title: `${pin ? 'Pin artwork' : 'Featured image'} — ${historyTopic}`,
+      topic: historyTopic,
+      category: pin ? 'Pinterest artwork' : 'Blog featured image',
+      language,
+      imageAssetId: artwork.assetId,
+      useCase,
+      prompt: artwork.prompt,
+      categoryId: artwork.categoryId || '',
+      width: artwork.width,
+      height: artwork.height,
+      generation: artwork.generation,
+    };
+  }
+
+  async function persistArtworkHistory(entry, account, request, alreadySaved = false) {
+    setHistorySave({ status: alreadySaved ? 'saved' : 'saving', content: entry.content, requestKey: entry.requestKey, message: '' });
+    if (alreadySaved) return;
+    try {
+      await saveCloudDraft('history', entry.content, entry.requestKey);
+      if (sequence.current === request && owner.current === account) setHistorySave({ status: 'saved', content: entry.content, requestKey: entry.requestKey, message: '' });
+    } catch (issue) {
+      if (sequence.current === request && owner.current === account) setHistorySave({ status: 'error', content: entry.content, requestKey: entry.requestKey, message: issue.message || 'The artwork is available on this page, but its Library save could not be confirmed.' });
+    }
+  }
+
+  async function retryArtworkHistory() {
+    if (!historySave.content || !historySave.requestKey || !user) return;
+    const request = sequence.current, account = user.id;
+    await persistArtworkHistory({ content: historySave.content, requestKey: historySave.requestKey }, account, request, false);
+  }
+
+  async function persistPostInfoHistory(entry, account, request, artwork) {
+    setPostInfoSave({ status: entry.alreadySaved ? 'saved' : 'saving', content: entry.content, requestKey: entry.requestKey, message: '' });
+    if (entry.alreadySaved) return;
+    try {
+      await saveCloudDraft('history', entry.content, entry.requestKey);
+      if (postInfoSequence.current === request && owner.current === account && imageRef.current?.assetId === artwork.assetId) setPostInfoSave({ status: 'saved', content: entry.content, requestKey: entry.requestKey, message: '' });
+    } catch (issue) {
+      if (postInfoSequence.current === request && owner.current === account && imageRef.current?.assetId === artwork.assetId) setPostInfoSave({ status: 'error', content: entry.content, requestKey: entry.requestKey, message: issue.message || 'Post Info is ready, but its Library save could not be confirmed.' });
+    }
+  }
+
+  async function retryPostInfoHistory() {
+    if (!postInfoSave.content || !postInfoSave.requestKey || !user || !imageRef.current) return;
+    const account = user.id, request = postInfoSequence.current, artwork = imageRef.current;
+    await persistPostInfoHistory({ content: postInfoSave.content, requestKey: postInfoSave.requestKey, alreadySaved: false }, account, request, artwork);
+  }
 
   async function generate() {
     if (busy || postInfoBusy || authLoading) return;
@@ -35,10 +90,13 @@ export default function ImageGenerator({ initialPrompt = '', useCase = 'pin', ed
     postInfoController.current?.abort(); postInfoSequence.current++;
     controller.current = new AbortController(); setBusy(true); setError('');
     try {
-      const result = await generateWithAI('image', { prompt: submittedPrompt, useCase }, { signal: controller.current.signal });
+      const result = await generateWithAI('image', { prompt: submittedPrompt, useCase, topic: submittedTopic, categoryId, language }, { signal: controller.current.signal });
       if (sequence.current === request && owner.current === account) {
-        setImage({ ...result.result, generation: result.generation, prompt: submittedPrompt, topic: submittedTopic, categoryId, downloadName: `pincraft-${useCase}-${result.requestKey}.webp` });
-        setPostInfo(null); setPostInfoError('');
+        const generatedImage = { ...result.result, generation: result.generation, prompt: submittedPrompt, topic: submittedTopic, categoryId, downloadName: `pincraft-${useCase}-${result.requestKey}.webp` };
+        setImage(generatedImage);
+        setPostInfo(null); setPostInfoError(''); setPostInfoSave({ status: 'idle', content: null, requestKey: null, message: '' });
+        const entry = { content: artworkHistoryContent(generatedImage), requestKey: result.requestKey };
+        await persistArtworkHistory(entry, account, request, result.library?.saved === true);
       }
     } catch (issue) { if (issue.name !== 'AbortError' && sequence.current === request && owner.current === account) setError(issue.message); }
     finally { if (sequence.current === request) { setBusy(false); onUsageChange?.(); } }
@@ -56,9 +114,13 @@ export default function ImageGenerator({ initialPrompt = '', useCase = 'pin', ed
         topic: artwork.topic,
         categoryId: artwork.categoryId,
         language,
-        imageDataUrl: artwork.dataUrl,
+        imageAssetId: artwork.assetId,
       }, { signal: postInfoController.current.signal });
-      if (postInfoSequence.current === request && owner.current === account && imageRef.current?.dataUrl === artwork.dataUrl) setPostInfo(generated.result);
+      if (postInfoSequence.current === request && owner.current === account && imageRef.current?.dataUrl === artwork.dataUrl) {
+        setPostInfo(generated.result);
+        const content = { historyType: 'pin_info', title: generated.result.title, topic: artwork.topic || generated.result.title, category: 'Pinterest Post Info', language, imageAssetId: artwork.assetId, useCase: 'pin', prompt: artwork.prompt, description: generated.result.description, hashtags: generated.result.hashtags, generation: generated.generation };
+        await persistPostInfoHistory({ content, requestKey: generated.requestKey, alreadySaved: generated.library?.saved === true }, account, request, artwork);
+      }
     } catch (issue) {
       if (issue.name !== 'AbortError' && postInfoSequence.current === request && owner.current === account && imageRef.current?.dataUrl === artwork.dataUrl) setPostInfoError(issue.message);
     } finally {
@@ -75,6 +137,9 @@ export default function ImageGenerator({ initialPrompt = '', useCase = 'pin', ed
     {error && <p role="alert" className="rounded-lg bg-brand-50 p-3 text-[11.5px] leading-relaxed text-brand-800">{error}{image ? ' Your previous image is unchanged and can still be downloaded.' : ''}</p>}
     {image && <div>
       <GenerationReceipt generation={image.generation} />
+      {historySave.status === 'saved' && <p role="status" className="mb-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-[11px] leading-relaxed text-emerald-800">Automatically saved to your private My Library. This artwork has not been published.</p>}
+      {historySave.status === 'saving' && <p role="status" className="mb-3 rounded-lg border border-neutral-200 bg-neutral-50 p-3 text-[11px] text-neutral-600">Saving artwork to your private My Library…</p>}
+      {historySave.status === 'error' && <div role="alert" className="mb-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-[11px] leading-relaxed text-amber-900">{historySave.message} The image is still downloadable; retry before leaving this page. <button type="button" onClick={retryArtworkHistory} className="ml-1 min-h-9 font-extrabold underline underline-offset-2">Retry Library save</button></div>}
       <img src={image.dataUrl} alt={`AI-generated ${useCase === 'pin' ? 'Pinterest artwork' : 'blog featured artwork'}`} width={image.width} height={image.height} className={`mx-auto h-auto max-h-[600px] w-full rounded-xl bg-neutral-50 object-contain ${useCase === 'pin' ? 'max-w-[380px]' : ''}`} />
       <a href={image.dataUrl} download={image.downloadName} className="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-neutral-300 px-3 text-[12px] font-bold text-neutral-700 hover:bg-neutral-50"><Download size={15} aria-hidden="true" />Download WebP</a>
       {useCase === 'pin' && <div className="mt-3">
@@ -85,6 +150,9 @@ export default function ImageGenerator({ initialPrompt = '', useCase = 'pin', ed
           <div><p className="text-[12px] font-extrabold text-neutral-900">Pinterest Post Info</p><p className="mt-1 text-[10.5px] leading-relaxed text-neutral-500">One image-based title, description and four or five relevant hashtags. Nothing is posted automatically.</p></div>
           {postInfoBusy && <p role="status" className="text-[11px] leading-relaxed text-neutral-600">Analyzing this artwork and preparing one distinct Post Info set…</p>}
           {postInfoError && <p role="alert" className="rounded-lg bg-brand-50 p-3 text-[11.5px] leading-relaxed text-brand-800">{postInfoError}</p>}
+          {postInfoSave.status === 'saved' && <p role="status" className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-[10.5px] text-emerald-800">Post Info automatically saved in My Library. Nothing was posted.</p>}
+          {postInfoSave.status === 'saving' && <p role="status" className="rounded-lg border border-neutral-200 bg-white p-3 text-[10.5px] text-neutral-600">Saving Post Info to My Library…</p>}
+          {postInfoSave.status === 'error' && <p role="alert" className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-[10.5px] leading-relaxed text-amber-900">{postInfoSave.message} <button type="button" onClick={retryPostInfoHistory} className="ml-1 min-h-9 font-extrabold underline underline-offset-2">Retry Library save</button></p>}
           {postInfo ? <>
             <div className="rounded-lg border border-neutral-200 bg-white p-3">
               <div className="flex flex-wrap items-center justify-between gap-2"><p className="text-[11px] font-bold text-neutral-700">Title</p><CopyButton text={postInfo.title} label="Copy Pin title" className="min-h-11 px-3 text-[11px]" /></div>
@@ -107,6 +175,6 @@ export default function ImageGenerator({ initialPrompt = '', useCase = 'pin', ed
         </section>}
       </div>}
     </div>}
-    <p className="text-[10px] leading-relaxed text-neutral-500">Artwork only; add lettering in your design editor if needed. Post Info sends this generated image and the visual prompt used to create it for AI analysis. There is no per-account daily text cap; shared website-wide capacity, cooldowns and provider quotas still apply. By default the generated image stays in page memory. Nothing is published automatically.</p>
+    <p className="text-[10px] leading-relaxed text-neutral-500">Artwork only; add lettering in your design editor if needed. AI artwork and generated Post Info are automatically saved to your private My Library for history. Post Info sends this image and the visual prompt to AI for analysis. Shared website-wide capacity, cooldowns and provider quotas still apply. Saving history does not publish, queue or upload anything.</p>
   </div>;
 }

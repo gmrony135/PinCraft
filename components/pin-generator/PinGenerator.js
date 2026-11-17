@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { generatePinPack } from "@/lib/generator";
+import { saveToLibrary } from "@/lib/library";
+import { saveCloudDraft } from "@/lib/cloud-library";
 import { useAuth } from "../providers/AppProvider";
 import { generateWithAI } from "@/lib/ai-client";
 import ImageGenerator from "../ai/ImageGenerator";
@@ -37,6 +39,7 @@ export default function PinGenerator() {
   const [artworkPrompt, setArtworkPrompt] = useState("");
   const [loading, setLoading] = useState(false);
   const [pack, setPack] = useState(null);
+  const [historySave, setHistorySave] = useState({ status: 'idle', content: null, requestKey: null, cloud: false, message: '' });
   const [error, setError] = useState("");
   const [toast, setToast] = useState("");
   const toastTimer = useRef(null);
@@ -44,7 +47,7 @@ export default function PinGenerator() {
   useEffect(() => { const value = new URLSearchParams(window.location.search).get('topic'); if (value) { const clean = value.slice(0, 160); setTopic(clean); setArtworkPrompt(createPinArtworkPrompt(clean)); } }, []);
   useEffect(() => {
     generationRequest.current.sequence++; generationRequest.current.controller?.abort();
-    setLoading(false); setError(''); setPack(previous => previous?.generation ? null : previous);
+    setLoading(false); setError(''); setPack(null); setHistorySave({ status: 'idle', content: null, requestKey: null, cloud: false, message: '' });
     return () => { generationRequest.current.sequence++; generationRequest.current.controller?.abort(); };
   }, [user?.id]);
 
@@ -52,6 +55,23 @@ export default function PinGenerator() {
     setToast(msg);
     clearTimeout(toastTimer.current);
     toastTimer.current = setTimeout(() => setToast(""), 2200);
+  }
+
+  async function persistPinHistory(content, requestKey, cloud, owner, sequence, alreadySaved = false) {
+    setHistorySave({ status: alreadySaved ? 'saved' : 'saving', content, requestKey, cloud, message: '' });
+    if (alreadySaved) return;
+    try {
+      if (cloud) await saveCloudDraft('pin', content, requestKey);
+      else saveToLibrary({ type: 'pin', ...content });
+      if (generationRequest.current.sequence === sequence && identity.current === owner) setHistorySave({ status: 'saved', content, requestKey, cloud, message: '' });
+    } catch (issue) {
+      if (generationRequest.current.sequence === sequence && identity.current === owner) setHistorySave({ status: 'error', content, requestKey, cloud, message: issue.message || 'The Pin result is available, but its Library save could not be confirmed.' });
+    }
+  }
+
+  async function retryPinHistory() {
+    if (!historySave.content || !historySave.requestKey) return;
+    await persistPinHistory(historySave.content, historySave.requestKey, historySave.cloud, identity.current, generationRequest.current.sequence, false);
   }
 
   async function handleGenerate(e) {
@@ -69,20 +89,22 @@ export default function PinGenerator() {
     if (mode === 'ai' && !user) { setError('Sign in with a verified account to use live Pin generation.'); openLogin(); return; }
     const owner = identity.current, sequence = ++generationRequest.current.sequence;
     generationRequest.current.controller = new AbortController();
-    setError(''); setPack(null); setLoading(true);
+    setError(''); setPack(null); setHistorySave({ status: 'idle', content: null, requestKey: null, cloud: false, message: '' }); setLoading(true);
     try {
-      let generated;
+      let generated, requestKey, alreadySaved = false;
       if (mode === 'ai') {
         const result = await generateWithAI('pin', { topic: value, language }, { signal: generationRequest.current.controller.signal });
         generated = { ...result.result, generation: result.generation };
+        requestKey = result.requestKey; alreadySaved = result.library?.saved === true;
       } else {
         await new Promise(resolve => requestAnimationFrame(resolve));
-        generated = generatePinPack(value);
+        generated = generatePinPack(value); requestKey = crypto.randomUUID();
       }
       if (sequence !== generationRequest.current.sequence || identity.current !== owner) return;
       setPack(generated);
       setArtworkPrompt(generated.imageIdea?.prompt || createPinArtworkPrompt(generated.topic || value));
       flash(mode === 'ai' ? 'AI Pin pack generated' : 'Offline pin template generated');
+      await persistPinHistory(generated, requestKey, mode === 'ai', owner, sequence, alreadySaved);
     } catch (issue) { if (issue.name !== 'AbortError' && sequence === generationRequest.current.sequence && identity.current === owner) setError(issue.message); }
     finally { if (sequence === generationRequest.current.sequence) setLoading(false); }
   }
@@ -234,6 +256,9 @@ export default function PinGenerator() {
                 Suggest a matching Pin artwork prompt from your topic.
               </p>
             </form>
+            {pack && historySave.status === 'saved' && <p role="status" className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-[11px] leading-relaxed text-emerald-800">Pin ideas automatically saved to {historySave.cloud ? 'your private Cloud Library' : 'My Library on this device'}. This is a draft only—not a Pinterest upload. <Link href="/library" prefetch={false} className="font-extrabold underline underline-offset-2">Open My Library</Link></p>}
+            {pack && historySave.status === 'saving' && <p role="status" className="mt-3 rounded-xl border border-neutral-200 bg-neutral-50 p-3 text-[11px] text-neutral-600">Saving Pin ideas to My Library…</p>}
+            {pack && historySave.status === 'error' && <p role="alert" className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-[11px] leading-relaxed text-amber-900">{historySave.message} Keep this page open and retry. <button type="button" onClick={retryPinHistory} className="ml-1 min-h-9 font-extrabold underline underline-offset-2">Retry Library save</button></p>}
 
             <section id="pin-artwork-generator" data-testid="pin-artwork-section" className="mt-5 scroll-mt-20">
               <div className="mb-3 flex flex-col justify-between gap-2 sm:flex-row sm:items-end">
@@ -249,7 +274,7 @@ export default function PinGenerator() {
                 <button type="button" onClick={() => setArtworkPrompt(createPinArtworkPrompt(topic))} className="min-h-11 shrink-0 rounded-lg px-2 text-[11px] font-bold text-brand-700 hover:bg-brand-50">Use topic for artwork prompt</button>
               </div>}
               {!authLoading && !user && <div className="mb-3 flex flex-col gap-2 rounded-xl border border-amber-100 bg-amber-50 p-3 sm:flex-row sm:items-center sm:justify-between">
-                <p className="text-[11px] leading-relaxed text-amber-900">A verified account is required for AI artwork. Shared website-wide capacity and provider limits still apply; the Pin stays on this page.</p>
+                <p className="text-[11px] leading-relaxed text-amber-900">A verified account is required for AI artwork. After generation, the image is automatically saved in your private Cloud Library. Shared website-wide capacity and provider limits still apply.</p>
                 <button type="button" onClick={openLogin} className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-lg border border-amber-200 bg-white px-3 text-[11px] font-bold text-amber-900 hover:bg-amber-50">Sign in / create account</button>
               </div>}
               <ImageGenerator initialPrompt={artworkPrompt} useCase="pin" editable topic={topic} categoryId={CATEGORIES.find(category => category.label.toLocaleLowerCase() === topic.trim().toLocaleLowerCase())?.id || ''} language={language} />

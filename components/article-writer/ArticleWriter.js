@@ -112,12 +112,43 @@ export default function ArticleWriter() {
         if(!/^[a-f0-9]{64}$/.test(result.result?.assetId||''))throw new Error('The image was not saved to private durable storage.');
         next={...next,images:[...next.images,{assetId:result.result.assetId,role:brief.role,sectionIndex:brief.sectionIndex,sectionHeading:brief.sectionIndex===null?'':next.sections[brief.sectionIndex]?.heading||'',altText:brief.altText,width:result.result.width,height:result.result.height}],imageStatus:'pending',imageError:''};
         setArticle(next);setImageMessage(`Saved image ${index+1} of 3 to your private Library.`);
+        try { await persistArticleDraft(next, ownerId); } catch {}
       }
       next={...next,imageStatus:next.images.length===3?'complete':'incomplete',imageError:next.images.length===3?'':'One or more article images are missing.'};setArticle(next);setImageMessage(next.imageStatus==='complete'?'All three AI images are saved privately and ready for review.':next.imageError);
+      try { await persistArticleDraft(next, ownerId); } catch {}
     }catch(issue){
       if(issue.name==='AbortError'||imageRequest.current.sequence!==imageSequence||identity.current!==ownerId)return;
       next={...next,imageStatus:'incomplete',imageError:`Image generation stopped before all three images were saved: ${issue.message}`};setArticle(next);setImageMessage(next.imageError);
+      try { await persistArticleDraft(next, ownerId); } catch {}
     }finally{if(imageRequest.current.sequence===imageSequence&&identity.current===ownerId)setImageBusy(false);}
+  }
+
+  async function persistArticleDraft(target, ownerId = identity.current) {
+    if (!target?.id) throw new Error('This article could not be identified for Library history.');
+    const contentId = target.id, request = ++saveSequence.current;
+    savePending.current = true; setSaving(true); setSaveError('');
+    try {
+      let draftId;
+      if (user && identity.current === ownerId) {
+        const requestKey = target.libraryRequestKey || saveRequest.current || crypto.randomUUID();
+        saveRequest.current = requestKey;
+        draftId = await saveCloudDraft('article', target, requestKey);
+      } else {
+        saveToLibrary({ type: 'article', ...target });
+        draftId = contentId;
+      }
+      if (identity.current !== ownerId || currentContent.current !== contentId || request !== saveSequence.current) return null;
+      setSaved(true); setSaveError('');
+      setArticle(current => current?.id === contentId ? { ...current, ...(user ? { cloudHistorySaved: true } : {}) } : current);
+      return draftId;
+    } catch (issue) {
+      if (identity.current === ownerId && currentContent.current === contentId && request === saveSequence.current) {
+        setSaved(false); setSaveError(issue.message || 'Your draft could not be saved. Keep this page open and retry.');
+      }
+      throw issue;
+    } finally {
+      if (request === saveSequence.current) { savePending.current = false; setSaving(false); }
+    }
   }
 
   async function handleGenerate(e) {
@@ -125,29 +156,36 @@ export default function ArticleWriter() {
     const value = title.trim();
     if (!value) { setError("Enter a topic or title first — for example, “Simple Balcony Garden Ideas for Small Spaces”."); return; }
     if (value.length < 10) { setError("That title is a little short. Try at least 10 characters for a clearer article."); return; }
-    if (loading || imageBusy || authLoading) return;
+    if (loading || imageBusy || savePending.current || authLoading) return;
     if (mode === 'ai' && !user) { setError('Sign in with a verified account to generate a live AI article.'); openLogin(); return; }
     const owner = identity.current, sequence = ++generationRequest.current.sequence;
     imageRequest.current.sequence++;imageRequest.current.controller?.abort();imageRequest.current.keys={};imageRequest.current.lastStartedAt=0;generationRequest.current.controller = new AbortController();
-    setError('');setImageMessage('');setSaved(false);setArticle(null);setLoading(true);
+    setError('');setSaveError('');setImageMessage('');setSaved(false);currentContent.current=null;setArticle(null);setLoading(true);
     try {
       const topic = params.get('topic')?.slice(0, 160) || undefined;let generated;
       if (mode === 'ai') {
         const result = await generateWithAI('article', { title: value, ...(topic ? { topic } : {}), language }, { signal: generationRequest.current.controller.signal });
-        generated = { ...result.result, generation: result.generation, images:[], imageStatus:'pending', imageError:'' };
+        generated = { ...result.result, generation: result.generation, images:[], imageStatus:'pending', imageError:'', libraryRequestKey:result.requestKey, cloudHistorySaved:result.library?.saved===true };
       } else {
-        await new Promise(resolve => requestAnimationFrame(resolve));generated = generateArticle(value, topic);
+        await new Promise(resolve => requestAnimationFrame(resolve));generated = { ...generateArticle(value, topic), libraryRequestKey:crypto.randomUUID() };
       }
       if (sequence !== generationRequest.current.sequence || identity.current !== owner) return;
+      currentContent.current=generated.id;saveRequest.current=generated.libraryRequestKey;
       setArticle(generated);setLoading(false);flash(mode === 'ai' ? 'AI article draft ready' : 'Offline article template generated');
       setTimeout(() => resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+      try { await persistArticleDraft(generated, owner); } catch {}
       if(mode==='ai')await generateArticleImages(generated,owner);
-      else setImageMessage('The offline template is text-only and does not include original illustrations.');
+      else setImageMessage('The offline template is text-only and has been saved to My Library on this device.');
     } catch (issue) { if (issue.name !== 'AbortError' && sequence === generationRequest.current.sequence && identity.current === owner) setError(issue.message); }
     finally { if (sequence === generationRequest.current.sequence) setLoading(false); }
   }
 
-  useEffect(() => { saveSequence.current++; setSaving(false); setSaved(false); setSaveError(''); saveRequest.current = null; savePending.current = false; }, [user?.id, article?.id]);
+  useEffect(() => {
+    const deviceSaved=!user&&article?.id&&getLibrary().some(item=>item.id===article.id&&item.type==='article');
+    if(!savePending.current){setSaving(false);setSaveError('');}
+    setSaved(user?article?.cloudHistorySaved===true:deviceSaved);
+    saveRequest.current=article?.libraryRequestKey||null;
+  }, [user?.id, article?.id]);
   useEffect(() => {
     setLibraryDrop(null);
     if (authLoading) return;
@@ -158,7 +196,7 @@ export default function ArticleWriter() {
     }
     let active = true;
     fetch("/api/library", { credentials: "same-origin", cache: "no-store" }).then(r => r.ok ? r.json() : null).then(data => {
-      const pin = data?.items?.find(item => item.kind !== "article_draft" && item.content?.title);
+      const pin = data?.items?.find(item => ['pin_draft','queued_pin','generated'].includes(item.kind) && item.content?.title && !Array.isArray(item.content.sections));
       if (active && pin) setLibraryDrop({ owner: user.id, topic: pin.topic, title: pin.content.title, description: pin.content.description, hashtags: pin.content.hashtags });
     }).catch(() => {});
     return () => { active = false; };
@@ -168,25 +206,15 @@ export default function ArticleWriter() {
     if(openReview&&(article.wordCount<1000||article.wordCount>1600)){setSaveError('Publishing review accepts articles between 1,000 and 1,600 words. Generate a complete Live AI article first. No job was created.');return;}
     if(openReview&&(article.imageStatus!=='complete'||article.images?.length!==3)){setSaveError(article.imageError||'Generate and save the AI cover plus both section images before opening publishing review. No job was created.');return;}
     if (openReview && !user) { openLogin(); return; }
-    const owner = identity.current, contentId = article.id, request = ++saveSequence.current;
-    savePending.current = true; setSaving(true); setSaveError('');
+    const owner = identity.current;
     try {
-      let draftId;
-      if (user) {
-        if (!saveRequest.current) saveRequest.current = crypto.randomUUID();
-        draftId = await saveCloudDraft("article", article, saveRequest.current);
-      } else saveToLibrary({ type: "article", ...article });
-      if (identity.current !== owner || currentContent.current !== contentId || request !== saveSequence.current) return;
-      setSaved(true);
+      const draftId = await persistArticleDraft(article, owner);
+      if (!draftId || identity.current !== owner || currentContent.current !== article.id) return;
       if (openReview) {
         if (sourcePin) handoffPin(user.id, sourcePin);
         router.push('/publish?draft=' + encodeURIComponent(draftId));
       } else flash(user ? "Saved privately to your Cloud Library." : "Saved to My Library on this device 📚");
-    } catch (issue) {
-      if (identity.current === owner && currentContent.current === contentId && request === saveSequence.current) setSaveError(issue.message || 'Your draft could not be saved. Keep this page open and try again.');
-    } finally {
-      if (request === saveSequence.current) { savePending.current = false; setSaving(false); }
-    }
+    } catch {}
   }
   function handleSave() { return storeArticle(false); }
 
@@ -333,7 +361,7 @@ export default function ArticleWriter() {
                 </div>
               </div>
 
-              <button type="submit" disabled={loading || imageBusy || authLoading} className="btn-primary mt-5 w-full">
+              <button type="submit" disabled={loading || imageBusy || saving || authLoading} className="btn-primary mt-5 w-full">
                 {loading ? (
                   <>
                     <Loader2 size={18} className="animate-spin" /> Writing your article…
@@ -452,18 +480,19 @@ export default function ArticleWriter() {
                       )}
                     </button>
                   </div>
-                  <p className="mt-3 rounded-xl border border-neutral-200 bg-neutral-50 px-3.5 py-2.5 text-[11.5px] leading-relaxed text-neutral-600">Saving this article creates a private draft, not a publication. To publish this article, use the publishing review above. A manual Pin pack is optional; Pinterest uploads remain yours.</p>
+                  <p className="mt-3 rounded-xl border border-neutral-200 bg-neutral-50 px-3.5 py-2.5 text-[11.5px] leading-relaxed text-neutral-600">Generated articles are automatically saved as private Library history, not publication. Use the publishing review above if you choose to create a separate publishing job. A manual Pin pack is optional; Pinterest uploads remain yours.</p>
 
                   <button
                     type="button"
                     onClick={() => {
                       imageRequest.current.sequence++;imageRequest.current.controller?.abort();setImageBusy(false);setImageMessage('');
-                      setArticle(null);
+                      currentContent.current=null;setArticle(null);
                       setTitle("");
-                      setSaved(false);
+                      setSaved(false);setSaveError('');
                       window.scrollTo({ top: 0, behavior: "smooth" });
                     }}
-                    className="mt-3 inline-flex items-center gap-1.5 text-[12.5px] font-bold text-neutral-500 hover:text-brand-600"
+                    disabled={saving}
+                    className="mt-3 inline-flex min-h-11 items-center gap-1.5 text-[12.5px] font-bold text-neutral-500 hover:text-brand-600 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <RotateCcw size={13} /> Write another article
                   </button>

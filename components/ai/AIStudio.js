@@ -5,6 +5,7 @@ import Link from 'next/link';
 import {ArrowRight,Download,Loader2,RefreshCw,ShieldCheck,Sparkles} from 'lucide-react';
 import {useAuth} from '../providers/AppProvider';
 import {generateWithAI} from '@/lib/ai-client';
+import {saveCloudDraft} from '@/lib/cloud-library';
 import CopyButton from '../CopyButton';
 import ImageGenerator from './ImageGenerator';
 import {GenerationReceipt} from './GenerationMode';
@@ -22,7 +23,8 @@ export default function AIStudio({tool}){
  const task=tool.id,{user,authLoading,openLogin}=useAuth();
  const [status,setStatus]=useState(null),[statusError,setStatusError]=useState(false),[statusVersion,setStatusVersion]=useState(0);
  const [topic,setTopic]=useState(''),[content,setContent]=useState(''),[language,setLanguage]=useState('en');
- const [busy,setBusy]=useState(false),[error,setError]=useState(''),[output,setOutput]=useState(null);
+ const [busy,setBusy]=useState(false),[error,setError]=useState(''),[output,setOutput]=useState(null),[historySave,setHistorySave]=useState({status:'idle',content:null,requestKey:null,message:''});
+ const historyEntry=useRef(null);
  const [usage,setUsage]=useState(null),[usageError,setUsageError]=useState(''),[usageLoading,setUsageLoading]=useState(false);
  const owner=useRef(null),sequence=useRef(0),controller=useRef(null);owner.current=user?.id||null;
  useEffect(()=>{
@@ -37,15 +39,27 @@ export default function AIStudio({tool}){
   finally{if(owner.current===account)setUsageLoading(false);}
  },[]);
  useEffect(()=>{
-  sequence.current++;controller.current?.abort();setBusy(false);setOutput(null);setTopic('');setContent('');setError('');setUsage(null);setUsageError('');setUsageLoading(false);if(user)refreshUsage();
+  sequence.current++;controller.current?.abort();setBusy(false);setOutput(null);historyEntry.current=null;setHistorySave({status:'idle',content:null,requestKey:null,message:''});setTopic('');setContent('');setError('');setUsage(null);setUsageError('');setUsageLoading(false);if(user)refreshUsage();
   return()=>{sequence.current++;controller.current?.abort();};
  },[user?.id,refreshUsage]);
+ function buildHistoryContent(value){
+  const result=value.result,topicValue=topic.trim(),historyTopic=topicValue||'Content review';
+  const title=task==='keywords'?`SEO keywords for ${historyTopic}`:task==='plan'?`7-day content plan for ${historyTopic}`:`Editorial review${topicValue?`: ${topicValue}`:''}`;
+  return {historyType:task,title,topic:topicValue||title,category:task==='keywords'?'SEO & hashtags':task==='plan'?'Content plan':'Content review',language,result,description:result.note,generation:value.generation};
+ }
+ async function archiveStudioHistory(entry,account,request,alreadySaved=false){
+  setHistorySave({status:alreadySaved?'saved':'saving',content:entry.content,requestKey:entry.requestKey,message:''});
+  if(alreadySaved)return;
+  try{await saveCloudDraft('history',entry.content,entry.requestKey);if(owner.current===account&&request===sequence.current)setHistorySave({status:'saved',content:entry.content,requestKey:entry.requestKey,message:''});}
+  catch(issue){if(owner.current===account&&request===sequence.current)setHistorySave({status:'error',content:entry.content,requestKey:entry.requestKey,message:issue.message||'The result is ready, but its private Library save could not be confirmed.'});}
+ }
+ async function retryHistorySave(){if(!historyEntry.current||!user)return;await archiveStudioHistory(historyEntry.current,user.id,sequence.current,false);}
  async function generate(event){
   event.preventDefault();if(busy||authLoading)return;if(!user)return openLogin();
   if((task!=='quality'||topic.trim())&&topic.trim().length<3){setError('Enter a topic with at least 3 non-space characters.');return;}
   if(task==='quality'&&content.trim().length<40){setError('Enter at least 40 non-space characters to review.');return;}
-  const account=user.id,request=++sequence.current;controller.current=new AbortController();setBusy(true);setError('');setOutput(null);
-  try{const result=await generateWithAI(task,task==='quality'?{content:content.trim(),...(topic.trim()?{topic:topic.trim()}:{}),language}:{topic:topic.trim(),language},{signal:controller.current.signal});if(owner.current===account&&request===sequence.current)setOutput(result);}
+  const account=user.id,request=++sequence.current;controller.current=new AbortController();setBusy(true);setError('');setOutput(null);historyEntry.current=null;setHistorySave({status:'idle',content:null,requestKey:null,message:''});
+  try{const result=await generateWithAI(task,task==='quality'?{content:content.trim(),...(topic.trim()?{topic:topic.trim()}:{}),language}:{topic:topic.trim(),language},{signal:controller.current.signal});if(owner.current===account&&request===sequence.current){setOutput(result);const entry={content:buildHistoryContent(result),requestKey:result.requestKey};historyEntry.current=entry;await archiveStudioHistory(entry,account,request,result.library?.saved===true);}}
   catch(issue){if(issue.name!=='AbortError'&&owner.current===account&&request===sequence.current)setError(issue.message);}
   finally{if(request===sequence.current){setBusy(false);refreshUsage();}}
  }
@@ -71,6 +85,9 @@ export default function AIStudio({tool}){
             {output.task === 'plan' && <ol className="space-y-3">{output.result.days.map(day => <li key={day.day} className="rounded-xl border border-neutral-200 p-4"><p className="text-[10px] font-extrabold uppercase tracking-widest text-brand-700">Day {day.day}</p><h3 className="mt-2 text-[15px] font-extrabold">{day.topic}</h3><p className="mt-2 text-[12px] leading-relaxed text-neutral-600"><strong>Pin:</strong> {day.pinTitle}</p><p className="mt-2 text-[12px] leading-relaxed text-neutral-600"><strong>Article:</strong> {day.articleTitle}</p><p className="mt-3 text-[11px] text-neutral-500">{day.keywords.join(' · ')}</p><p className="mt-2 break-words text-[11px] leading-relaxed text-brand-700">{day.hashtags.join(' ')}</p><div className="mt-2 flex flex-wrap gap-x-4"><Link href={`/pin-generator?topic=${encodeURIComponent(day.topic)}`} prefetch={false} className="inline-flex min-h-11 items-center gap-2 text-[11px] font-bold text-brand-700">Create this Pin<ArrowRight size={12} aria-hidden="true" /></Link><Link href={`/article-writer?title=${encodeURIComponent(day.articleTitle)}&topic=${encodeURIComponent(day.topic)}&language=${language}`} prefetch={false} className="inline-flex min-h-11 items-center gap-2 text-[11px] font-bold text-brand-700">Use title in Article Writer<ArrowRight size={12} aria-hidden="true" /></Link></div></li>)}</ol>}
             {output.task === 'quality' && <><div className="rounded-xl bg-neutral-900 p-4 text-white"><p className="text-[10px] font-bold uppercase tracking-widest text-neutral-400">AI editorial score · not search ranking</p><p className="mt-2 text-[32px] font-extrabold">{output.result.score}<span className="text-[16px] text-neutral-500"> / 100</span></p><p className="mt-2 text-[12px] leading-relaxed text-neutral-300">{output.result.summary}</p></div><ul className="mt-4 space-y-3">{output.result.checks.map(check => <li key={check.label} className="rounded-xl border border-neutral-200 p-3.5"><p className="flex flex-wrap items-center justify-between gap-2 text-[12px] font-bold">{check.label}<span className={`rounded-full px-2 py-1 text-[9px] uppercase ${check.status === 'pass' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-800'}`}>{check.status}</span></p><p className="mt-2 text-[12px] leading-relaxed text-neutral-500">{check.detail}</p></li>)}</ul><div className="mt-4 rounded-xl bg-neutral-50 p-4"><h3 className="text-[12px] font-extrabold">Suggested title & description</h3><p className="mt-2 text-[13px] font-bold">{output.result.improvedTitle}</p><p className="mt-2 text-[12px] leading-relaxed text-neutral-600">{output.result.improvedDescription}</p><CopyButton text={`${output.result.improvedTitle}\n\n${output.result.improvedDescription}`} label="Copy improved text" className="mt-3 px-3 text-[11px]" /></div><Hashtags tags={output.result.hashtags} /></>}
             <p className="mt-4 rounded-xl border border-amber-100 bg-amber-50 p-3 text-[11px] leading-relaxed text-amber-900">{output.result.note}</p>
+            {historySave.status==='saved'&&<p role="status" className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-[11px] text-emerald-800">Automatically saved to your private My Library. This result is a draft, not a publication.</p>}
+            {historySave.status==='saving'&&<p role="status" className="mt-3 rounded-xl border border-neutral-200 bg-neutral-50 p-3 text-[11px] text-neutral-600">Saving to your private My Library…</p>}
+            {historySave.status==='error'&&<p role="alert" className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-[11px] leading-relaxed text-amber-900">{historySave.message} <button type="button" onClick={retryHistorySave} className="ml-1 min-h-9 font-extrabold underline underline-offset-2">Retry Library save</button></p>}
             <div className="mt-3 grid gap-2 sm:grid-cols-2"><CopyButton text={exported} label="Copy complete result" variant="soft" className="min-h-11 w-full rounded-xl !text-[12px]" /><a href={`data:text/plain;charset=utf-8,${encodeURIComponent(exported)}`} download={`pincraft-${output.task}.txt`} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-neutral-200 px-3 text-[12px] font-bold text-neutral-700 hover:bg-neutral-50"><Download size={14} aria-hidden="true" />Download result</a></div>
           </div>}
         </div>

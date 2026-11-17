@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { ArrowUpRight, BarChart3, Clock3, Globe2, Loader2, RefreshCw, Sparkles, TrendingUp } from 'lucide-react';
 import { useAuth } from '@/components/providers/AppProvider';
 import { generateWithAI } from '@/lib/ai-client';
+import { saveCloudDraft } from '@/lib/cloud-library';
 import CopyButton from '@/components/CopyButton';
 
 const REGIONS = [
@@ -52,6 +53,8 @@ export default function TrendFinder() {
   const [consent, setConsent] = useState(false);
   const [busyTrend, setBusyTrend] = useState(null);
   const [output, setOutput] = useState(null);
+  const [historySave, setHistorySave] = useState({ status: 'idle', content: null, requestKey: null, message: '' });
+  const historyEntry = useRef(null);
   const [aiError, setAiError] = useState('');
   const readController = useRef(null);
   const readSequence = useRef(0);
@@ -92,9 +95,31 @@ export default function TrendFinder() {
     generationController.current?.abort();
     setBusyTrend(null);
     setOutput(null);
+    historyEntry.current = null;
+    setHistorySave({ status: 'idle', content: null, requestKey: null, message: '' });
     setAiError('');
     setConsent(false);
   }, [user?.id]);
+
+  function trendHistoryContent(response, trendId) {
+    return { historyType: 'trend_ideas', title: `${response.result.trend} Pin ideas`, topic: response.result.trend, category: `Trend Finder · ${response.result.region}`, region: response.result.region, trendId, language: response.result.language, result: response.result, generation: response.generation, description: response.result.note };
+  }
+
+  async function persistTrendHistory(entry, account, request, alreadySaved = false) {
+    setHistorySave({ status: alreadySaved ? 'saved' : 'saving', content: entry.content, requestKey: entry.requestKey, message: '' });
+    if (alreadySaved) return;
+    try {
+      await saveCloudDraft('history', entry.content, entry.requestKey);
+      if (userIdRef.current === account && request === generationSequence.current) setHistorySave({ status: 'saved', content: entry.content, requestKey: entry.requestKey, message: '' });
+    } catch (error) {
+      if (userIdRef.current === account && request === generationSequence.current) setHistorySave({ status: 'error', content: entry.content, requestKey: entry.requestKey, message: error.message || 'The ideas are ready, but their private Library save could not be confirmed.' });
+    }
+  }
+
+  async function retryTrendHistory() {
+    if (!historyEntry.current || !user) return;
+    await persistTrendHistory(historyEntry.current, user.id, generationSequence.current, false);
+  }
 
   async function generateIdeas(trend) {
     setAiError('');
@@ -110,9 +135,16 @@ export default function TrendFinder() {
     const request = ++generationSequence.current;
     setBusyTrend(trend.id);
     setOutput(null);
+    historyEntry.current = null;
+    setHistorySave({ status: 'idle', content: null, requestKey: null, message: '' });
     try {
       const result = await generateWithAI('trend_ideas', { region, trendId: trend.id, language }, { signal: controller.signal });
-      if (userIdRef.current === account && request === generationSequence.current) setOutput({ ownerId: account, region, trendId: trend.id, response: result });
+      if (userIdRef.current === account && request === generationSequence.current) {
+        setOutput({ ownerId: account, region, trendId: trend.id, response: result });
+        const entry = { content: trendHistoryContent(result, trend.id), requestKey: result.requestKey };
+        historyEntry.current = entry;
+        await persistTrendHistory(entry, account, request, result.library?.saved === true);
+      }
     } catch (error) {
       if (error.name !== 'AbortError' && userIdRef.current === account && request === generationSequence.current) setAiError(error.message || 'AI ideas could not be confirmed. No substitute content was shown.');
     } finally {
@@ -180,6 +212,9 @@ export default function TrendFinder() {
                   <p className="mt-3 text-[10px] leading-relaxed text-neutral-500"><strong className="text-neutral-700">Keyword suggestions:</strong> {idea.keywordSuggestions.join(' · ')}</p>
                 </section>)}
                 <p className="text-[10px] leading-relaxed text-neutral-500">{selectedOutput.result.note}</p>
+                {historySave.status === 'saved' && <p role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-[10.5px] text-emerald-800">Automatically saved to your private My Library. No Pin was published or scheduled.</p>}
+                {historySave.status === 'saving' && <p role="status" className="rounded-xl border border-neutral-200 bg-neutral-50 p-3 text-[10.5px] text-neutral-600">Saving ideas to My Library…</p>}
+                {historySave.status === 'error' && <p role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-[10.5px] leading-relaxed text-amber-900">{historySave.message} <button type="button" onClick={retryTrendHistory} className="ml-1 min-h-9 font-extrabold underline underline-offset-2">Retry Library save</button></p>}
               </div>}
             </article>;
           })}

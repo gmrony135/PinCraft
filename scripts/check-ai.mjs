@@ -13,7 +13,8 @@ import { articleToHTML, countArticleWordsFromHTML } from '../lib/publishing/revi
 import { aiLimits, IMAGE_MODELS, publicAIStatus, textCandidates } from '../lib/ai/config.mjs';
 import { generateText, parseAIJSON } from '../lib/ai/text.mjs';
 import { generateImage, normalizeImage } from '../lib/ai/images.mjs';
-import { generatePinPostInfo, validatePinPostInfoInput, perceptualHash } from '../lib/ai/pin-post-info.mjs';
+import { generatePinPostInfo, resolveSavedPinPostInfoInput, validatePinPostInfoInput, perceptualHash } from '../lib/ai/pin-post-info.mjs';
+import { storeLibraryImage } from '../lib/ai/library-images.mjs';
 import { generateForUser } from '../lib/ai/service.mjs';
 import { reserveAIRequest, finishAIRequest, aiUsage, requestFingerprint } from '../lib/ai/usage.mjs';
 import { getDatabase } from '../lib/automation/db.mjs';
@@ -110,6 +111,14 @@ try {
     assert.throws(() => validatePinPostInfoInput({ ...pinInfoRequest(artwork.dataUrl), titles: ['not allowed'] }), isCode('invalid_ai_request'));
     assert.throws(() => validatePinPostInfoInput({ ...pinInfoRequest(artwork.dataUrl), imageDataUrl: 'data:image/png;base64,AAAA' }), isCode('pin_info_invalid_image'));
     assert.throws(() => validatePinPostInfoInput({ ...pinInfoRequest(artwork.dataUrl), language: 'fr' }), isCode('invalid_ai_request'));
+  });
+  await test('Saved-artwork Post Info resolves only the signed-in owner’s durable Pin bytes, ignoring mismatched client image data', async () => {
+    const uid = owner(), artwork = await pinInfoArtwork(1), otherArtwork = await pinInfoArtwork(2), request = pinInfoRequest(artwork.dataUrl);
+    const { imageDataUrl: _discard, ...body } = request, requestKey = randomUUID();
+    const asset = await storeLibraryImage(db, uid, { requestKey, fingerprint: requestFingerprint(['saved-pin-artwork-fixture']), useCase: 'pin', generated: { data: { dataUrl: artwork.dataUrl, mimeType: 'image/webp', width: 1000, height: 1500 } } });
+    const resolved = await resolveSavedPinPostInfoInput(db, uid, { ...body, imageAssetId: asset.assetId, imageDataUrl: otherArtwork.dataUrl });
+    assert.equal(validatePinPostInfoInput(resolved).imageBytes.toString('base64'), artwork.bytes.toString('base64'));
+    await assert.rejects(() => resolveSavedPinPostInfoInput(db, owner(), { ...body, imageAssetId: asset.assetId }), isCode('pin_info_invalid_image'));
   });
   await test('Post Info vision receives the actual generated pixels and a fresh USA trend, returns exactly three fields and stores no image bytes', async () => {
     const uid = owner(), artwork = await pinInfoArtwork(1), raw = pinInfoRequest(artwork.dataUrl), now = Date.now(), date = new Date(now).toUTCString();

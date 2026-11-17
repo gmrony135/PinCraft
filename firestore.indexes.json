@@ -273,6 +273,16 @@
       "indexes": []
     },
     {
+      "collectionGroup": "pincraft_library_images",
+      "fieldPath": "bytes",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "pincraft_article_images",
+      "fieldPath": "bytes",
+      "indexes": []
+    },
+    {
       "collectionGroup": "pincraft_pinterest_publish_jobs",
       "fieldPath": "description",
       "indexes": []

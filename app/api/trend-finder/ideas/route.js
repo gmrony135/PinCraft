@@ -1,6 +1,7 @@
 import { apiError, json, readBody, sessionUser } from '@/lib/automation/api';
 import { getDatabase } from '@/lib/automation/db.mjs';
 import { validJobId } from '@/lib/automation/images.mjs';
+import { archiveDraft, draftInput } from '@/lib/automation/drafts.mjs';
 import { AutomationError } from '@/lib/automation/errors.mjs';
 import { managedText } from '@/lib/ai/managed-text.mjs';
 import { requestFingerprint } from '@/lib/ai/usage.mjs';
@@ -40,7 +41,16 @@ export async function POST(request) {
     });
     const generation = publicGeneration(result.generation);
     if (!generation || !result.result) throw new AutomationError('invalid_content', 'The AI ideas could not be confirmed. No substitute content was presented.', { status: 502 });
-    return json({ task, requestKey: result.requestKey, result: result.result, generation, ...(result.replayed === true ? { replayed: true } : {}) });
+    let library = { saved: false };
+    try {
+      const content = { historyType: 'trend_ideas', title: `${result.result.trend} Pin ideas`, topic: result.result.trend, category: `Trend Finder · ${result.result.region}`, region: result.result.region, trendId: trend.id, language, result: result.result, generation, description: result.result.note };
+      const draft = draftInput({ action: 'archive', kind: 'history', requestKey: result.requestKey, content });
+      library = { saved: true, id: await archiveDraft(db, user.id, draft) };
+    } catch {
+      // Keep the verified ideas visible; the browser can retry the same
+      // idempotent Library archive without another AI request.
+    }
+    return json({ task, requestKey: result.requestKey, result: result.result, generation, library, ...(result.replayed === true ? { replayed: true } : {}) });
   } catch (error) {
     const issue = error?.code === 'setup_required' ? new AutomationError('trend_storage_unavailable', 'Daily trend data is temporarily unavailable. No sample trends were substituted.', { status: 503, retryable: true }) : error;
     return apiError(issue);
