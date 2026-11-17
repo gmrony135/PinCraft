@@ -10,6 +10,8 @@ import { createSession, verifyFirebaseCredential } from '../lib/auth-server.js';
 import { getDatabase } from '../lib/automation/db.mjs';
 import { defaultJob, readAccount, writeAccount, writeJob } from '../lib/automation/firestore.mjs';
 import { archiveDraft, draftInput } from '../lib/automation/drafts.mjs';
+import { validateContent } from '../lib/automation/content.mjs';
+import { rawArticle } from './article-fixtures.mjs';
 import { storeLibraryImage } from '../lib/ai/library-images.mjs';
 
 const BASE = process.env.BASE_URL || 'http://127.0.0.1:3100';
@@ -145,6 +147,22 @@ try {
       assert.equal(archived.action, 'archive'); assert.equal(archived.kind, 'history'); assert.equal(archived.requestKey, submitted.requestKey);
       assert.equal(archived.content.historyType, 'pin_info'); assert.equal(archived.content.imageAssetId, asset.assetId);
       assert.equal(await library.getByText('Draft · private history', { exact: true }).count(), 2);
+      await test('The authenticated Library API accepts a full article archive above the old 24 KB request cap without queuing it', async () => {
+        const article = validateContent(rawArticle, 'Gardening');
+        article.plainText += ` ${'Synthetic article storage-size verification. '.repeat(160)}`;
+        const content = { ...article, generation: { kind: 'ai', fallbackUsed: false, generatedAt: new Date().toISOString() }, images: [], imageStatus: 'incomplete', imageError: 'Synthetic size-limit fixture.' };
+        const payload = { action: 'archive', kind: 'article', requestKey: randomUUID(), content };
+        assert(Buffer.byteLength(JSON.stringify(payload)) > 24_000);
+        const response = await authenticatedPage.evaluate(async body => {
+          const result = await fetch('/api/library', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+          return { status: result.status, data: await result.json() };
+        }, payload);
+        assert.equal(response.status, 200, response.data?.error || 'Article archive request failed.');
+        assert.equal(response.data.saved, true);
+        const saved = (await db.doc(`pincraft_jobs/${response.data.id}`).get()).data();
+        assert.equal(saved.state, 'draft'); assert.equal(saved.content.plainText, content.plainText.trim());
+        assert.equal(saved.scheduled_at, null); assert.equal(saved.blog_url, null); assert.equal(saved.pin_url, null);
+      });
       assert.deepEqual(errors, []);
     } finally { await authenticatedContext.close(); }
   });
