@@ -25,7 +25,8 @@
     "test:publishing:ui": "node --conditions=react-server scripts/check-reviewed-publishing-ui.mjs",
     "test:publishing:entry": "node --conditions=react-server --test scripts/test-publishing-entry.mjs",
     "test:publishing:automation": "node --conditions=react-server --test scripts/test-blog-automation.mjs",
-    "test:pinterest": "node --conditions=react-server --test scripts/test-pinterest-workflow.mjs"
+    "test:pinterest": "node --conditions=react-server --test scripts/test-pinterest-workflow.mjs",
+    "test:trend-finder": "node --conditions=react-server --test scripts/test-trend-finder.mjs"
   },
   "dependencies": {
     "firebase": "^13.3.0",

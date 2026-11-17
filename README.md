@@ -10,12 +10,14 @@ The existing Next.js website remains **https://pincraftly.vercel.app**. Existing
 - [Full OAuth, Secrets, free-tier and recovery setup — বাংলা](docs/blogger-manual-pinterest-setup.bn.md)
 - [Owner API, durable records and checkpoints](docs/reviewed-publishing-api.md)
 - [Manual Pinterest Pin jobs, privacy, status model and GitHub Actions setup](docs/pinterest-manual-publishing.md)
+- [AI Trend Finder: Google Trends snapshots, PinCraft estimate and manual-only ideas](docs/AI_TREND_FINDER.md)
 - [Local validation and production acceptance boundary](docs/blog-automation-validation.json)
 
 ## A focused workspace
 
 - **Connector** owns Blogger authorization, owned-blog verification and the single recurring-post editor. Account connection and recurring authorization remain separate. There is no standalone Automation setup page or menu; old `/automation` bookmarks redirect to `/connector#blogger-recurring`.
 - **Content Studio** is a tool-selection hub. Article Writer and Pin Generator stay separate. Blog featured images, SEO/hashtags, the 7-day plan and editorial review each have one canonical tool page under `/content-studio/`.
+- **AI Trend Finder Automation** is a main-menu page for Google Trends RSS snapshots in the US, UK and Canada. Daily approximate-traffic bucket comparisons are labeled PinCraft estimates, never Google’s official growth percentages. AI outputs are idea drafts; Pinterest publishing remains manual.
 - **Pin Generator** suggests the same ten `CATEGORIES` used across the product. Selecting a category fills the Pin topic and suggests a matching artwork prompt. Pin artwork is available directly on the page—even before generating Pin copy—and a generated Pin can prefill its own image prompt. Click **Post Info** to generate or reveal matching title, description and hashtags. By default, generated 1000 × 1500 WebP bytes stay in page memory for preview/download only. If the signed-in owner explicitly prepares a Pinterest job, PinCraft validates and privately stores a normalized image copy, then provides an official Pinterest Create/Save link for the owner to review, choose a board and manually save. Prepared, opened, user-confirmed and user-reported Published remain distinct; no Pinterest API, login session or automated click is used. Content Studio keeps a separate, blog-only 1200 × 630 featured-image tool, while Article Writer keeps its own three-image draft flow.
 - **Account sessions** use a persistent, signed HttpOnly cookie so a page refresh does not log out a still-valid user. PinCraft rechecks the managed Firebase account; temporary account-service failures keep the saved session and offer a retry rather than silently showing a signed-out state.
 - **Publish article** is the single reviewed publishing form, with Publish now and custom-date Schedule. Article Writer explicitly saves a private draft and hands it to that same review instead of duplicating the form; **Jobs** retains actual checkpoints, inspection/recovery and optional manual Pin packs. No existing private jobs or drafts are removed by this UI change.
@@ -86,6 +88,8 @@ Firestore Spark, Vercel, AI-provider and Google quotas apply project-wide. Stand
 | `lib/publishing/automation-workload.mjs` | Exact-workload GitHub OIDC verification and replay protection |
 | `app/api/publish/[...path]/route.js` | Owner-session and same-origin publication/settings APIs |
 | `app/api/internal/blog-automation/tick/route.js` | OIDC-only, empty-body, bounded server generator stage |
+| `lib/trend-finder/*`, `lib/ai/trend-ideas.mjs` | Google Trends RSS parsing, daily snapshots, transparent bucket-floor estimates and validated idea drafts |
+| `app/trend-finder/page.js`, `app/api/trend-finder/*`, `.github/workflows/pincraft-trend-finder.yml` | Main-menu Trend Finder page and daily OIDC-protected, non-publishing collection |
 | `components/publishing/{PublishComposer,BlogAutomationSetup,PublishingJobs}.js` | Independent Blogger review, real recurring controls, truthful results |
 | `scripts/{run-reviewed-blogger,request-blog-automation}.mjs` | Direct publisher plus credential-free generation orchestration |
 

@@ -1,0 +1,35 @@
+name: PinCraft daily Google Trends snapshot
+
+on:
+  schedule:
+    # One daily capture for consecutive-day estimate comparisons (UTC).
+    - cron: '43 6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: pincraft-trend-finder-daily-snapshot
+  cancel-in-progress: false
+
+jobs:
+  collect-trends:
+    # Public, main-branch workflow only. This job collects public RSS data;
+    # it never generates or publishes Pins and has no provider/user secrets.
+    if: github.repository == 'gmrony135/PinCraft' && github.event.repository.private == false && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - name: Check out the trusted collector bridge
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '24.22.3'
+      - name: Request a short-lived workload identity and collect one daily snapshot
+        run: node scripts/run-trend-finder-snapshot.mjs
+      # No Pinterest API, publishing command, AI key, account cookie or user data.
