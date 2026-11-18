@@ -169,7 +169,10 @@ try {
   });
   await test('Direct Blogger-only publishing needs final authorization but no artwork, then shows the real saved job ID', async () => {
     await page.getByRole('checkbox',{name:/^I reviewed this specific HTML article/}).check();
-    await page.getByRole('button',{name:'Publish blog now',exact:true}).click();
+    const postSeen=page.waitForResponse(r=>r.url().includes('/api/publish/jobs')&&r.request().method()==='POST',{timeout:120000});
+    await page.getByTestId('publish-now-button').click();
+    await page.getByTestId('publish-submit-status').waitFor({timeout:3000});
+    const postResponse=await postSeen;assert([200,201].includes(postResponse.status()),'POST /api/publish/jobs must create the job, got '+postResponse.status());
     await page.getByText('Blogger confirmed live.',{exact:true}).waitFor();
     const job=(await jobs()).find(row=>row.type==='blogger'&&row.title===pastedTitle);assert(job);assert.equal(job.status,'completed');assert.equal(job.hasManualPin,false);assert.equal(job.manualTaskId,null);assert(!(await jobs()).some(row=>row.bloggerJobId===job.id));
     assert.equal((await jobs()).length,pastedCount+1);
