@@ -165,14 +165,14 @@ export default function MonetagInPagePush() {
   return (
     <section
       role="region"
-      aria-label="Monetag advertising preferences"
+      aria-label="Cookie and advertising choices"
       className="fixed inset-x-0 bottom-0 z-[100] border-t border-neutral-200 bg-white/95 shadow-[0_-8px_30px_rgba(0,0,0,0.12)] backdrop-blur-xl"
     >
       <div className="container-x mx-auto flex max-w-6xl flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
         <div className="max-w-3xl">
-          <h2 className="text-sm font-extrabold text-neutral-900">{preferencesOpen ? 'Advertising preferences' : 'Choose whether to allow ads'}</h2>
+          <h2 className="text-sm font-extrabold text-neutral-900">{preferencesOpen ? 'Advertising cookie choices' : 'Choose your advertising cookie settings'}</h2>
           <p className="mt-1 text-xs leading-relaxed text-neutral-600">
-            PinCraft can show Monetag In-Page Push ads on public marketing pages. The third-party tag may use cookies or similar device storage and process technical, page-visit, and ad-interaction data. It will not load unless you allow it. You can still use PinCraft if you decline.
+            Allowing enables the Monetag In-Page Push ad tag on public marketing pages. The third-party tag may use non-essential cookies or similar device storage and process technical, page-visit, and ad-interaction data. If you reject, the Monetag tag will not load; essential site functions remain available either way.
             {' '}<a className="font-bold text-brand-700 underline underline-offset-2" href="/privacy">PinCraft privacy choices</a>
             {' '}·{' '}<a className="font-bold text-brand-700 underline underline-offset-2" href="https://monetag.com/privacy/" target="_blank" rel="noreferrer">Monetag privacy policy</a>
             {' '}·{' '}<a className="font-bold text-brand-700 underline underline-offset-2" href="https://monetag.com/terms/" target="_blank" rel="noreferrer">Publisher Agreement</a>
@@ -181,10 +181,10 @@ export default function MonetagInPagePush() {
         </div>
         <div className="flex shrink-0 flex-wrap gap-2 sm:justify-end">
           <button type="button" onClick={() => choose('allow')} className="btn-primary min-h-10 px-4 text-xs">
-            {preferencesOpen ? 'Allow ads' : 'Allow advertising'}
+            Allow ad cookies
           </button>
           <button type="button" onClick={() => choose('deny')} className="btn-outline min-h-10 px-4 text-xs">
-            {preferencesOpen ? 'Turn ads off' : 'No thanks'}
+            Reject ad cookies
           </button>
           {preferencesOpen && <button type="button" onClick={() => setPreferencesOpen(false)} className="min-h-10 rounded-xl px-3 text-xs font-bold text-neutral-600 hover:bg-neutral-100">Close</button>}
         </div>
