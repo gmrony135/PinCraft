@@ -177,6 +177,15 @@ try {
     const job=(await jobs()).find(row=>row.type==='blogger'&&row.title===pastedTitle);assert(job);assert.equal(job.status,'completed');assert.equal(job.hasManualPin,false);assert.equal(job.manualTaskId,null);assert(!(await jobs()).some(row=>row.bloggerJobId===job.id));
     assert.equal((await jobs()).length,pastedCount+1);
     assert.match(await page.getByTestId('saved-publishing-job-id').innerText(),new RegExp(job.id));
+    // Durability: the outcome must survive the composer's 60-second status poll and any re-render.
+    await page.waitForTimeout(65000);
+    const outcome=page.getByTestId('publish-outcome-panel');
+    assert(await outcome.isVisible(),'publish outcome panel vanished 60 seconds after the real click');
+    const outcomeText=await outcome.innerText();
+    assert.match(outcomeText,/POST \/api\/publish\/jobs returned HTTP 20[01]/,'outcome lacks the raw POST status');
+    assert.match(outcomeText,new RegExp(job.id),'outcome lacks the saved job ID');
+    assert.match(outcomeText,/status: completed/,'outcome lacks the final job status');
+    assert(await page.getByText('Blogger confirmed live.',{exact:true}).isVisible(),'receipt vanished 60 seconds after the real click');
   });
   await test('Cold-start manual review offers a no-links choice only after a successful empty live-post lookup',async()=>{
     await page.goto(BASE+'/publish',{waitUntil:'networkidle'});

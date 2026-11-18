@@ -1,7 +1,7 @@
 "use client";
 import {useCallback,useEffect,useRef,useState} from 'react';
 import {useAuth} from '../providers/AppProvider';
-export async function publishRequest(path,{method='GET',body,signal,timeoutMs=0}={}){
+export async function publishRequest(path,{method='GET',body,signal,timeoutMs=0,onStatus}={}){
  // A hung request must never leave the page silently busy or silently dropped.
  // The timeout is reported as 504 so the composer keeps the same submission ID and
  // offers a safe resume, instead of allowing a second, different submission.
@@ -19,9 +19,10 @@ export async function publishRequest(path,{method='GET',body,signal,timeoutMs=0}
   if(timer)clearTimeout(timer);
   signal?.removeEventListener('abort',abort);
  }
+ onStatus?.(response.status);
  let value;
  try{value=await response.json();}catch{throw Object.assign(new Error('The publishing response could not be confirmed. Inspect Jobs before resubmitting.'),{status:504});}
- if(!response.ok)throw Object.assign(new Error(value.error||'Publishing could not be confirmed.'),{code:value.code,status:response.status});
+ if(!response.ok)throw Object.assign(new Error(value.error||'Publishing could not be confirmed.'),{code:value.code,status:response.status,requestPath:'/api/publish/'+path});
  return value;
 }
 export function usePublisher(){

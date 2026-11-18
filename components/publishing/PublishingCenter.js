@@ -6,6 +6,7 @@ import {useSearchParams} from 'next/navigation';
 import {ArrowRight,BookOpen,CheckCircle2,Clock3,FileText,Loader2,ShieldCheck} from 'lucide-react';
 import {usePublisher,publishRequest} from './usePublisher';
 import PublishComposer from './PublishComposer';
+import {PublishOutcomePanel} from './publish-outcome';
 import {articleToHTML,countArticleWordsFromHTML} from '@/lib/publishing/review-content.mjs';
 import {articleHTML} from '@/lib/publishing/article-format.mjs';
 import {getLibrary} from '@/lib/library';
@@ -87,7 +88,7 @@ export default function PublishingCenter(){
  const seen=data?.cron?.lastSeenAt,runnerRecent=Boolean(seen&&Date.now()-Date.parse(seen)<45*60000);
  const state={...publisher,refresh:()=>{publisher.refresh();if(user)loadLibrary();}};
  return <WorkspaceFrame state={state} eyebrow="Publish article" title="Review once. Publish your way." description="Publish your own complete article to your verified Blogger website, now or on a schedule. Choose Publish now or your own date and time after review. No recurring permission is needed." action={<Link href="/jobs" prefetch={false} className={secondaryClass}>Jobs & manual Pin packs<ArrowRight size={14}/></Link>}>
-  <div className="grid gap-3 sm:grid-cols-3" data-testid="publishing-connection-readiness">
+  <PublishOutcomePanel uid={user?.id||null}/><div className="grid gap-3 sm:grid-cols-3" data-testid="publishing-connection-readiness">
    <section className="rounded-2xl border border-neutral-200 bg-white p-4"><ShieldCheck size={19} className="text-brand-600"/><h2 className="mt-3 text-[12px] font-extrabold">Blogger authorization</h2><p className="mt-2 text-[11px] leading-relaxed text-neutral-600">{data?`${profiles.length} connected account(s)`:'Sign in to check your account.'}</p></section>
    <section className="rounded-2xl border border-neutral-200 bg-white p-4"><CheckCircle2 size={19} className="text-brand-600"/><h2 className="mt-3 text-[12px] font-extrabold">Verified publishing website</h2><p className="mt-2 text-[11px] leading-relaxed text-neutral-600">{data?`${sites.length} ready website(s)`:'No connection state assumed.'}</p><Link href="/connector" prefetch={false} className="mt-2 inline-flex min-h-11 items-center text-[11px] font-bold text-brand-700">{sites.length?'View connection':'Connect or re-verify Blogger'}</Link></section>
    <section className="rounded-2xl border border-neutral-200 bg-white p-4"><Clock3 size={19} className="text-brand-600"/><h2 className="mt-3 text-[12px] font-extrabold">Background runner</h2><p className="mt-2 text-[11px] leading-relaxed text-neutral-600">{seen?`Last check: ${formatWhen(seen)} (${data.cron.lastOutcome}).`:'No actual runner heartbeat confirmed.'}</p><p className="mt-2 text-[10.5px] leading-relaxed text-neutral-500">{runnerRecent?'Recent check observed.':'A stale or absent check is not proof that cron is running.'} Saved jobs can continue with the browser closed; background checks are best effort and may be delayed.</p></section>
