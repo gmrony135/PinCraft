@@ -22,7 +22,13 @@ export async function GET(request) {
   try {
     const user = await sessionUser(request);
     return json(await listPinterestJobs(getDatabase(), user.id));
-  } catch (error) { return apiError(error); }
+  } catch (error) {
+    // Return actionable categories, never raw database messages or index URLs.
+    if ([9, '9', 'failed-precondition'].includes(error?.code) && /index/i.test(error?.message || '')) {
+      return apiError(new AutomationError('pin_jobs_index_required', 'The private Pin jobs index is not ready. The site owner must finish its database index setup; no job count or empty result has been assumed.', { status: 503, retryable: true }));
+    }
+    return apiError(error);
+  }
 }
 
 export async function POST(request) {

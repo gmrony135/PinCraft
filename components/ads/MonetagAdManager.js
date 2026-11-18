@@ -10,7 +10,6 @@ const ZONES = {
   vignette: { id: '12290345', src: 'https://n6wxm.com/vignette.min.js' },
 };
 const AD_CONSENT_KEY = 'pincraft.monetag-consent.v1';
-const PUSH_CHOICE_KEY = 'pincraft.monetag-push-choice.v1';
 const CONSENT_VERSION = 2;
 const CONSENT_TTL_MS = 180 * 24 * 60 * 60 * 1000;
 const PREFS_EVENT = 'pincraft:manage-monetag-preferences';
@@ -77,33 +76,19 @@ function appendMonetagScript(format) {
   (document.body || document.documentElement).appendChild(script);
 }
 
-function notificationPermission() {
-  try {
-    if (typeof window === 'undefined' || !('Notification' in window)) return 'unsupported';
-    return window.Notification.permission;
-  } catch {
-    return 'unsupported';
-  }
-}
-
 export default function MonetagAdManager() {
   const pathname = normalizePathname(usePathname() || '/');
   const { user, authLoading, authUnavailable } = useAuth();
-  const documentProfile = useRef(routeProfile(pathname));
+  const [documentProfile, setDocumentProfile] = useState(routeProfile(pathname));
   const previousPath = useRef(pathname);
   const hasAuthenticatedContext = useRef(false);
   const [adConsent, setAdConsent] = useState(null);
-  const [pushChoice, setPushChoice] = useState(null);
-  const [pushPermission, setPushPermission] = useState('default');
   const [choicesReady, setChoicesReady] = useState(false);
   const [preferencesOpen, setPreferencesOpen] = useState(false);
   const [storageError, setStorageError] = useState('');
-  const [pushError, setPushError] = useState('');
 
   useEffect(() => {
     setAdConsent(readStoredChoice(AD_CONSENT_KEY, ['allow', 'deny']));
-    setPushChoice(readStoredChoice(PUSH_CHOICE_KEY, ['allow', 'dismissed', 'blocked']));
-    setPushPermission(notificationPermission());
     setChoicesReady(true);
   }, []);
 
@@ -114,7 +99,6 @@ export default function MonetagAdManager() {
   useEffect(() => {
     const onManagePreferences = () => {
       setStorageError('');
-      setPushError('');
       setPreferencesOpen(true);
     };
     window.addEventListener(PREFS_EVENT, onManagePreferences);
@@ -123,13 +107,10 @@ export default function MonetagAdManager() {
 
   useEffect(() => {
     const onStorage = (event) => {
-      if (event.key && event.key !== AD_CONSENT_KEY && event.key !== PUSH_CHOICE_KEY) return;
+      if (event.key && event.key !== AD_CONSENT_KEY) return;
       const nextAdConsent = readStoredChoice(AD_CONSENT_KEY, ['allow', 'deny']);
-      const nextPushChoice = readStoredChoice(PUSH_CHOICE_KEY, ['allow', 'dismissed', 'blocked']);
       setAdConsent(nextAdConsent);
-      setPushChoice(nextPushChoice);
-      setPushPermission(notificationPermission());
-      if ((nextAdConsent !== 'allow' || nextPushChoice !== 'allow') && hasLoadedAnyMonetagScript()) {
+        if ((nextAdConsent !== 'allow') && hasLoadedAnyMonetagScript()) {
         // A document reload ends the executing third-party context; removing
         // script nodes alone cannot undo listeners, requests, or injected UI.
         window.location.reload();
@@ -147,7 +128,7 @@ export default function MonetagAdManager() {
       let destination;
       try { destination = new URL(anchor.href, window.location.href); } catch { return; }
       if (destination.origin !== window.location.origin) return;
-      if (routeProfile(window.location.pathname) === routeProfile(destination.pathname)) return;
+      if (!hasLoadedAnyMonetagScript() || routeProfile(window.location.pathname) === routeProfile(destination.pathname)) return;
       // Full navigation prevents loaded ad code from following client-side
       // navigation into an excluded editor, generator, auth, or account route.
       event.preventDefault();
@@ -160,39 +141,29 @@ export default function MonetagAdManager() {
 
   useEffect(() => {
     const oldPath = previousPath.current;
-    if (oldPath !== pathname && routeProfile(oldPath) !== routeProfile(pathname)) {
+    if (oldPath !== pathname && routeProfile(oldPath) !== routeProfile(pathname) && hasLoadedAnyMonetagScript()) {
       // Fallback for router.push()/history navigation that bypasses links.
       window.location.replace(window.location.href);
       return;
     }
     previousPath.current = pathname;
+    setDocumentProfile(routeProfile(pathname));
   }, [pathname]);
 
   useEffect(() => {
     if (user && hasLoadedAnyMonetagScript()) window.location.reload();
   }, [user]);
 
-  useEffect(() => {
-    const syncPermission = () => setPushPermission(notificationPermission());
-    document.addEventListener('visibilitychange', syncPermission);
-    return () => document.removeEventListener('visibilitychange', syncPermission);
-  }, []);
-
   const isGuest = choicesReady && !authLoading && !authUnavailable && !user && !hasAuthenticatedContext.current;
-  const profileMatchesDocument = documentProfile.current === routeProfile(pathname);
+  const profileMatchesDocument = documentProfile === routeProfile(pathname);
   const mayLoadSiteAds = isMarketingRoute(pathname) && profileMatchesDocument && isGuest && choicesReady && adConsent === 'allow';
   const mayLoadVignette = mayLoadSiteAds && routeProfile(pathname) === 'home';
-  const mayLoadPush = mayLoadSiteAds && pushChoice === 'allow' && pushPermission === 'granted';
 
   useEffect(() => {
     if (!mayLoadSiteAds) return;
     appendMonetagScript('ipp');
     if (mayLoadVignette) appendMonetagScript('vignette');
   }, [mayLoadSiteAds, mayLoadVignette]);
-
-  useEffect(() => {
-    if (mayLoadPush) appendMonetagScript('push');
-  }, [mayLoadPush]);
 
   const chooseAdCookies = useCallback((choice) => {
     if (!saveStoredChoice(AD_CONSENT_KEY, choice)) {
@@ -205,74 +176,12 @@ export default function MonetagAdManager() {
     if (choice === 'deny' && hasLoadedAnyMonetagScript()) window.location.reload();
   }, []);
 
-  const dismissPushPrompt = useCallback(() => {
-    if (!saveStoredChoice(PUSH_CHOICE_KEY, 'dismissed')) {
-      setPushError('Your browser could not save this choice. Push notifications will remain disabled.');
-      return;
-    }
-    setPushChoice('dismissed');
-    setPushError('');
-    setPreferencesOpen(false);
-  }, []);
-
-  const enablePushFromUserAction = useCallback(() => {
-    setPushError('');
-    const currentPermission = notificationPermission();
-    setPushPermission(currentPermission);
-    if (currentPermission === 'unsupported') {
-      setPushError('This browser does not support web notifications. Push ads remain disabled.');
-      return;
-    }
-    if (currentPermission === 'denied') {
-      saveStoredChoice(PUSH_CHOICE_KEY, 'blocked');
-      setPushChoice('blocked');
-      setPushError('Notifications are blocked in this browser. Change this site’s permission in browser settings; PinCraft will not prompt again.');
-      return;
-    }
-
-    // Invoke the native prompt synchronously in this explicit click handler.
-    // Do not load Monetag's Push tag unless the browser reports “granted”.
-    let permissionRequest;
-    try {
-      permissionRequest = currentPermission === 'granted'
-        ? Promise.resolve('granted')
-        : window.Notification.requestPermission();
-    } catch {
-      setPushError('The browser could not request notification permission. Push ads remain disabled.');
-      return;
-    }
-
-    Promise.resolve(permissionRequest).then(result => {
-      const nextPermission = ['granted', 'denied', 'default'].includes(result) ? result : 'default';
-      setPushPermission(nextPermission);
-      const nextChoice = nextPermission === 'granted' ? 'allow' : nextPermission === 'denied' ? 'blocked' : 'dismissed';
-      if (!saveStoredChoice(PUSH_CHOICE_KEY, nextChoice)) {
-        setPushError('Your browser could not save this choice, so Push ads remain disabled.');
-        setPushChoice(null);
-        return;
-      }
-      setPushChoice(nextChoice);
-      setPushError(nextPermission === 'granted' ? '' : nextPermission === 'denied'
-        ? 'Notifications were blocked. Change this site’s permission in browser settings; PinCraft will not prompt again.'
-        : 'The browser prompt was dismissed. PinCraft will not prompt again automatically.');
-      setPreferencesOpen(false);
-    }).catch(() => {
-      setPushPermission(notificationPermission());
-      if (saveStoredChoice(PUSH_CHOICE_KEY, 'dismissed')) setPushChoice('dismissed');
-      setPushError('The browser prompt did not complete. Push ads remain disabled.');
-    });
-  }, []);
-
   const isMarketingGuest = choicesReady && isGuest && isMarketingRoute(pathname) && profileMatchesDocument;
   const shouldAskAdCookies = isMarketingGuest && adConsent === null;
-  const shouldOfferPush = mayLoadSiteAds && pushPermission === 'default' && pushChoice === null;
-  const showPushManage = preferencesOpen && isGuest && profileMatchesDocument && adConsent === 'allow' && pushChoice !== 'allow';
-  const showPanel = shouldAskAdCookies || shouldOfferPush || preferencesOpen;
+  const showPanel = shouldAskAdCookies || preferencesOpen;
   if (!showPanel) return null;
 
   const showCookieChoices = shouldAskAdCookies || preferencesOpen;
-  const browserDenied = pushPermission === 'denied' || pushChoice === 'blocked';
-  const pushDismissed = pushChoice === 'dismissed';
 
   return (
     <section
@@ -286,7 +195,7 @@ export default function MonetagAdManager() {
           <div className="max-w-3xl">
             <h2 className="text-sm font-extrabold text-neutral-900">{preferencesOpen ? 'Advertising cookie choices' : 'Choose your advertising cookie settings'}</h2>
             <p className="mt-1 text-xs leading-relaxed text-neutral-600">
-              Allowing enables Monetag In-Page Push and Vignette ads on selected public pages. The third-party tags may use non-essential cookies or similar device storage and process technical, page-visit, and ad-interaction data. Push notifications are separate: PinCraft explains them first and asks the browser only after you click Enable. Rejecting ad cookies keeps all Monetag tags off; essential site functions remain available either way.
+              Allowing enables Monetag In-Page Push and Vignette ads on selected public pages. The third-party tags may use non-essential cookies or similar device storage and process technical, page-visit, and ad-interaction data. Push notifications are separate: PinCraft explains them first and asks the browser only after you click Enable. Rejecting ad cookies keeps on-page Monetag ads off; essential site functions remain available either way.
               {' '}<a className="font-bold text-brand-700 underline underline-offset-2" href="/privacy">PinCraft privacy choices</a>
               {' '}·{' '}<a className="font-bold text-brand-700 underline underline-offset-2" href="https://monetag.com/privacy/" target="_blank" rel="noreferrer">Monetag privacy policy</a>
               {' '}·{' '}<a className="font-bold text-brand-700 underline underline-offset-2" href="https://monetag.com/terms/" target="_blank" rel="noreferrer">Publisher Agreement</a>
@@ -297,36 +206,6 @@ export default function MonetagAdManager() {
             <button type="button" onClick={() => chooseAdCookies('allow')} className="btn-primary min-h-10 px-4 text-xs">Allow ad cookies</button>
             <button type="button" onClick={() => chooseAdCookies('deny')} className="btn-outline min-h-10 px-4 text-xs">Reject ad cookies</button>
           </div>
-        </div>}
-
-        {shouldOfferPush && <div className="flex flex-col gap-3 border-t border-neutral-100 pt-3 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
-          <div className="max-w-3xl">
-            <h2 className="text-sm font-extrabold text-neutral-900">Enable optional ad notifications?</h2>
-            <p className="mt-1 text-xs leading-relaxed text-neutral-600">If you enable them, Monetag may send occasional advertising notifications even when you are no longer on PinCraft. Your browser will ask only after you press Enable. You can choose Block or dismiss the browser prompt; PinCraft will not ask again automatically. You can still use the site without notifications.</p>
-            {pushError && <p role="alert" className="mt-2 text-xs font-semibold text-red-700">{pushError}</p>}
-          </div>
-          <div className="flex shrink-0 flex-wrap gap-2 sm:justify-end">
-            <button type="button" onClick={enablePushFromUserAction} className="btn-primary min-h-10 px-4 text-xs">Enable ad notifications</button>
-            <button type="button" onClick={dismissPushPrompt} className="btn-outline min-h-10 px-4 text-xs">Not now</button>
-          </div>
-        </div>}
-
-        {showPushManage && <div className="flex flex-col gap-3 border-t border-neutral-100 pt-3 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
-          <div className="max-w-3xl">
-            <h2 className="text-sm font-extrabold text-neutral-900">Push notification status</h2>
-            <p className="mt-1 text-xs leading-relaxed text-neutral-600">
-              {browserDenied
-                ? 'Notifications are blocked in your browser. Change this site’s permission in browser settings; PinCraft will not prompt again.'
-                : pushDismissed
-                  ? 'You chose Not now. Push notifications stay off; they will not be prompted automatically.'
-                  : 'Push notification advertising is off. Enabling it requires a separate explicit action and browser permission.'}
-            </p>
-            {pushError && <p role="alert" className="mt-2 text-xs font-semibold text-red-700">{pushError}</p>}
-          </div>
-          {!browserDenied && <div className="flex shrink-0 flex-wrap gap-2 sm:justify-end">
-            <button type="button" onClick={enablePushFromUserAction} className="btn-primary min-h-10 px-4 text-xs">Enable ad notifications</button>
-            <button type="button" onClick={dismissPushPrompt} className="btn-outline min-h-10 px-4 text-xs">Keep off</button>
-          </div>}
         </div>}
 
         {preferencesOpen && <div className="flex justify-end border-t border-neutral-100 pt-3">

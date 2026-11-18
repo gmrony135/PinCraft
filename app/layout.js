@@ -1,5 +1,6 @@
 import "./globals.css";
 import AppProvider from "@/components/providers/AppProvider";
+import RegisteredMonetagPush from "@/components/ads/RegisteredMonetagPush";
 import MonetagAdManager from "@/components/ads/MonetagAdManager";
 
 export const metadata = {
@@ -63,7 +64,7 @@ export const viewport = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
-      <body><AppProvider><MonetagAdManager />{children}</AppProvider></body>
+      <body><AppProvider><MonetagAdManager /><RegisteredMonetagPush />{children}</AppProvider></body>
     </html>
   );
 }

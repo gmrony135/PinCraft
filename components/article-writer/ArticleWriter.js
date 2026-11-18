@@ -41,7 +41,7 @@ export default function ArticleWriter() {
   const params = useSearchParams(), router = useRouter();
   const { user, authLoading, openLogin } = useAuth();
   // Signed-in users get live AI; guests keep the private, device-only template.
-  const mode = user ? 'ai' : 'local';
+  const mode = authLoading ? null : user ? 'ai' : 'local';
   const [language, setLanguage] = useState('en');
   const generationRequest = useRef({ sequence: 0, controller: null });
   const imageRequest = useRef({ sequence: 0, controller: null, keys: {}, lastStartedAt: 0 });

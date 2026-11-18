@@ -1,0 +1,6 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {readOwnedPinJobs} from '../lib/publishing/pin-job-query.mjs';
+function fixture(rows,error={code:9,message:'query requires an index'}){const calls=[];const c={where:(field,op,uid)=>{calls.push([field,op,uid]);return {orderBy:()=>({limit:()=>({get:async()=>{throw error}})}),limit:n=>({get:async()=>({docs:rows.slice(0,n)})})}}};return {c,calls}}
+test('missing composite index retains owner filtering and sorts complete bounded result',async()=>{const rows=[1,3,2].map(n=>({data:()=>({createdAt:new Date(n*1000)})}));const {c,calls}=fixture(rows);const r=await readOwnedPinJobs(c,'owner');assert.deepEqual(r.docs.map(d=>d.data().createdAt.getTime()),[3000,2000,1000]);assert(calls.every(c=>c[0]==='ownerUID'&&c[2]==='owner'))});
+test('large fallback never silently reports arbitrary newest records',async()=>{const {c}=fixture(Array(101).fill({data:()=>({})}));await assert.rejects(()=>readOwnedPinJobs(c,'owner'),e=>e.code===9)});
+test('permission failures are not retried or presented as empty',async()=>{const {c,calls}=fixture([],{code:7,message:'permission denied'});await assert.rejects(()=>readOwnedPinJobs(c,'owner'),e=>e.code===7);assert.equal(calls.length,1)});

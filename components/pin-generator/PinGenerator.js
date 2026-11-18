@@ -30,7 +30,7 @@ export default function PinGenerator() {
   const { user, authLoading, openLogin } = useAuth();
   // Pin Generator keeps the workflow simple: signed-in users get live AI;
   // guests get the clearly labelled offline template without a mode selector.
-  const mode = user ? 'ai' : 'local';
+  const mode = authLoading ? null : user ? 'ai' : 'local';
   const generationRequest = useRef({ sequence: 0, controller: null });
   const [language, setLanguage] = useState('en');
   const identity = useRef(null);

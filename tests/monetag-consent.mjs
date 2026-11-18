@@ -21,22 +21,11 @@ try {
  await page.getByRole('button',{name:'Allow ad cookies',exact:true}).click();
  await page.waitForFunction(()=>document.querySelectorAll('script[data-monetag-zone]').length===2);
  assert.deepEqual(await zones(page),['12287927','12290345']);assert.equal(await page.evaluate(()=>window.__permissionCalls),0);
- await page.getByRole('button',{name:'Enable ad notifications',exact:true}).click();
- await page.waitForFunction(()=>document.querySelectorAll('script[data-monetag-zone]').length===3);
- assert.equal(await page.evaluate(()=>window.__permissionCalls),1);
+ assert.equal(await page.getByRole('button',{name:'Enable ad notifications',exact:true}).count(),0);
  await page.evaluate(()=>window.dispatchEvent(new Event('pincraft:manage-monetag-preferences')));
  await page.getByRole('button',{name:'Reject ad cookies',exact:true}).click();
  await page.waitForLoadState('networkidle');assert.deepEqual(await zones(page),[]);
- await context.close();console.log('PASS: consent, zones, explicit Push action, revocation');
- for (const result of ['denied','default']) {
-  ({context,page}=await setup('/',null,result));
-  await page.getByRole('button',{name:'Allow ad cookies',exact:true}).click();
-  await page.getByRole('button',{name:'Enable ad notifications',exact:true}).click();
-  await page.reload({waitUntil:'networkidle'});
-  assert.deepEqual(await zones(page),['12287927','12290345']);
-  assert.equal(await page.getByRole('button',{name:'Enable ad notifications',exact:true}).count(),0);
-  await context.close();console.log('PASS: Push '+result+' is not automatically retried');
- }
+ await context.close();console.log('PASS: guest page-ad consent, zones, no guest Push prompt, revocation');
  ({context,page}=await setup('/about'));await page.getByRole('button',{name:'Allow ad cookies',exact:true}).click();
  await page.waitForFunction(()=>document.querySelectorAll('script[data-monetag-zone]').length===1);
  assert.deepEqual(await zones(page),['12287927']);await context.close();console.log('PASS: about IPP only');

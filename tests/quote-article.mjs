@@ -1,0 +1,5 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {textTask,requestedQuoteCount} from '../lib/ai/tasks.mjs';
+import {rawArticle} from '../scripts/ai-fixtures.mjs';
+const quotes=Array.from({length:10},(_,i)=>`“Even quiet evening ${i+1} can hold the memory of a kinder morning.”`);
+test('quote requests preserve ten actual quote items rather than generic tips',()=>{const task=textTask({task:'article',language:'en',title:'10 Sad Quotes',topic:'10 Sad Quotes'});assert.equal(requestedQuoteCount({title:'10 Sad Quotes'}),10);assert.match(task.prompt,/exactly 10 distinct original standalone quotes/);const article={...rawArticle,listSection:{heading:'Ten original sad quotes',intro:'These are original lines, not attributed to real people.',items:quotes}};const result=task.validate(article);assert.equal(result.listSection.items.length,10);assert.equal(result.listSection.heading,'Ten original sad quotes');assert.throws(()=>task.validate({...article,listSection:{...article.listSection,items:quotes.slice(0,9)}}));assert.throws(()=>task.validate({...article,listSection:{...article.listSection,items:quotes.map(x=>x.replace(/[“”]/g,''))}}));});
