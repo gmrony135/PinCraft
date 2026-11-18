@@ -1,5 +1,6 @@
 "use client";
 
+import UsageVisibility from '@/components/ai/UsageVisibility';
 import FreePlanNotice from '@/components/FreePlanNotice';
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
@@ -118,7 +119,7 @@ export default function PinGenerator() {
 
   return (
     <div className="relative">
-      <FreePlanNotice />
+      <FreePlanNotice /><UsageVisibility refreshWhen={loading} />
       {/* toast */}
       {toast && (
         <div className="pointer-events-none fixed inset-x-0 top-20 z-50 flex justify-center px-5">
@@ -284,7 +285,7 @@ export default function PinGenerator() {
                 <button type="button" onClick={() => setArtworkPrompt(createPinArtworkPrompt(topic))} className="min-h-11 shrink-0 rounded-lg px-2 text-[11px] font-bold text-brand-700 hover:bg-brand-50">Use topic for artwork prompt</button>
               </div>}
               {!authLoading && !user && <div className="mb-3 flex flex-col gap-2 rounded-xl border border-amber-100 bg-amber-50 p-3 sm:flex-row sm:items-center sm:justify-between">
-                <p className="text-[11px] leading-relaxed text-amber-900">A verified account is required for AI artwork. After generation, the image is automatically saved in your private Cloud Library. Shared website-wide capacity and provider limits still apply.</p>
+                <p className="text-[11px] leading-relaxed text-amber-900">A verified account is required for AI artwork. After generation, the image is automatically saved in your private Cloud Library. Provider capacity and provider limits still apply.</p>
                 <button type="button" onClick={openLogin} className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-lg border border-amber-200 bg-white px-3 text-[11px] font-bold text-amber-900 hover:bg-amber-50">Sign in / create account</button>
               </div>}
               <ImageGenerator initialPrompt={artworkPrompt} useCase="pin" editable topic={topic} categoryId={CATEGORIES.find(category => category.label.toLocaleLowerCase() === topic.trim().toLocaleLowerCase())?.id || ''} language={language} />

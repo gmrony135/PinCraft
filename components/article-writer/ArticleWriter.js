@@ -1,5 +1,6 @@
 "use client";
 
+import UsageVisibility from '@/components/ai/UsageVisibility';
 import FreePlanNotice from '@/components/FreePlanNotice';
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
@@ -230,7 +231,7 @@ export default function ArticleWriter() {
 
   return (
     <div className="relative">
-      <FreePlanNotice />
+      <FreePlanNotice /><UsageVisibility refreshWhen={loading||imageBusy} />
       {toast && (
         <div className="pointer-events-none fixed inset-x-0 top-20 z-50 flex justify-center px-5">
           <div role="status" className="animate-pop-in max-w-lg rounded-2xl bg-neutral-900 px-4 py-2.5 text-center text-[13px] font-bold text-white shadow-xl">
@@ -411,7 +412,7 @@ export default function ArticleWriter() {
                 <GenerationReceipt generation={article.generation} />
                 {saveError && <p role="alert" className="mb-4 rounded-xl border border-brand-100 bg-brand-50 p-3 text-[12px] leading-relaxed text-brand-800">{saveError} Your article is still on this page; use Save to retry.</p>}
                 <ArticleView article={article} />
-                {article.generation?.kind==='ai'&&<section className={`mt-4 rounded-2xl border p-4 sm:p-5 ${article.imageStatus==='complete'?'border-emerald-200 bg-emerald-50/40':'border-amber-200 bg-amber-50/50'}`} data-testid="article-image-status" aria-live="polite"><div className="flex items-start gap-3"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-white text-brand-700"><ImagePlus size={17} aria-hidden="true"/></span><div className="min-w-0 flex-1"><h2 className="text-[13px] font-extrabold">Three article images · {article.images?.length||0}/3 saved</h2><p className="mt-1 text-[11px] leading-relaxed text-neutral-600">{imageBusy?imageMessage:article.imageStatus==='complete'?'All three original AI images are stored privately and ready for publication review.':article.imageError||imageMessage||'The cover and two section images are required before publication. Shared website-wide daily capacity, cooldowns and provider limits may affect image generation.'}</p>{article.imageStatus!=='complete'&&<button type="button" disabled={imageBusy||!user||!article.imageBriefs?.length} onClick={()=>generateArticleImages(article)} className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-xl border border-neutral-300 bg-white px-4 text-[11px] font-bold text-neutral-700 disabled:opacity-50">{imageBusy?<Loader2 size={14} className="animate-spin" aria-hidden="true"/>:<ImagePlus size={14} aria-hidden="true"/>}{imageBusy?'Generating image…':article.images?.length?'Generate missing image':'Generate three AI images'}</button>}</div></div></section>}
+                {article.generation?.kind==='ai'&&<section className={`mt-4 rounded-2xl border p-4 sm:p-5 ${article.imageStatus==='complete'?'border-emerald-200 bg-emerald-50/40':'border-amber-200 bg-amber-50/50'}`} data-testid="article-image-status" aria-live="polite"><div className="flex items-start gap-3"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-white text-brand-700"><ImagePlus size={17} aria-hidden="true"/></span><div className="min-w-0 flex-1"><h2 className="text-[13px] font-extrabold">Three article images · {article.images?.length||0}/3 saved</h2><p className="mt-1 text-[11px] leading-relaxed text-neutral-600">{imageBusy?imageMessage:article.imageStatus==='complete'?'All three original AI images are stored privately and ready for publication review.':article.imageError||imageMessage||'The cover and two section images are required before publication. Per-account daily capacity, cooldowns and provider limits may affect image generation.'}</p>{article.imageStatus!=='complete'&&<button type="button" disabled={imageBusy||!user||!article.imageBriefs?.length} onClick={()=>generateArticleImages(article)} className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-xl border border-neutral-300 bg-white px-4 text-[11px] font-bold text-neutral-700 disabled:opacity-50">{imageBusy?<Loader2 size={14} className="animate-spin" aria-hidden="true"/>:<ImagePlus size={14} aria-hidden="true"/>}{imageBusy?'Generating image…':article.images?.length?'Generate missing image':'Generate three AI images'}</button>}</div></div></section>}
 
                 <section className="mt-4 rounded-2xl border border-brand-100 bg-brand-50/30 p-5" data-testid="article-publishing-handoff">
                   <h2 className="text-[15px] font-extrabold">Ready to publish this article?</h2>
