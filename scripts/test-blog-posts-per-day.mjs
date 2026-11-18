@@ -108,3 +108,10 @@ test('external cron secret: one identity per 10-minute bucket, so a replay in th
   assert.equal(first.deliveryKey, again.deliveryKey, 'same bucket must share a key');
   assert.notEqual(first.deliveryKey, next.deliveryKey, 'next bucket must get a new key');
 });
+
+test('the saved timezone always follows the target country, never a stale client value', () => {
+  const usWithDhaka = blogAutomationSettings(base({ trendRegion: 'US', timezone: 'Asia/Dhaka' }));
+  assert.equal(usWithDhaka.timezone, 'America/New_York');
+  const bdWithNewYork = blogAutomationSettings(base({ trendRegion: 'BD', timezone: 'America/New_York', postingTimes: bestPostingTimes('BD', 2) }));
+  assert.equal(bdWithNewYork.timezone, 'Asia/Dhaka');
+});
