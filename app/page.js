@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { ArrowRight, ArrowUpRight, CalendarClock, Check, CirclePause, Clock3, FolderHeart, Link2, ShieldCheck, WandSparkles } from 'lucide-react';
 import PageShell from '@/components/PageShell';
+import HomeAccountCTA from '@/components/home/HomeAccountCTA';
 import HomeHeroAnimation from '@/components/home/HomeHeroAnimation';
 import { CATEGORIES } from '@/lib/product.mjs';
 
@@ -85,7 +86,7 @@ export default function HomePage() {
             <h2 className="mt-3 text-[27px] font-extrabold tracking-tight">Review your article. Take your Pin with you.</h2>
             <p className="mt-3 text-[12px] leading-relaxed text-neutral-400">Private drafts. Separate Blogger consent. Manual Pinterest upload.</p>
           </div>
-          <Link href="/register" prefetch={false} className="btn-primary shrink-0">Create an account<ArrowRight size={16} aria-hidden="true" /></Link>
+          <HomeAccountCTA />
         </div>
       </section>
     </PageShell>
