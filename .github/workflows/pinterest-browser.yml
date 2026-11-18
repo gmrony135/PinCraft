@@ -1,0 +1,37 @@
+name: Pinterest browser pins
+
+# Posts at most one queued pin per run to @SlimGlowLifex. The app enforces
+# the 6-per-day ceiling and a 2-hour spacing; this schedule only gives it chances.
+on:
+  schedule:
+    - cron: '23 */2 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: pinterest-browser
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      PINCRAFT_APP_URL: https://pincraftly.vercel.app
+      PINCRAFT_RUNNER_TOKEN: ${{ secrets.PINCRAFT_RUNNER_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install runner
+        working-directory: workers/pinterest-browser
+        run: npm ci
+      - name: Install Chromium
+        working-directory: workers/pinterest-browser
+        run: npx playwright install --with-deps chromium
+      - name: Post at most one due pin
+        working-directory: workers/pinterest-browser
+        run: node run.mjs
