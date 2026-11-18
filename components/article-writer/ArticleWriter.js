@@ -1,7 +1,5 @@
 "use client";
 
-import UsageVisibility from '@/components/ai/UsageVisibility';
-import FreePlanNotice from '@/components/FreePlanNotice';
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -231,7 +229,6 @@ export default function ArticleWriter() {
 
   return (
     <div className="relative">
-      <FreePlanNotice /><UsageVisibility refreshWhen={loading||imageBusy} />
       {toast && (
         <div className="pointer-events-none fixed inset-x-0 top-20 z-50 flex justify-center px-5">
           <div role="status" className="animate-pop-in max-w-lg rounded-2xl bg-neutral-900 px-4 py-2.5 text-center text-[13px] font-bold text-white shadow-xl">
