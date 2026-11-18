@@ -12,6 +12,7 @@ import {AutomationError} from '../lib/automation/errors.mjs';
 import {generateForUser} from '../lib/ai/service.mjs';
 import {aiInput,textTask} from '../lib/ai/tasks.mjs';
 import {aiLimits} from '../lib/ai/config.mjs';
+import {freeUsageDay} from '../lib/free-plan.mjs';
 import {aiUsage} from '../lib/ai/usage.mjs';
 import {blogAutomationSettings,nextBlogSlot,automationSlotId,exceedsRollingBlogLimit} from '../lib/publishing/blog-automation-policy.mjs';
 import {blogAutomationRef,blogSlotsRef,blogSlotRef} from '../lib/publishing/automation-contract.mjs';
@@ -34,7 +35,7 @@ const setup={aiConfigured:true,workloadConfigured:true};
 async function fixture({enabled=true,quality,feedOptions={},aiOptions={},publishingOptions={},liveLinks=true}={}){
  // Keep each synthetic fixture independent of the shared daily website counter;
  // dedicated quota tests below still exercise the real production limits.
- await db.doc(`pincraft_system/ai-${new Date().toISOString().slice(0,10)}`).delete();
+ await db.doc(`pincraft_system/ai-${freeUsageDay()}`).delete();
  const f=await reviewedFixture(publishingOptions),time=new Date(f.now()+60*60000).toISOString().slice(11,16),settings={...basic,postingTimes:[time]},ai=automaticAI({quality,...aiOptions}),imageWaits=[];
  ai.dependencies.now=f.now;
  const livePosts=[
@@ -49,7 +50,7 @@ async function fixture({enabled=true,quality,feedOptions={},aiOptions={},publish
  const sleep=async duration=>{imageWaits.push(duration);f.advance(duration);};
  return {...f,settings,raw,ai,imageWaits,sleep,feedSend:send,process:extra=>processBlogAutomation(db,f.uid,{now:f.now,send,generationDependencies:ai.dependencies,sleep,...extra})};
 }
-async function clearCooldown(uid){const day=new Date().toISOString().slice(0,10),ref=accountRef(db,uid).collection('aiUsage').doc(day);if((await ref.get()).exists)await ref.update({last_text_at:new Date(Date.now()-6000)});}
+async function clearCooldown(uid){const day=freeUsageDay(),ref=accountRef(db,uid).collection('aiUsage').doc(day);if((await ref.get()).exists)await ref.update({last_text_at:new Date(Date.now()-6000)});}
 async function queue(f){const first=await f.process(),slot=(await slots(f.uid))[0],outcome=(await cfg(f.uid)).lastOutcome;assert.equal(first.state,'article_generated',JSON.stringify({first,outcome,slotState:slot?.state,slotError:slot?.error,articleImages:slot?.article?.images?.length,links:slot?.article?.relatedArticles?.length}));f.advance(1100);await clearCooldown(f.uid);const result=await f.process();assert.equal(result.state,'queued',JSON.stringify((await cfg(f.uid)).lastOutcome));return (await listPublishingJobs(db,f.uid)).jobs[0];}
 async function pause(f){const current=await cfg(f.uid);return pauseBlogAutomation(db,f.uid,{requestId:randomUUID(),expectedRevision:current.revision},{now:f.now()});}
 async function moveOtherDue(){for(const s of (await db.collection('blog_automations').get()).docs)if(data(s).nextRunAtUTC)await s.ref.update({nextRunAtUTC:new Date(Date.now()+10*86400000)});}
@@ -128,7 +129,7 @@ check('Owner-only settings are revision guarded and request-idempotent, not sile
  const foreign=await firebaseIdentity('foreign-auto-'+randomUUID());assert.equal((await blogAutomationStatus(db,foreign.id)).automation,null);await assert.rejects(saveBlogAutomation(db,foreign.id,f.raw,{...setup,now:f.now()}));assert.equal((await cfg(f.uid)).revision,first.revision);
 });
 check('The recurring generator saves three durable images, verifies live internal links, and creates a separately checked Blogger-only job',async()=>{
- const f=await fixture(),job=await queue(f),saved=data(await db.collection('publish_jobs').doc(job.id).get()),usage=await aiUsage(db,f.uid);assert.deepEqual(f.ai.calls.map(c=>c.task),['article','image','image','image','quality']);assert.equal(f.imageWaits.length,2);assert(f.imageWaits.every(wait=>wait>=15000));assert.deepEqual(usage.used,{text:2,image:3});assert(!Object.hasOwn(usage,'limits'));
+ const f=await fixture(),job=await queue(f),saved=data(await db.collection('publish_jobs').doc(job.id).get()),usage=await aiUsage(db,f.uid);assert.deepEqual(f.ai.calls.map(c=>c.task),['article','image','image','image','quality']);assert.equal(f.imageWaits.length,2);assert(f.imageWaits.every(wait=>wait>=15000));assert.deepEqual(usage.used,{pinPacks:0,text:2,image:3});assert(!Object.hasOwn(usage,'limits'));
  assert.equal(job.source,'recurring_automation');assert.equal(job.hasManualPin,false);assert.equal(job.manualTaskId,null);assert.equal(saved.reviewedAt,null);assert(saved.recurringConsentAt);assert.equal(job.resultURL,null);assert.equal(job.automation.editorialReview.passed,true);assert(job.automation.evidence.sources.length>=2);assert.equal(saved.payload.article.images.length,3);assert(saved.payload.article.images.every(image=>image.url.startsWith('https://pincraftly.vercel.app/api/article-image/')&&image.url.includes('?sig=')));assert.equal(saved.payload.article.relatedArticles.length,3);assert(saved.payload.article.html.includes('Related articles'));
  const generated=(await slots(f.uid))[0];assert(generated.libraryDraftId);assert.equal(generated.article.images.length,3);assert.equal(generated.article.relatedArticles.length,3);const library=data(await db.collection('pincraft_jobs').doc(generated.libraryDraftId).get());assert.equal(library.user_id,f.uid);assert.equal(library.topic_metadata.source,'recurring_automation');assert.equal(library.state,'draft');assert.equal(library.content.imageStatus,'complete');assert.equal(library.content.images.length,3);assert.equal(library.content.generation.kind,'ai');
  for(let i=0;i<2;i++)await processPublishingJob(db,job.id,{uid:f.uid,send:f.send,now:f.now});const afterSchedule=(await listPublishingJobs(db,f.uid)).jobs[0];assert.equal(afterSchedule.status,'scheduled',JSON.stringify({status:afterSchedule.status,phase:afterSchedule.phase,error:afterSchedule.error,remoteId:afterSchedule.remoteId,calls:f.calls,urls:f.requests.map(request=>request.url)}));assert.equal(f.calls.public,0);
