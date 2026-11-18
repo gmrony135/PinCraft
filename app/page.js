@@ -2,7 +2,6 @@ import Link from 'next/link';
 import { ArrowRight, ArrowUpRight, CalendarClock, Check, CirclePause, Clock3, FolderHeart, Link2, ShieldCheck, WandSparkles } from 'lucide-react';
 import PageShell from '@/components/PageShell';
 import HomeHeroAnimation from '@/components/home/HomeHeroAnimation';
-import MonetagInPagePush from '@/components/ads/MonetagInPagePush';
 import { CATEGORIES } from '@/lib/product.mjs';
 
 export default function HomePage() {
@@ -89,7 +88,6 @@ export default function HomePage() {
           <Link href="/register" prefetch={false} className="btn-primary shrink-0">Create an account<ArrowRight size={16} aria-hidden="true" /></Link>
         </div>
       </section>
-      <MonetagInPagePush />
     </PageShell>
   );
 }
