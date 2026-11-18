@@ -256,6 +256,14 @@ export default function PinGenerator() {
                 Suggest a matching Pin artwork prompt from your topic.
               </p>
             </form>
+            {pack && <section aria-label="Generated Pin ideas" data-testid="pin-ideas-result" className="mt-5 space-y-4 rounded-2xl border border-neutral-200 bg-white p-5">
+              <h2 className="text-lg font-extrabold">Your Pin ideas</h2>
+              <ol className="list-inside list-decimal space-y-2">{pack.titles.map((title,index)=><li key={index} className="text-sm font-bold">{title}</li>)}</ol>
+              <h3 className="text-sm font-bold">Description</h3>
+              <p className="whitespace-pre-wrap text-sm leading-relaxed text-neutral-700">{pack.description}</p>
+              <p className="text-xs text-neutral-500">{pack.description.trim().split(/\s+/u).length} words · {pack.description.length} characters. Check Pinterest’s field limit before posting.</p>
+              <p className="break-words text-sm text-brand-700">{pack.hashtags.join(' ')}</p>
+            </section>}
             {pack && historySave.status === 'saved' && <p role="status" className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-[11px] leading-relaxed text-emerald-800">Pin ideas automatically saved to {historySave.cloud ? 'your private Cloud Library' : 'My Library on this device'}. This is a draft only—not a Pinterest upload. <Link href="/library" prefetch={false} className="font-extrabold underline underline-offset-2">Open My Library</Link></p>}
             {pack && historySave.status === 'saving' && <p role="status" className="mt-3 rounded-xl border border-neutral-200 bg-neutral-50 p-3 text-[11px] text-neutral-600">Saving Pin ideas to My Library…</p>}
             {pack && historySave.status === 'error' && <p role="alert" className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-[11px] leading-relaxed text-amber-900">{historySave.message} Keep this page open and retry. <button type="button" onClick={retryPinHistory} className="ml-1 min-h-9 font-extrabold underline underline-offset-2">Retry Library save</button></p>}
@@ -310,7 +318,7 @@ export default function PinGenerator() {
               <ul className="mt-3 space-y-2.5">
                 {[
                   ["5", "Pin title ideas", "Five angles to review and personalize"],
-                  ["1", "SEO description", "100–150 words with keywords"],
+                  ["1", "SEO description", "250–480 characters; review before posting"],
                   ["10", "Hashtags", "Copy all in one tap"],
                   ["1", "Pin image idea + artwork", "Prompt, then optional 1000 × 1500 AI download"],
                 ].map(([n, t, s]) => (
