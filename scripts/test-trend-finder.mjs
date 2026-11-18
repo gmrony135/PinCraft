@@ -14,7 +14,11 @@ import {
   trendIdentity,
   utcSnapshotDate,
 } from '../lib/trend-finder/core.mjs';
-import { collectDailyTrendSnapshot, fetchDailyTrendSnapshot } from '../lib/trend-finder/service.mjs';
+import { collectDailyTrendSnapshot, fetchDailyTrendSnapshot, fetchNicheTopics } from '../lib/trend-finder/service.mjs';
+import { findTrendInSnapshot, googleNewsSearchUrl, parseGoogleNewsRSS, TREND_NICHES } from '../lib/trend-finder/core.mjs';
+import { readTrendConsent, writeTrendConsent, TREND_CONSENT_COLLECTION } from '../lib/trend-finder/consent.mjs';
+import { TREND_AI_NOTICE_VERSION } from '../lib/trend-finder/notice.mjs';
+import { latestTrendRun } from '../lib/trend-finder/runs.mjs';
 import { trendWorkloadConfig, verifyTrendWorkload } from '../lib/trend-finder/workload.mjs';
 import { trendIdeasTask, validateTrendIdeas } from '../lib/ai/trend-ideas.mjs';
 import { requestTrendFinderSnapshot } from './run-trend-finder-snapshot.mjs';
@@ -42,6 +46,12 @@ function snapshot(day, rowsByRegion = {}) {
   };
 }
 
+function deepMerge(target, source) {
+  if (!source || typeof source !== 'object' || Array.isArray(source)) return source;
+  const out = { ...(target && typeof target === 'object' ? target : {}) };
+  for (const [key, value] of Object.entries(source)) out[key] = deepMerge(out[key], value);
+  return out;
+}
 class FakeDatabase {
   constructor() { this.rows = new Map(); }
   collection(name) {
@@ -50,6 +60,10 @@ class FakeDatabase {
       return {
         path,
         get: async () => ({ exists: this.rows.has(path), data: () => this.rows.get(path) }),
+        set: async (value, options = {}) => {
+          const current = this.rows.get(path) || {};
+          this.rows.set(path, options.merge ? deepMerge(current, value) : value);
+        },
       };
     } };
   }
@@ -131,7 +145,7 @@ test('All three feeds are fetched and parsed before one complete snapshot is ret
   });
   assert.equal(data.snapshotDate, '2026-11-13');
   assert.equal(data.regions.US.items[0].title, 'US topic');
-  assert.deepEqual(urls.map(url => new URL(url).searchParams.get('geo')).sort(), regionCodes.slice().sort());
+  assert.deepEqual(urls.filter(url => url.includes('/trending/rss')).map(url => new URL(url).searchParams.get('geo')).sort(), regionCodes.slice().sort());
   await assert.rejects(() => fetchDailyTrendSnapshot({ send: async url => String(url).includes('geo=CA') ? '<html>blocked</html>' : feed([{ title: 'Other topic', traffic: '100+' }]) }));
 });
 
@@ -141,7 +155,7 @@ test('Collection is atomic and idempotent for a UTC date; a failed region does n
   const first = await collectDailyTrendSnapshot({ db, now: iso('2026-11-13'), send: async url => { calls++; const region = new URL(url).searchParams.get('geo'); return feed([{ title: `${region} daily topic`, traffic: '200+' }]); } });
   assert.equal(first.outcome, 'collected');
   assert.deepEqual(first.counts, { US: 1, GB: 1, CA: 1 });
-  assert.equal(calls, 3);
+  assert.equal(calls, 21); // 3 Trending Now feeds + 18 Google News niche queries (3 regions x 3 niches x 2)
   const duplicate = await collectDailyTrendSnapshot({ db, now: iso('2026-11-13'), send: async () => { throw new Error('same-day request should not refetch'); } });
   assert.equal(duplicate.outcome, 'already_collected');
   assert.equal(db.rows.size, 1);
@@ -245,4 +259,115 @@ test('The dedicated page and main navigation keep publishing manual-only', async
   assert.match(workflow, /43 6 \* \* \*/);
   assert.match(workflow, /id-token: write/);
   assert(!workflow.includes('PINTEREST_API'));
+});
+
+function newsFeed(rows) {
+  return `<?xml version="1.0"?><rss version="2.0"><channel><title>Google News</title>${rows.map(row => `<item><title>${escapeXML(row.title)}</title><pubDate>${row.pubDate || 'Wed, 18 Nov 2026 12:20:00 GMT'}</pubDate><source url="https://example.com">${escapeXML(row.source)}</source></item>`).join('')}</channel></rss>`;
+}
+
+test('Niche topics come from Google News search per region, with publisher suffixes removed and bounded parsing', () => {
+  assert.equal(TREND_NICHES.map(niche => niche.key).join(','), 'home_decor,fashion_style,recipe');
+  const url = new URL(googleNewsSearchUrl('GB', 'home decor'));
+  assert.equal(url.origin + url.pathname, 'https://news.google.com/rss/search');
+  assert.equal(url.searchParams.get('gl'), 'GB');
+  assert.equal(url.searchParams.get('ceid'), 'GB:en');
+  const rows = parseGoogleNewsRSS(newsFeed([
+    { title: 'Warm neutral living room decor ideas for winter - Good Housekeeping', source: 'Good Housekeeping' },
+    { title: 'Warm neutral living room decor ideas for winter', source: 'Duplicate Source' },
+    { title: 'Short', source: 'X' },
+  ]), 'US', 'home_decor');
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].title, 'Warm neutral living room decor ideas for winter');
+  assert.equal(rows[0].source, 'Good Housekeeping');
+  assert.match(rows[0].publishedAt, /^2026-11-18T12:20:00/);
+  assert.match(rows[0].id, /^[a-f0-9]{64}$/);
+  assert.throws(() => parseGoogleNewsRSS('<!DOCTYPE rss><rss/>', 'US', 'recipe'));
+  assert.throws(() => googleNewsSearchUrl('XX', 'recipe'), code('invalid_region'));
+});
+
+test('A niche with no direct headline shows closest related topics, and a failed niche never becomes sample data', async () => {
+  const niches = await fetchNicheTopics('US', { send: async url => {
+    const query = new URL(url).searchParams.get('q');
+    if (query === 'home decor') return newsFeed([]);
+    if (query === 'interior design') return newsFeed([{ title: 'Cozy reading nook ideas for small apartments', source: 'Apartment Therapy' }]);
+    if (query === 'fashion style') throw new Error('network');
+    if (query === 'outfit ideas') return newsFeed([]);
+    return newsFeed([{ title: 'Easy one-pan dinner recipe for busy weeknights', source: 'Allrecipes' }]);
+  } });
+  assert.equal(niches.home_decor.status, 'closest_related');
+  assert.equal(niches.home_decor.items[0].matchType, 'closest_related');
+  assert.equal(niches.fashion_style.status, 'unavailable');
+  assert.deepEqual(niches.fashion_style.items, []);
+  assert.equal(niches.recipe.status, 'ready');
+  assert.equal(niches.recipe.items[0].matchType, 'matches_niche');
+});
+
+test('Niche topics are reachable for ideas and shown in the public report without changing the trending estimate', () => {
+  const niche = { label: 'Recipes', status: 'ready', items: [{ id: 'a'.repeat(64), title: 'Easy dinner recipe', source: 'Allrecipes', publishedAt: '2026-11-18T12:20:00.000Z', matchType: 'matches_niche' }] };
+  const current = { snapshotDate: '2026-11-18', capturedAt: iso('2026-11-18'), regions: { US: { items: [], niches: { recipe: niche } }, GB: { items: [] }, CA: { items: [] } } };
+  assert.equal(findTrendInSnapshot(current, 'US', 'a'.repeat(64)).origin, 'niche');
+  assert.equal(findTrendInSnapshot(current, 'US', 'b'.repeat(64)), null);
+  const report = publicTrendReport(current, null, iso('2026-11-18').getTime());
+  const recipes = report.regions[0].niches.find(row => row.key === 'recipe');
+  assert.equal(recipes.items[0].matchType, 'matches_niche');
+  assert.equal(report.regions[0].niches.length, 3);
+});
+
+test('Existing snapshots without niche topics get them added once, keeping the trending items unchanged', async () => {
+  const db = new FakeDatabase();
+  const stored = { snapshotDate: '2026-11-17', capturedAt: iso('2026-11-17'), regions: { US: { items: [{ id: 'x'.repeat(64), title: 'Kept trend', trafficBucket: '2K+', trafficBucketFloor: 2000 }] }, GB: { items: [] }, CA: { items: [] } } };
+  db.rows.set(`pincraft_trend_snapshots/2026-11-17`, stored);
+  const result = await collectDailyTrendSnapshot({ db, now: iso('2026-11-17'), send: async url => newsFeed([{ title: 'Garden decor headline for the backfill', source: 'House Beautiful' }]) });
+  assert.equal(result.outcome, 'already_collected');
+  assert.equal(result.nicheTopics, 'added');
+  const saved = db.rows.get('pincraft_trend_snapshots/2026-11-17');
+  assert.equal(saved.regions.US.items[0].title, 'Kept trend');
+  assert.equal(saved.regions.US.niches.home_decor.items[0].title, 'Garden decor headline for the backfill');
+  const again = await collectDailyTrendSnapshot({ db, now: iso('2026-11-17'), send: async () => { throw new Error('must not refetch'); } });
+  assert.equal(again.outcome, 'already_collected');
+});
+
+test('AI-use consent is stored per signed-in account and survives a fresh read; an old notice version does not count', async () => {
+  const db = new FakeDatabase();
+  assert.equal((await readTrendConsent(db, 'user-1')).accepted, false);
+  const saved = await writeTrendConsent(db, 'user-1', true, iso('2026-11-18'));
+  assert.equal(saved.accepted, true);
+  assert.equal(saved.noticeVersion, TREND_AI_NOTICE_VERSION);
+  assert.equal((await readTrendConsent(db, 'user-1')).accepted, true);
+  assert.equal((await readTrendConsent(db, 'user-2')).accepted, false);
+  assert.ok(db.rows.has(`${TREND_CONSENT_COLLECTION}/user-1`));
+  db.rows.set(`${TREND_CONSENT_COLLECTION}/user-1`, { accepted: true, noticeVersion: '2020-01-01' });
+  assert.equal((await readTrendConsent(db, 'user-1')).accepted, false);
+  assert.equal((await writeTrendConsent(db, 'user-1', false)).accepted, false);
+});
+
+test('The GitHub collector status is uncached and only reports no runs when GitHub returns zero runs', async () => {
+  const original = globalThis.fetch;
+  const seen = [];
+  try {
+    globalThis.fetch = async (url, options) => { seen.push(options?.cache); return new Response(JSON.stringify({ total_count: 1, workflow_runs: [{ id: 44316737841, status: 'completed', conclusion: 'success', run_started_at: '2026-11-18T13:44:00Z', updated_at: '2026-11-18T13:45:00Z' }] }), { status: 200 }); };
+    const ok = await latestTrendRun();
+    assert.equal(ok.conclusion, 'success');
+    assert.match(ok.message, /Last GitHub collector run: success/);
+    assert.equal(seen[0], 'no-store');
+    globalThis.fetch = async () => new Response(JSON.stringify({ total_count: 0, workflow_runs: [] }), { status: 200 });
+    assert.equal((await latestTrendRun()).status, 'never_run');
+    globalThis.fetch = async () => new Response(JSON.stringify({ total_count: 3, workflow_runs: [] }), { status: 200 });
+    assert.equal((await latestTrendRun()).status, 'unavailable');
+  } finally {
+    globalThis.fetch = original;
+  }
+});
+
+test('Ideas require stored consent and the UI keeps the consent control near the trend list', async () => {
+  const route = await readFile(new URL('../app/api/trend-finder/ideas/route.js', import.meta.url), 'utf8');
+  const ui = await readFile(new URL('../components/trend-finder/TrendFinder.js', import.meta.url), 'utf8');
+  assert.match(route, /readTrendConsent\(db, user\.id\)/);
+  assert.match(route, /ai_consent_required/);
+  assert.match(route, /findTrendInSnapshot/);
+  assert.match(ui, /id="trend-ai-consent"/);
+  assert.match(ui, /\/api\/trend-finder\/consent/);
+  assert.match(ui, /data-testid="niche-topics"/);
+  assert.match(ui, /This is the first daily snapshot, so there is nothing to compare yet/);
+  assert.match(ui, /Show the AI-use checkbox/);
 });
