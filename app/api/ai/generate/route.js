@@ -5,7 +5,7 @@ import { generateForUser } from '@/lib/ai/service.mjs';
 import { publicAIResult } from '@/lib/ai/public.mjs';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-export const maxDuration = 60;
+export const maxDuration = 180;
 export async function POST(request) {
   try {
     const user = await sessionUser(request, true);
