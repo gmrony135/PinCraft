@@ -1,5 +1,6 @@
 "use client";
 
+import FreePlanNotice from '@/components/FreePlanNotice';
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { generatePinPack } from "@/lib/generator";
@@ -117,6 +118,7 @@ export default function PinGenerator() {
 
   return (
     <div className="relative">
+      <FreePlanNotice />
       {/* toast */}
       {toast && (
         <div className="pointer-events-none fixed inset-x-0 top-20 z-50 flex justify-center px-5">

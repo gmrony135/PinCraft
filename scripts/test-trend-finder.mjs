@@ -149,7 +149,7 @@ test('Collection is atomic and idempotent for a UTC date; a failed region does n
   assert.equal(db.rows.size, 1);
 });
 
-test('Only the exact public main-branch workflow and matching production SHA can authorize collection', async () => {
+test('Only the exact public main-branch workflow and matching current main SHA can authorize collection', async () => {
   const config = {
     configured: true,
     repository: 'gmrony135/PinCraft',
@@ -176,7 +176,8 @@ test('Only the exact public main-branch workflow and matching production SHA can
     };
     return new SignJWT(claims).setProtectedHeader({ alg: 'RS256' }).setIssuer('https://token.actions.githubusercontent.com').setAudience(options.audience || config.audience).setIssuedAt(now + (options.age || 0)).setExpirationTime(now + (options.expiry ?? 300)).sign(privateKey);
   }
-  const verified = await verifyTrendWorkload(`Bearer ${await token()}`, { config, resolveKey: publicKey });
+  await verifyTrendWorkload(`Bearer ${await token()}`, {config:{...config,deploymentSHA:"b".repeat(40)},resolveKey:publicKey,resolveMainSHA:async()=>config.deploymentSHA}); // Deployment lag must not reject current main.
+  const verified = await verifyTrendWorkload(`Bearer ${await token()}`, { config, resolveKey: publicKey, resolveMainSHA:async()=>config.deploymentSHA });
   assert.match(verified.executionId, /^github-trend-snapshot:/);
   for (const patch of [
     { repository_id: '1' }, { repository: 'attacker/repo' }, { repository_visibility: 'private' },
@@ -184,14 +185,14 @@ test('Only the exact public main-branch workflow and matching production SHA can
     { event_name: 'pull_request' }, { jti: 'short' },
   ]) {
     const signed = await token(patch);
-    await assert.rejects(() => verifyTrendWorkload(`Bearer ${signed}`, { config, resolveKey: publicKey }), code('worker_unauthorized'));
+    await assert.rejects(() => verifyTrendWorkload(`Bearer ${signed}`, { config, resolveKey: publicKey, resolveMainSHA:async()=>config.deploymentSHA }), code('worker_unauthorized'));
   }
   const wrongAudience = await token({}, { audience: 'https://wrong.example' });
-  await assert.rejects(() => verifyTrendWorkload(`Bearer ${wrongAudience}`, { config, resolveKey: publicKey }), code('worker_unauthorized'));
+  await assert.rejects(() => verifyTrendWorkload(`Bearer ${wrongAudience}`, { config, resolveKey: publicKey, resolveMainSHA:async()=>config.deploymentSHA }), code('worker_unauthorized'));
   const staleToken = await token({}, { age: -700 });
-  await assert.rejects(() => verifyTrendWorkload(`Bearer ${staleToken}`, { config, resolveKey: publicKey }), code('worker_unauthorized'));
+  await assert.rejects(() => verifyTrendWorkload(`Bearer ${staleToken}`, { config, resolveKey: publicKey, resolveMainSHA:async()=>config.deploymentSHA }), code('worker_unauthorized'));
   const signed = await token();
-  await assert.rejects(() => verifyTrendWorkload(`Bearer ${signed}`, { config: { ...config, configured: false }, resolveKey: publicKey }), code('worker_unauthorized'));
+  await assert.rejects(() => verifyTrendWorkload(`Bearer ${signed}`, { config: { ...config, configured: false }, resolveKey: publicKey, resolveMainSHA:async()=>config.deploymentSHA }), code('worker_unauthorized'));
 });
 
 test('Idea generation validates three structured concepts and labels audience and performance honestly', () => {

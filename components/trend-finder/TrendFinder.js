@@ -172,6 +172,7 @@ export default function TrendFinder() {
       <button type="button" onClick={loadLatest} disabled={loading || refreshing} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-neutral-200 px-3.5 text-[11px] font-bold text-neutral-700 hover:bg-neutral-50 disabled:opacity-50"><RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} aria-hidden="true" />{refreshing ? 'Reloading…' : 'Reload latest snapshot'}</button>
     </section>
 
+    {report?.lastRun && <p role="status" data-testid="trend-last-run" className="mt-3 text-xs text-neutral-600">{report.lastRun.message}{report.lastRun.url && <> <a className="underline" href={report.lastRun.url} target="_blank" rel="noreferrer">View GitHub run</a></>}</p>}
     {loadError && <p role="alert" className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3.5 text-[12px] leading-relaxed text-amber-900">{loadError} {report?.snapshotDate ? 'The previously loaded snapshot remains visible.' : ''}</p>}
     {report?.snapshotDate && !report.snapshotFresh && <p role="status" className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3.5 text-[12px] leading-relaxed text-amber-900">This snapshot is older than 48 hours. It is shown with its capture date, but idea generation is paused until a fresh daily collection is available.</p>}
 

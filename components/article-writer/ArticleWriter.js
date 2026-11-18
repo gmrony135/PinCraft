@@ -1,5 +1,6 @@
 "use client";
 
+import FreePlanNotice from '@/components/FreePlanNotice';
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -193,12 +194,12 @@ export default function ArticleWriter() {
     async function loadPin() {
       if (authLoading) return;
       setPinsLoading(true);
-      if (!user) {const pin=getLibrary().find(item=>item.type==='pin');if(active){setLibraryDrop(pin?{owner:'device',topic:pin.topic,title:pin.titles?.[0]||pin.title,description:pin.description,hashtags:pin.hashtags}:null);setPinsLoading(false);}return;}
+      if (!user) {const pin=[...getLibrary()].sort((a,b)=>Date.parse(b.createdAt||0)-Date.parse(a.createdAt||0)).find(item=>item.type==='pin');if(active){setLibraryDrop(pin?{owner:'device',topic:pin.topic,title:pin.titles?.[0]||pin.title,description:pin.description,hashtags:pin.hashtags}:null);setPinsLoading(false);}return;}
       try {
         const response=await fetch('/api/library',{credentials:'same-origin',cache:'no-store'});
         if(!response.ok)throw new Error('Saved Pins could not be refreshed.');
         const data=await response.json();
-        const pin=data?.items?.find(item=>['pin_draft','queued_pin','generated'].includes(item.kind)&&!Array.isArray(item.content?.sections)&&(item.content?.titles?.[0]||item.content?.title));
+        const pin=[...(data?.items||[])].sort((a,b)=>Date.parse(b.createdAt||b.created_at||b.content?.createdAt||0)-Date.parse(a.createdAt||a.created_at||a.content?.createdAt||0)).find(item=>['pin_draft','queued_pin','generated'].includes(item.kind)&&!Array.isArray(item.content?.sections)&&(item.content?.titles?.[0]||item.content?.title));
         if(active)setLibraryDrop(pin?{owner:user.id,topic:pin.topic||pin.content.topic,title:pin.content.titles?.[0]||pin.content.title,description:pin.content.description,hashtags:pin.content.hashtags}:null);
       } catch { if(active)setLibraryDrop(null); }
       finally {if(active)setPinsLoading(false);}
@@ -229,6 +230,7 @@ export default function ArticleWriter() {
 
   return (
     <div className="relative">
+      <FreePlanNotice />
       {toast && (
         <div className="pointer-events-none fixed inset-x-0 top-20 z-50 flex justify-center px-5">
           <div role="status" className="animate-pop-in max-w-lg rounded-2xl bg-neutral-900 px-4 py-2.5 text-center text-[13px] font-bold text-white shadow-xl">
@@ -335,7 +337,7 @@ export default function ArticleWriter() {
                 </p>
               ) : (
                 <p className="mt-1.5 px-1 text-[11px] text-neutral-400">
-                  {pinsLoading?'Loading saved Pins…':'No saved Pin found in the latest loaded Library page —'}{" "}
+                  {pinsLoading?'Checking saved pins…':'No saved Pin found in the latest loaded Library page —'}{" "}
                   <Link
                     href="/pin-generator"
                     prefetch={false}

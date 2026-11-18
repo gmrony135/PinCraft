@@ -1,0 +1,17 @@
+import assert from 'node:assert/strict';import {randomUUID} from 'node:crypto';
+import {freeUsageDay,nextFreeReset} from '../lib/free-plan.mjs';
+import {getDatabase} from '../lib/automation/db.mjs';import {accountRef} from '../lib/automation/firestore.mjs';
+import {reserveAIRequest,finishAIRequest,aiUsage} from '../lib/ai/usage.mjs';import {isolatedFirebase} from '../scripts/automation-fixtures.mjs';import {publicGeneration} from '../lib/ai/public.mjs';
+isolatedFirebase();const db=getDatabase(),uid='daily-plan-'+randomUUID(),before=Date.parse('2026-11-20T17:59:40Z'),after=Date.parse('2026-11-20T18:00:01Z');
+assert.equal(freeUsageDay(before),'2026-11-20');assert.equal(freeUsageDay(after),'2026-11-21');assert.equal(nextFreeReset(before),'2026-11-20T18:00:00.000Z');
+const limits={global:{text:100000,image:100000}},request=()=>({requestKey:randomUUID(),fingerprint:'a'.repeat(64),task:'pin',kind:'text'}),opts=now=>({limits,now});
+const ref=accountRef(db,uid).collection('aiUsage').doc(freeUsageDay(before));await ref.set({user_id:uid,pin_packs:19,active:[],text:0,image:0});
+const key=request(),r=await reserveAIRequest(db,uid,key,opts(before));await assert.rejects(()=>reserveAIRequest(db,uid,request(),opts(before)),e=>e.code==='pin_daily_limit');
+await finishAIRequest(db,uid,r,{error:{code:'test_failure'}});assert.equal((await aiUsage(db,uid,before)).used.pinPacks,19);
+const r2=await reserveAIRequest(db,uid,request(),opts(before+4100));await finishAIRequest(db,uid,r2,{result:{task:'pin',result:{title:'Synthetic pack'}}});assert.equal((await aiUsage(db,uid,before)).used.pinPacks,20);
+await assert.rejects(()=>reserveAIRequest(db,uid,request(),opts(before+4500)),e=>e.code==='pin_daily_limit');
+const article=await reserveAIRequest(db,uid,{...request(),task:'article'},opts(before+8200));await finishAIRequest(db,uid,article,{error:{code:'test_failure'}});
+const reset=await reserveAIRequest(db,uid,request(),opts(after));await finishAIRequest(db,uid,reset,{error:{code:'test_failure'}});assert.equal((await aiUsage(db,uid,after)).used.pinPacks,0);
+const other=await reserveAIRequest(db,uid+'-other',request(),opts(before));await finishAIRequest(db,uid+'-other',other,{error:{code:'test_failure'}});
+const g=publicGeneration({provider:'groq',model:'openai/gpt-oss-120b',key:'never-expose',fallbackUsed:true});assert.equal(g.provider,'groq');assert.equal(g.model,'openai/gpt-oss-120b');assert(!('key'in g));
+console.log('PASS Bangladesh midnight, 20 successful packs, running reservation cap, failure release, article exemption, account isolation, safe model receipt');await db.terminate();
