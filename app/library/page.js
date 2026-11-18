@@ -6,6 +6,7 @@ export const metadata = {
   title: "My Library",
   description: "Your private saved articles and Pins, separate device drafts, and confirmed Blogger publication links.",
   alternates: { canonical: "/library" },
+  robots: { index: false, follow: true },
 };
 
 export default function LibraryPage() {

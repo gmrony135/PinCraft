@@ -8,6 +8,7 @@ export const metadata = {
   description:
     "Create a reviewed 1,000–1,600-word article draft with SEO suggestions and three AI illustrations; publication also requires relevant live Blogger links.",
   alternates: { canonical: "/article-writer" },
+  robots: { index: false, follow: true },
 };
 
 export default function ArticleWriterPage() {

@@ -5,10 +5,19 @@ import PageShell from '@/components/PageShell';
 import HomeAccountCTA from '@/components/home/HomeAccountCTA';
 import HomeHeroAnimation from '@/components/home/HomeHeroAnimation';
 import { CATEGORIES } from '@/lib/product.mjs';
+import { SITE_URL, homeJsonLd, pageOpenGraph } from '@/lib/seo.mjs';
+
+const HOME_TITLE = 'PinCraft — Blogger Publishing & Manual Pin Packs';
+const HOME_DESCRIPTION = 'Reviewed Blogger publishing and downloadable manual Pinterest packs. Separate real article receipts from user-reported Pin links.';
+
+export const metadata = {
+  alternates: { canonical: SITE_URL },
+  openGraph: pageOpenGraph({ title: HOME_TITLE, ogTitle: HOME_TITLE, description: HOME_DESCRIPTION, path: '/' }),
+};
 
 export default function HomePage() {
   return (
-    <PageShell className="!bg-white">
+    <PageShell className="!bg-white" jsonLd={homeJsonLd}>
       <section className="relative overflow-hidden border-b border-neutral-100">
         <div className="pointer-events-none absolute -right-40 -top-44 h-[640px] w-[640px] rounded-full bg-brand-50/70 blur-3xl" />
         <div className="container-x relative grid items-center gap-10 py-12 sm:py-16 lg:grid-cols-[1.15fr_1fr] lg:gap-14 lg:py-20">
