@@ -1,6 +1,6 @@
 import "./globals.css";
 import AppProvider from "@/components/providers/AppProvider";
-import MonetagInPagePush from "@/components/ads/MonetagInPagePush";
+import MonetagAdManager from "@/components/ads/MonetagAdManager";
 
 export const metadata = {
   metadataBase: new URL("https://pincraftly.vercel.app"),
@@ -63,7 +63,7 @@ export const viewport = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
-      <body><AppProvider><MonetagInPagePush />{children}</AppProvider></body>
+      <body><AppProvider><MonetagAdManager />{children}</AppProvider></body>
     </html>
   );
 }
