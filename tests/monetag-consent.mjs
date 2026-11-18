@@ -29,10 +29,17 @@ try {
  ({context,page}=await setup('/about'));await page.getByRole('button',{name:'Allow ad cookies',exact:true}).click();
  await page.waitForFunction(()=>document.querySelectorAll('script[data-monetag-zone]').length===1);
  assert.deepEqual(await zones(page),['12287927']);await context.close();console.log('PASS: about IPP only');
- for (const [path,user] of [['/privacy',null],['/',{id:'test-user',email:'test@example.com'}]]) {
+ for (const [path,user] of [['/privacy',null]]) {
   ({context,page}=await setup(path,user));assert.deepEqual(await zones(page),[]);
   assert.equal(await page.getByRole('button',{name:'Allow ad cookies',exact:true}).count(),0);
   await context.close();
  }
- console.log('PASS: excluded route and authenticated user');
+ console.log('PASS: excluded policy route');
+ ({context,page}=await setup('/',{id:'consent-test',name:'Consent Test'}));
+ await page.getByRole('button',{name:'Allow ad cookies',exact:true}).waitFor();
+ assert.deepEqual(await zones(page),[]);
+ await page.getByRole('button',{name:'Allow ad cookies',exact:true}).click();
+ await page.waitForFunction(()=>document.querySelectorAll('script[data-monetag-zone]').length===2);
+ assert.equal(await page.evaluate(()=>window.__permissionCalls),0);
+ await context.close();console.log('PASS: signed-in explicit opt-in, no automatic notification permission');
 } finally {await browser.close()}

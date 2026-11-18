@@ -150,11 +150,8 @@ export default function MonetagAdManager() {
     setDocumentProfile(routeProfile(pathname));
   }, [pathname]);
 
-  useEffect(() => {
-    if (user && hasLoadedAnyMonetagScript()) window.location.reload();
-  }, [user]);
 
-  const isGuest = choicesReady && !authLoading && !authUnavailable && !user && !hasAuthenticatedContext.current;
+  const isGuest = choicesReady && !authLoading && !authUnavailable;
   const profileMatchesDocument = documentProfile === routeProfile(pathname);
   const mayLoadSiteAds = isMarketingRoute(pathname) && profileMatchesDocument && isGuest && choicesReady && adConsent === 'allow';
   const mayLoadVignette = mayLoadSiteAds && routeProfile(pathname) === 'home';
@@ -187,7 +184,7 @@ export default function MonetagAdManager() {
     <section
       role="region"
       aria-label="Monetag advertising and notification preferences"
-      className="fixed inset-x-0 bottom-0 z-[100] border-t border-neutral-200 bg-white/95 shadow-[0_-8px_30px_rgba(0,0,0,0.12)] backdrop-blur-xl"
+      className="border-b border-neutral-200 bg-white/95  backdrop-blur-xl"
       data-testid="monetag-preferences"
     >
       <div className="container-x mx-auto flex max-w-6xl flex-col gap-3 py-4 sm:py-5">

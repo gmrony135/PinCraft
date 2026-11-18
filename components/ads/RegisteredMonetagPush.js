@@ -72,7 +72,7 @@ export default function RegisteredMonetagPush() {
   const due = !state.choice || state.choice.nextAskAt <= state.now;
   if (!due && !error) return null;
   const denied = state.permission === 'denied';
-  return <section data-testid="registered-monetag-push" aria-label="Optional Monetag advertising notifications" className="fixed inset-x-0 bottom-0 z-[100] border-t border-neutral-200 bg-white p-5 shadow-xl">
+  return <section data-testid="registered-monetag-push" aria-label="Optional Monetag advertising notifications" className="border-b border-neutral-200 bg-white p-5">
     <div className="mx-auto max-w-4xl">
       <h2 className="text-sm font-extrabold">{denied ? 'Advertising notifications are blocked' : 'Enable optional advertising notifications?'}</h2>
       <p className="mt-2 text-xs leading-relaxed text-neutral-600">{denied

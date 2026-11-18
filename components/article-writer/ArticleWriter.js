@@ -43,6 +43,8 @@ export default function ArticleWriter() {
   // Signed-in users get live AI; guests keep the private, device-only template.
   const mode = authLoading ? null : user ? 'ai' : 'local';
   const [language, setLanguage] = useState('en');
+  const [length, setLength] = useState('auto');
+  const [pinsLoading, setPinsLoading] = useState(true);
   const generationRequest = useRef({ sequence: 0, controller: null });
   const imageRequest = useRef({ sequence: 0, controller: null, keys: {}, lastStartedAt: 0 });
   const [saving, setSaving] = useState(false);
@@ -114,7 +116,7 @@ export default function ArticleWriter() {
         setArticle(next);setImageMessage(`Saved image ${index+1} of 3 to your private Library.`);
         try { await persistArticleDraft(next, ownerId); } catch {}
       }
-      next={...next,imageStatus:next.images.length===3?'complete':'incomplete',imageError:next.images.length===3?'':'One or more article images are missing.'};setArticle(next);setImageMessage(next.imageStatus==='complete'?'All three AI images are saved privately and ready for review.':next.imageError);
+      next={...next,imageStatus:next.images.length===3?'complete':'incomplete',imageError:next.images.length===3?'':'One or more article images are missing.'};setArticle(next);if(next.imageStatus==='complete')flash('Article text and all three images are ready');setImageMessage(next.imageStatus==='complete'?'All three AI images are saved privately and ready for review.':next.imageError);
       try { await persistArticleDraft(next, ownerId); } catch {}
     }catch(issue){
       if(issue.name==='AbortError'||imageRequest.current.sequence!==imageSequence||identity.current!==ownerId)return;
@@ -164,14 +166,14 @@ export default function ArticleWriter() {
     try {
       const topic = params.get('topic')?.slice(0, 160) || undefined;let generated;
       if (mode === 'ai') {
-        const result = await generateWithAI('article', { title: value, ...(topic ? { topic } : {}), language }, { signal: generationRequest.current.controller.signal });
+        const result = await generateWithAI('article', { title: value, ...(topic ? { topic } : {}), language, ...(length!=='auto'?{length}:{}) }, { signal: generationRequest.current.controller.signal });
         generated = { ...result.result, generation: result.generation, images:[], imageStatus:'pending', imageError:'', libraryRequestKey:result.requestKey, cloudHistorySaved:result.library?.saved===true };
       } else {
         await new Promise(resolve => requestAnimationFrame(resolve));generated = { ...generateArticle(value, topic), libraryRequestKey:crypto.randomUUID() };
       }
       if (sequence !== generationRequest.current.sequence || identity.current !== owner) return;
       currentContent.current=generated.id;saveRequest.current=generated.libraryRequestKey;
-      setArticle(generated);setLoading(false);flash(mode === 'ai' ? 'AI article draft ready' : 'Offline article template generated');
+      setArticle(generated);setLoading(false);if(mode==='ai'){setImageBusy(true);setImageMessage('Text ready. Images are still generating; please wait for all three.');}else flash('Offline article template generated');
       setTimeout(() => resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
       try { await persistArticleDraft(generated, owner); } catch {}
       if(mode==='ai')await generateArticleImages(generated,owner);
@@ -187,20 +189,25 @@ export default function ArticleWriter() {
     saveRequest.current=article?.libraryRequestKey||null;
   }, [user?.id, article?.id]);
   useEffect(() => {
-    setLibraryDrop(null);
-    if (authLoading) return;
-    if (!user) {
-      const pin = getLibrary().find(item => item.type === "pin");
-      if (pin) setLibraryDrop({ owner: "device", topic: pin.topic, title: pin.titles?.[0], description: pin.description, hashtags: pin.hashtags });
-      return;
-    }
     let active = true;
-    fetch("/api/library", { credentials: "same-origin", cache: "no-store" }).then(r => r.ok ? r.json() : null).then(data => {
-      const pin = data?.items?.find(item => ['pin_draft','queued_pin','generated'].includes(item.kind) && item.content?.title && !Array.isArray(item.content.sections));
-      if (active && pin) setLibraryDrop({ owner: user.id, topic: pin.topic, title: pin.content.title, description: pin.content.description, hashtags: pin.content.hashtags });
-    }).catch(() => {});
-    return () => { active = false; };
-  }, [authLoading, user?.id]);
+    async function loadPin() {
+      if (authLoading) return;
+      setPinsLoading(true);
+      if (!user) {const pin=getLibrary().find(item=>item.type==='pin');if(active){setLibraryDrop(pin?{owner:'device',topic:pin.topic,title:pin.titles?.[0]||pin.title,description:pin.description,hashtags:pin.hashtags}:null);setPinsLoading(false);}return;}
+      try {
+        const response=await fetch('/api/library',{credentials:'same-origin',cache:'no-store'});
+        if(!response.ok)throw new Error('Saved Pins could not be refreshed.');
+        const data=await response.json();
+        const pin=data?.items?.find(item=>['pin_draft','queued_pin','generated'].includes(item.kind)&&!Array.isArray(item.content?.sections)&&(item.content?.titles?.[0]||item.content?.title));
+        if(active)setLibraryDrop(pin?{owner:user.id,topic:pin.topic||pin.content.topic,title:pin.content.titles?.[0]||pin.content.title,description:pin.content.description,hashtags:pin.content.hashtags}:null);
+      } catch { if(active)setLibraryDrop(null); }
+      finally {if(active)setPinsLoading(false);}
+    }
+    setLibraryDrop(null);loadPin();
+    const refresh=()=>{if(!document.hidden)loadPin()};
+    window.addEventListener('pincraft:cloud-library-updated',refresh);window.addEventListener('storage',refresh);document.addEventListener('visibilitychange',refresh);window.addEventListener('focus',refresh);
+    return ()=>{active=false;window.removeEventListener('pincraft:cloud-library-updated',refresh);window.removeEventListener('storage',refresh);document.removeEventListener('visibilitychange',refresh);window.removeEventListener('focus',refresh);};
+  },[authLoading,user?.id]);
   async function storeArticle(openReview = false) {
     if (!article || savePending.current || authLoading || imageBusy) return;
     if(openReview&&(article.wordCount<1000||article.wordCount>1600)){setSaveError('Publishing review accepts articles between 1,000 and 1,600 words. Generate a complete Live AI article first. No job was created.');return;}
@@ -247,7 +254,7 @@ export default function ArticleWriter() {
           </nav>
 
           <span className="eyebrow">
-            <Sparkles size={13} /> Professional SEO article · 1,000–1,600 words
+            <Sparkles size={13} /> SEO articles · short or standard length
           </span>
 
           <h1 className="h1 mt-4 text-neutral-900">Auto Article Writer</h1>
@@ -304,6 +311,7 @@ export default function ArticleWriter() {
                 </p>
               )}
 
+              {mode==='ai' && <label className="mt-4 block text-xs font-bold">Article length<select aria-label="Article length" value={length} onChange={e=>setLength(e.target.value)} className="mt-2 min-h-11 w-full rounded-xl border border-neutral-300 bg-white px-3 text-sm"><option value="auto">Auto · respect short-article requests</option><option value="standard">Standard · 1,000–1,600 words</option><option value="short">Short draft · 350–599 words</option></select><span className="mt-1 block font-normal text-neutral-500">Short drafts may need expansion before the existing Blogger publishing review.</span></label>}
               {/* use title from pin generator */}
               <button
                 type="button"
@@ -327,7 +335,7 @@ export default function ArticleWriter() {
                 </p>
               ) : (
                 <p className="mt-1.5 px-1 text-[11px] text-neutral-400">
-                  Nothing saved yet —{" "}
+                  {pinsLoading?'Loading saved Pins…':'No saved Pin found in the latest loaded Library page —'}{" "}
                   <Link
                     href="/pin-generator"
                     prefetch={false}
@@ -406,7 +414,8 @@ export default function ArticleWriter() {
                 <section className="mt-4 rounded-2xl border border-brand-100 bg-brand-50/30 p-5" data-testid="article-publishing-handoff">
                   <h2 className="text-[15px] font-extrabold">Ready to publish this article?</h2>
                   <p className="mt-2 text-[12px] leading-relaxed text-neutral-600">Publishing review requires 1,000–1,600 words and the original AI cover plus both section illustrations. Choose your verified blog and select two to five relevant live internal links when available; if fewer exist, the one-time manual review can explicitly continue without links. Recurring automation still requires two. This step creates no job or recurring permission.</p>
-                  {(article.wordCount<1000||article.wordCount>1600||article.imageStatus!=='complete'||article.images?.length!==3)&&<p role="status" className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-[11px] leading-relaxed text-amber-900">Not publish-ready: {article.wordCount<1000||article.wordCount>1600?'the word count is outside 1,000–1,600. ':''}{article.imageStatus!=='complete'||article.images?.length!==3?'one or more required AI images are missing.':''} Offline templates can be saved, but they cannot enter publishing review.</p>}
+                  {imageBusy && <p role="status" className="mt-3 text-sm text-neutral-600">Images are still generating. Please wait; your article text is ready and nothing has failed.</p>}
+                  {!imageBusy && (article.wordCount<1000||article.wordCount>1600||article.imageStatus!=='complete'||article.images?.length!==3)&&<p role="status" className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-[11px] leading-relaxed text-amber-900">Not publish-ready: {article.wordCount<1000||article.wordCount>1600?'the word count is outside 1,000–1,600. ':''}{article.imageStatus!=='complete'||article.images?.length!==3?'one or more required AI images are missing.':''} Offline templates can be saved, but they cannot enter publishing review.</p>}
                   <button type="button" disabled={saving || imageBusy || authLoading || article.wordCount<1000 || article.wordCount>1600 || article.imageStatus!=='complete' || article.images?.length!==3} onClick={() => storeArticle(true)} className="btn-primary mt-4 !min-h-11 !px-4 !text-[12px]">{saving ? <Loader2 size={15} className="animate-spin" aria-hidden="true"/> : <ArrowRight size={15} aria-hidden="true"/>}{saved ? 'Open publishing review' : 'Save & open publishing review'}</button>
                 </section>
 

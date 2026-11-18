@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# Repository-scoped opt-in. Never store credentials in this hook.
+set -eu
+[ "$(git config --get pincraft.autoPush || true)" = true ] || exit 0
+[ "${PINCRAFT_SKIP_AUTO_PUSH:-0}" != 1 ] || exit 0
+branch=$(git symbolic-ref --quiet --short HEAD) || exit 0
+if ! git push origin "HEAD:refs/heads/$branch"; then
+  echo 'Auto-push failed; local commit retained. Check repository write access.' >&2
+  exit 1
+fi
+if [ "${PINCRAFT_VALIDATED_COMMIT:-0}" = 1 ] && [ "$branch" != main ]; then
+  git push origin HEAD:refs/heads/main || { echo 'Production fast-forward refused; no force push was attempted.' >&2; exit 1; }
+fi

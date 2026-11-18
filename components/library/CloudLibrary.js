@@ -6,6 +6,7 @@ import { useAuth } from "../providers/AppProvider";
 import { normalizeLibraryArticle } from "@/lib/library-content";
 import ContentCopyButton from "./ContentCopyButton";
 import ArticleReader from "./ArticleReader";
+import StableLibraryImage from "./StableLibraryImage";
 import SavedArtworkPostInfo from "./SavedArtworkPostInfo";
 
 const button = "inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-3.5 text-[11.5px] font-bold disabled:opacity-40";
@@ -118,8 +119,8 @@ export default function CloudLibrary() {
             {job.error_message && ['failed', 'attention', 'retry'].includes(job.state) && <p role="status" className={`mt-3 rounded-lg p-3 text-[10.5px] leading-relaxed ${job.state === 'failed' ? 'bg-rose-50 text-rose-800' : 'bg-amber-50 text-amber-900'}`}>{job.error_message}</p>}
             {job.uncertain_step && <p role="status" className="mt-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-[10px] leading-relaxed text-amber-900">The {job.uncertain_step === 'pin' ? 'Pinterest' : 'Blogger'} result may have completed. Check that destination before further action; automatic reposting is blocked until you review it.</p>}
             {job.state === 'failed' && (job.blog_url || job.pin_url) && <p className="mt-2 text-[10px] leading-relaxed text-neutral-500">A previously confirmed external publication remains linked below; the later job step failed.</p>}
-            {historyImage && <><img src={historyImage} alt={content.title || 'Saved AI artwork'} loading="lazy" className="mt-3 max-h-64 w-full rounded-xl border border-neutral-100 bg-neutral-50 object-contain" /><a href={historyImage} download="pincraft-artwork.webp" className="mt-2 inline-flex min-h-10 items-center text-[10px] font-bold text-brand-700 underline underline-offset-2">Download saved artwork</a></>}
-            {!historyImage && cover && <img src={`/api/library/article-images/${cover.assetId}`} alt={cover.altText || 'Article cover image'} loading="lazy" className="mt-3 max-h-48 w-full rounded-xl border border-neutral-100 bg-neutral-50 object-cover" />}
+            {historyImage && <><StableLibraryImage src={historyImage} alt={content.title || 'Saved AI artwork'} portrait /><a href={historyImage} download="pincraft-artwork.webp" className="mt-2 inline-flex min-h-10 items-center text-[10px] font-bold text-brand-700 underline underline-offset-2">Download saved artwork</a></>}
+            {!historyImage && cover && <StableLibraryImage src={`/api/library/article-images/${cover.assetId}`} alt={cover.altText || 'Article cover image'} />}
             {content.description && <p className="mt-3 text-[11.5px] leading-relaxed text-neutral-500">{content.description}</p>}
             {article && content.intro && <p className="mb-3 mt-2 line-clamp-3 text-[11.5px] leading-relaxed text-neutral-500">{content.intro}</p>}
             {!article && !content.description && !historyImage && <p className="mt-3 text-[11px] leading-relaxed text-neutral-500">{content.historyType === 'plan' ? 'Seven-day content plan draft.' : content.historyType === 'quality' ? 'AI editorial review. The pasted source draft is not stored.' : 'Saved privately for later review.'}</p>}

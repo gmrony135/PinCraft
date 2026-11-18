@@ -219,7 +219,7 @@ export default function TrendFinder() {
             </article>;
           })}
         </div>}
-        {!loading && !report?.snapshotDate && !loadError && <div className="mt-4 rounded-2xl border border-dashed border-neutral-300 bg-white p-6"><h3 className="text-[14px] font-extrabold">Waiting for the first daily collection</h3><p className="mt-2 text-[12px] leading-relaxed text-neutral-500">The scheduled collector reads Google Trends RSS for all three regions once a day. This page does not invent sample trends or percentages while a snapshot is missing.</p></div>}
+        {!loading && !report?.snapshotDate && !loadError && <div className="mt-4 rounded-2xl border border-dashed border-neutral-300 bg-white p-6"><h3 className="text-[14px] font-extrabold">Waiting for the first daily collection</h3><p className="mt-2 text-[12px] leading-relaxed text-neutral-500">The scheduled collector reads Google Trends RSS for all three regions once a day at 06:43 UTC. {report?.collectionSchedule?.nextScheduledAt && <>Next scheduled collection: {snapshotTime(report.collectionSchedule.nextScheduledAt)}. This is a schedule, not a guarantee that the runner will execute.</>} This page does not invent sample trends or percentages while a snapshot is missing.</p></div>}
       </section>
 
       <aside className="space-y-4">

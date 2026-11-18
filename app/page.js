@@ -20,11 +20,11 @@ export default function HomePage() {
               Create a search-aware guide with a clear structure, original article imagery and relevant links from your own live Blogger site. Review every post before publication; Pinterest remains yours to manage.
             </p>
             <div className="mt-7 flex flex-col gap-3 sm:flex-row">
-              <Link href="/connector" prefetch={false} className="btn-primary">Connect Blogger<ArrowRight size={17} aria-hidden="true" /></Link>
+              <HomeAccountCTA />
               <Link href="/article-writer" prefetch={false} className="btn-outline">Create an article<ArrowUpRight size={16} aria-hidden="true" /></Link>
             </div>
             <ul className="mt-6 flex flex-wrap gap-x-5 gap-y-2 text-[11px] font-semibold text-neutral-500">
-              {['1,000–1,600 words', '3 original article images', '2–5 live internal links'].map(text => <li key={text} className="flex items-center gap-1.5"><Check size={13} className="text-brand-600" aria-hidden="true" />{text}</li>)}
+              {['Short or standard articles', '3 original article images', '2–5 live internal links'].map(text => <li key={text} className="flex items-center gap-1.5"><Check size={13} className="text-brand-600" aria-hidden="true" />{text}</li>)}
             </ul>
             <p className="mt-4 max-w-xl text-[10.5px] leading-relaxed text-neutral-400">
               Article review and your explicit Blogger approval are required. Recurring posts need separate authorization; Pinterest uploads are never automatic. AI SEO descriptions and slugs are suggestions, not fields PinCraft claims to have applied.

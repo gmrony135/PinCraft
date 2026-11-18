@@ -318,7 +318,7 @@ export default function PinGenerator() {
               <ul className="mt-3 space-y-2.5">
                 {[
                   ["5", "Pin title ideas", "Five angles to review and personalize"],
-                  ["1", "SEO description", "250–480 characters; review before posting"],
+                  ["1", "SEO description", "100–150 words with keywords"],
                   ["10", "Hashtags", "Copy all in one tap"],
                   ["1", "Pin image idea + artwork", "Prompt, then optional 1000 × 1500 AI download"],
                 ].map(([n, t, s]) => (
