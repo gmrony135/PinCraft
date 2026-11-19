@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { initializeApp, getApps } from 'firebase/app';
 import { GoogleAuthProvider, getAuth, signInWithPopup, signOut } from 'firebase/auth';
+import BillingReview from './BillingReview';
 
 const REFRESH_MS = 30000;
 const NA = <span className="na">Not recorded</span>;
@@ -22,6 +23,10 @@ export default function AdminApp({ firebase }) {
   const [busy, setBusy] = useState(false);
   const [billing, setBilling] = useState(null);
   const [billingError, setBillingError] = useState('');
+  const [billingNotice, setBillingNotice] = useState('');
+  const applyBilling = useCallback((result, message) => {
+    if (result && result.requests) { setBilling(result); setBillingError(''); setBillingNotice(message || ''); }
+  }, []);
   const [updated, setUpdated] = useState(null);
   const mounted = useRef(true);
 
@@ -233,77 +238,8 @@ export default function AdminApp({ firebase }) {
         <p className="sub" style={{ marginTop: 8 }}>Shown instead: PinCraft’s own AI requests today are <strong>{fmt(s.aiRequestsToday)}</strong> (text {fmt(s.textRequestsToday)} + image {fmt(s.imageRequestsToday)}). Cost needs the provider billing dashboards.</p>
       </section>
 
-      <section className="card" aria-labelledby="ads-h">
-        <h2 id="ads-h">Revenue and ads (Monetag)</h2>
-        <div className="table-scroll">
-          <table>
-            <thead><tr><th>Format</th><th className="num">Impressions</th><th className="num">Profit</th><th className="num">CPM</th></tr></thead>
-            <tbody>
-              {[['In-Page Push'], ['Vignette'], ['Classic Push']].map(([name]) => (
-                <tr key={name}><td>{name}</td><td className="num">{NA}</td><td className="num">{NA}</td><td className="num">{NA}</td></tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <p className="banner info" style={{ marginTop: 12 }}>{data.monetag.earningsNote} PinCraft does not record ad impressions, so they are not shown here.</p>
-        <table style={{ marginTop: 8 }}>
-          <tbody>
-            <tr><td>Last ad-request result</td><td>{NA}</td></tr>
-            <tr><td>No-fill state</td><td>{NA}</td></tr>
-          </tbody>
-        </table>
-        <h2 style={{ marginTop: 16 }}>On-site tag check <span className="tag">live from this server</span></h2>
-        <p className="sub">{data.monetag.adStateNote}</p>
-        <div className="table-scroll">
-          <table>
-            <thead><tr><th>Tag script</th><th className="num">HTTP status</th><th className="num">Response time</th><th>Checked</th></tr></thead>
-            <tbody>
-              {data.monetag.tags.map(t => (
-                <tr key={t.url}>
-                  <td>{t.url}</td>
-                  <td className="num">{t.status ? <span className={`pill ${t.reachable ? 'ok' : 'bad'}`}>{t.status}</span> : <span className="pill bad">{t.error || 'failed'}</span>}</td>
-                  <td className="num">{t.ms} ms</td>
-                  <td>{when(t.checkedAt)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
 
-      <section className="card" aria-labelledby="billing-h">
-        <h2 id="billing-h">Payment reviews</h2>
-        {billingError && <p className="banner error" role="alert">{billingError}</p>}
-        {billing && (
-          <>
-            <div className="grid" style={{ marginTop: 8 }}>
-              <Stat label="Awaiting review" value={fmt(billing.counts.pending)} hint={billing.counts.pendingCapped ? 'Showing the first 100' : 'Pending requests'} />
-              <Stat label="All payment requests" value={fmt(billing.counts.allTime)} hint="Any status" />
-              <Stat label="Public plan collection" value={billing.plan && billing.plan.enabled ? 'On' : 'Off'} hint={billing.plan && billing.plan.configured ? `${fmt(billing.plan.priceBdt)} BDT / ${fmt(billing.plan.durationDays)} days` : 'No plan saved'} />
-            </div>
-            <div className="table-scroll" style={{ marginTop: 12 }}>
-              <table>
-                <thead><tr><th>Submitted</th><th>Method</th><th>Txn ends</th><th>Payer ends</th><th className="num">Amount (BDT)</th><th className="num">Days</th><th>Status</th></tr></thead>
-                <tbody>
-                  {billing.requests.map(r => (
-                    <tr key={r.id}>
-                      <td>{when(r.submittedAt)}</td>
-                      <td>{r.method || '—'}</td>
-                      <td>{r.transactionSuffix ? `…${r.transactionSuffix}` : '—'}</td>
-                      <td>{r.payerSuffix ? `…${r.payerSuffix}` : '—'}</td>
-                      <td className="num">{fmt(r.amountBdt)}</td>
-                      <td className="num">{fmt(r.durationDays)}</td>
-                      <td><span className="pill">{r.status}</span></td>
-                    </tr>
-                  ))}
-                  {billing.requests.length === 0 && <tr><td colSpan={7} className="muted">No payment requests are awaiting review.</td></tr>}
-                </tbody>
-              </table>
-            </div>
-            <ul className="notes" style={{ marginTop: 12 }}>{billing.notes.map(n => <li key={n}>{n}</li>)}</ul>
-          </>
-        )}
-      </section>
+      <BillingReview billing={billing} error={billingError} notice={billingNotice} onUpdate={applyBilling} onError={setBillingError} />
 
       <section className="card">
         <h2>Notes</h2>

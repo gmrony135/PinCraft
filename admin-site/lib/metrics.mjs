@@ -2,7 +2,7 @@
 // Anything PinCraft does not record is returned as null with a plain reason, never estimated.
 import { createHash } from 'node:crypto';
 import { auth, db } from './firebase.mjs';
-import { LIMITS, MONETAG_TAG_URLS, PROVIDERS } from './config.mjs';
+import { LIMITS, PROVIDERS } from './config.mjs';
 
 const DAY = 86400000;
 // Same day boundary as PinCraft's free plan: Asia/Dhaka (UTC+6), midnight reset.
@@ -33,17 +33,6 @@ async function mapLimit(items, limit, fn) {
   return out;
 }
 
-async function probeTag(url) {
-  const started = Date.now();
-  const checkedAt = new Date().toISOString();
-  try {
-    const response = await fetch(url, { method: 'GET', redirect: 'follow', signal: AbortSignal.timeout(8000) });
-    await response.arrayBuffer().catch(() => {});
-    return { url, status: response.status, reachable: response.ok, ms: Date.now() - started, checkedAt };
-  } catch (error) {
-    return { url, status: null, reachable: false, ms: Date.now() - started, checkedAt, error: error?.name === 'TimeoutError' ? 'timeout' : 'unreachable' };
-  }
-}
 
 async function userRow(user, ctx) {
   const uid = user.uid;
@@ -113,7 +102,6 @@ export async function collectMetrics() {
   const providerSnap = await database.collection('pincraft_ai_metrics').doc(today).get();
   const providerDay = providerSnap.exists ? providerSnap.data() : null;
 
-  const tags = await Promise.all(MONETAG_TAG_URLS.map(probeTag));
 
   return {
     generatedAt: new Date(now).toISOString(),
@@ -143,16 +131,6 @@ export async function collectMetrics() {
         note: 'Counted by PinCraft on each outbound call (failed attempts included) from the release that added this counter, per Asia/Dhaka day. Earlier requests are not recorded. Cost is not recorded: no provider billing is connected.',
       };
     }),
-    monetag: {
-      impressions: { inPagePush: null, vignette: null, classicPush: null, note: 'Not recorded by PinCraft. The site has no server-side ad-impression log.' },
-      profit: null,
-      cpm: null,
-      earningsNote: 'Exact earnings, profit and CPM are only in the Monetag dashboard. No Monetag API is connected here.',
-      lastAdRequestResult: null,
-      noFill: null,
-      adStateNote: 'Not measured on the server. A live check of the tag scripts is shown below; it does not prove ads show to visitors.',
-      tags,
-    },
     jobs: { total: jobsSnap.size, byState: jobsByState },
     notes: [
       'All figures are read live from Firestore and Firebase Auth on each refresh.',

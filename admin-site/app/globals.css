@@ -37,3 +37,16 @@ td.num, th.num { text-align:right; font-variant-numeric: tabular-nums; }
 ul.notes { margin:8px 0 0; padding-left:18px; color:var(--muted); font-size:12px; }
 section h2 span.tag { font-size:11px; font-weight:600; color:var(--muted); margin-left:8px; }
 @media (max-width: 640px) { h1 { font-size:19px; } .stat .value { font-size:24px; } }
+
+/* Payment review */
+.review-list { list-style: none; padding: 0; margin: 14px 0 0; display: grid; gap: 14px; }
+.review-item { border: 1px solid #e7e5e4; border-radius: 12px; padding: 14px; display: grid; gap: 12px; }
+.review-head { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: baseline; }
+.review-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin: 0; }
+.review-fields dt { font-size: 11px; font-weight: 700; color: #57534e; }
+.review-fields dd { margin: 2px 0 0; word-break: break-all; }
+.review-item .check { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; }
+.review-item .block { display: grid; gap: 4px; font-size: 12px; font-weight: 700; color: #57534e; }
+.review-item textarea { width: 100%; border: 1px solid #d6d3d1; border-radius: 8px; padding: 8px; font: inherit; }
+.review-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
