@@ -1,12 +1,14 @@
+import {after} from 'next/server';
 import {json,apiError,readBody} from '@/lib/automation/api';
 import {getDatabase} from '@/lib/automation/db.mjs';
 import {AutomationError} from '@/lib/automation/errors.mjs';
 import {verifyBlogWorkload,claimBlogDelivery,blogWorkloadConfig} from '@/lib/publishing/automation-workload.mjs';
 import {cronSecretIdentity} from '@/lib/publishing/blog-tick-secret.mjs';
-import {runBlogAutomations} from '@/lib/publishing/automations.mjs';
+import {runBlogAutomations,missedSlotsReport} from '@/lib/publishing/automations.mjs';
 export const runtime='nodejs';
 export const dynamic='force-dynamic';
-export const maxDuration=90;
+// Generation runs after the response (see after() below), so the cron caller never waits on AI work.
+export const maxDuration=300;
 export async function POST(request){
  try{
   // Two accepted callers, both gated on the production deployment config:
@@ -23,6 +25,14 @@ export async function POST(request){
   const body=await readBody(request,128);
   if(Object.keys(body).length)throw new AutomationError('invalid_request','Scheduled generation accepts no injected settings, accounts, jobs or adapters.');
   const db=getDatabase();await claimBlogDelivery(db,identity);
-  return json({ok:true,...await runBlogAutomations(db,{limit:1})});
+  // Fast, read-only check: a skipped slot whose publish time has passed is reported as MISSED.
+  const missed=await missedSlotsReport(db);
+  // Preparation runs in the background. The lease in claimAutomation stops overlapping runs,
+  // and a failed or timed-out preparation is retried by later ticks before the slot deadline.
+  after(async()=>{
+   try{await runBlogAutomations(db,{limit:1});}
+   catch(error){console.error('blog automation tick run failed',error?.code||error?.name||'unknown');}
+  });
+  return json({ok:true,accepted:true,outcome:missed.length?'missed_slot':'accepted',missedSlots:missed.length});
  }catch(error){return apiError(error);}
 }
