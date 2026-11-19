@@ -5,6 +5,7 @@ import {isSafeWaitCode,MISSED_SLOT_WINDOW_MS} from '../lib/publishing/automation
 // Transient AI outages must be retried across ticks, not skipped after one attempt.
 assert.equal(isSafeWaitCode('ai_unavailable'), true);
 assert.equal(isSafeWaitCode('ai_busy'), true);
+assert.equal(isSafeWaitCode('ai_request_finished'), true);
 // Authorization and configuration blockers still pause and are never retried.
 assert.equal(isSafeWaitCode('automation_authorization_changed'), false);
 assert.equal(isSafeWaitCode('oauth_reconnect_required'), false);
@@ -16,4 +17,5 @@ assert.match(route, /after\(async\(\)=>\{/);
 assert.match(route, /after\(async\(\)=>\{\s*try\{await runBlogAutomations\(/);
 assert.equal((route.match(/runBlogAutomations\(/g)||[]).length, 1);
 assert.match(route, /accepted:true/);
-console.log('test-blog-tick-fast: 8 checks passed');
+assert.match(readFileSync(new URL('../lib/publishing/automations.mjs', import.meta.url), 'utf8'), /freshKeyRetry=new Set\(\['ai_unavailable','ai_request_finished'\]\)/);
+console.log('test-blog-tick-fast: 9 checks passed');
