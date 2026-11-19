@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { CheckCircle2, X } from "lucide-react";
 import { useAuth } from "@/components/providers/AppProvider";
 
@@ -33,29 +33,6 @@ function Glyph({ kind }) {
   return <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="#FFFFFF" d={PATHS[kind]} /></svg>;
 }
 
-// Telegram Login Widget in callback mode: it stays on this page and calls window.pincraftTelegramAuth(user).
-function TelegramLogin({ botUsername, onAuth }) {
-  const holder = useRef(null);
-  const handler = useRef(onAuth);
-  handler.current = onAuth;
-  useEffect(() => {
-    const node = holder.current;
-    if (!node || !botUsername) return undefined;
-    window.pincraftTelegramAuth = user => handler.current(user);
-    node.innerHTML = "";
-    const script = document.createElement("script");
-    script.async = true;
-    script.src = "https://telegram.org/js/telegram-widget.js?22";
-    script.setAttribute("data-telegram-login", botUsername);
-    script.setAttribute("data-size", "large");
-    script.setAttribute("data-radius", "10");
-    script.setAttribute("data-onauth", "pincraftTelegramAuth(user)");
-    node.appendChild(script);
-    return () => { node.innerHTML = ""; delete window.pincraftTelegramAuth; };
-  }, [botUsername]);
-  return <div ref={holder} className="flex min-h-11 w-full justify-center" />;
-}
-
 // Optional and never blocking: no backdrop, the rest of the site stays usable.
 // X and "Skip for now" hide it for this visit only. It stops once both checks are verified.
 export default function ChannelShowcase() {
@@ -65,6 +42,20 @@ export default function ChannelShowcase() {
   const [open, setOpen] = useState(false);
   const [notice, setNotice] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [telegramLinked, setTelegramLinked] = useState(false);
+  const [polling, setPolling] = useState(false);
+
+  const recheckTelegram = useCallback(async () => {
+    try {
+      const response = await fetch("/api/showcase/telegram/recheck", { method: "POST", credentials: "same-origin", cache: "no-store" });
+      const data = await response.json().catch(() => ({}));
+      if (data.linked) setTelegramLinked(true);
+      if (data.telegramJoined) setStatus(prev => (prev ? { ...prev, telegramJoined: true } : prev));
+      return data;
+    } catch {
+      return null;
+    }
+  }, []);
 
   const loadStatus = useCallback(async () => {
     try {
@@ -94,7 +85,8 @@ export default function ChannelShowcase() {
     } else {
       loadStatus();
     }
-  }, [uid, loadStatus, showCode]);
+    recheckTelegram().then(() => loadStatus());
+  }, [uid, loadStatus, showCode, recheckTelegram]);
 
   // Results from the YouTube popup window, and a refresh when the user returns to this tab.
   useEffect(() => {
@@ -103,24 +95,45 @@ export default function ChannelShowcase() {
       if (event.origin !== window.location.origin || event.data?.source !== "pincraft-showcase") return;
       showCode(String(event.data.code || ""));
     };
-    const onFocus = () => loadStatus();
+    const onFocus = () => { recheckTelegram().then(() => loadStatus()); };
     window.addEventListener("message", onMessage);
     window.addEventListener("focus", onFocus);
     return () => { window.removeEventListener("message", onMessage); window.removeEventListener("focus", onFocus); };
-  }, [uid, loadStatus, showCode]);
+  }, [uid, loadStatus, showCode, recheckTelegram]);
 
-  async function onTelegramAuth(tgUser) {
+  // After "Verify in Telegram", check every 4 seconds for up to 3 minutes so START updates the popup
+  // inline without any further button press.
+  useEffect(() => {
+    if (!polling) return undefined;
+    let ticks = 0;
+    const timer = setInterval(async () => {
+      ticks += 1;
+      await recheckTelegram();
+      const fresh = await fetch("/api/showcase", { credentials: "same-origin", cache: "no-store" }).then(r => (r.ok ? r.json() : null)).catch(() => null);
+      if (fresh) setStatus(fresh);
+      if ((fresh && fresh.telegramJoined) || ticks >= 45) setPolling(false);
+    }, 4000);
+    return () => clearInterval(timer);
+  }, [polling, recheckTelegram]);
+
+  // Opens a blank tab first so the popup blocker allows it, then points it at the bot deep link.
+  async function verifyInTelegram() {
     setBusy(true);
+    const tab = window.open("", "_blank", "noopener");
     try {
-      const response = await fetch("/api/showcase/telegram/verify", {
-        method: "POST",
-        credentials: "same-origin",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(tgUser),
-      });
+      const response = await fetch("/api/showcase/telegram/link", { method: "POST", credentials: "same-origin", headers: { "content-type": "application/json" }, body: "{}" });
       const data = await response.json().catch(() => ({}));
-      showCode(data.code || "telegram_unavailable");
+      if (!response.ok || !data.url) {
+        if (tab) tab.close();
+        showCode(data.code === "telegram_not_configured" ? "telegram_not_configured" : "telegram_unavailable");
+        return;
+      }
+      if (tab) tab.location.href = data.url; else window.location.href = data.url;
+      setTelegramLinked(true);
+      setNotice({ tone: "info", text: "Open Telegram and tap START. This popup updates by itself once the bot confirms." });
+      setPolling(true);
     } catch {
+      if (tab) tab.close();
       showCode("telegram_unavailable");
     } finally {
       setBusy(false);
@@ -138,7 +151,11 @@ export default function ChannelShowcase() {
   const telegramAction = status.telegramJoined ? (
     <span className="inline-flex min-h-11 items-center gap-1.5 text-[12px] font-bold text-emerald-700"><CheckCircle2 size={16} aria-hidden="true" />Verified</span>
   ) : status.telegram?.configured ? (
-    <TelegramLogin botUsername={status.telegram.botUsername} onAuth={onTelegramAuth} />
+    telegramLinked ? (
+      <p className="text-[12px] leading-relaxed text-neutral-600">Linked. Join @pincraft_ai and this updates automatically. Tap Verify in Telegram again any time to re-open the bot.</p>
+    ) : (
+      <button type="button" onClick={verifyInTelegram} disabled={busy} className="inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-neutral-300 bg-white px-4 text-[12px] font-bold text-neutral-800 hover:bg-neutral-50 disabled:opacity-60">Verify in Telegram</button>
+    )
   ) : (
     <span className="text-[12px] text-neutral-500">Telegram check is not available right now.</span>
   );

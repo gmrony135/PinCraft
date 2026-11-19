@@ -99,7 +99,7 @@ const popup = readFileSync(new URL('../components/onboarding/ChannelShowcase.js'
 assert.doesNotMatch(popup, /I joined|I subscribed|pinterest/i);
 assert.doesNotMatch(popup, /stays until|until both are verified|must/i, 'joining is optional, never required');
 assert.match(popup, /Joining is optional/);
-assert.match(popup, /data-onauth/); assert.doesNotMatch(popup, /data-auth-url/, 'Telegram stays inline, no redirect');
+assert.match(popup, /Verify in Telegram/); assert.doesNotMatch(popup, /data-auth-url|telegram-widget/, 'Telegram uses the bot deep link, no redirect or Login Widget');
 assert.match(popup, /window\.open\(YOUTUBE_START/);
 assert.match(popup, /fixed inset-x-2 bottom-2/); assert.doesNotMatch(popup, /bg-neutral-900\/50/, 'no blocking backdrop');
 assert.ok(existsSync(new URL('../app/api/showcase/telegram/verify/route.js', import.meta.url).pathname));
