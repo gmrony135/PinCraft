@@ -2,6 +2,7 @@ import "./globals.css";
 import AppProvider from "@/components/providers/AppProvider";
 import RegisteredMonetagPush from "@/components/ads/RegisteredMonetagPush";
 import MonetagAdManager from "@/components/ads/MonetagAdManager";
+import ChannelShowcase from "@/components/onboarding/ChannelShowcase";
 
 export const metadata = {
   metadataBase: new URL("https://pincraftly.vercel.app"),
@@ -64,7 +65,7 @@ export const viewport = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
-      <body><AppProvider><MonetagAdManager /><RegisteredMonetagPush />{children}</AppProvider></body>
+      <body><AppProvider><MonetagAdManager /><RegisteredMonetagPush />{children}<ChannelShowcase /></AppProvider></body>
     </html>
   );
 }

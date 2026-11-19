@@ -10,6 +10,7 @@ const PUBLIC_PATHS = [
   '/content-studio',
   ...STUDIO_TOOLS.map(tool => tool.href),
   '/trend-finder',
+  '/how-to-work',
   '/contact',
   '/privacy',
   '/terms',

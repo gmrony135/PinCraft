@@ -7,7 +7,6 @@ import { BrandMark } from "../Brand";
 import { useAuth } from "../providers/AppProvider";
 import { useRouter } from "next/navigation";
 import GoogleMark from "./GoogleMark";
-import { markPostSignupShowcase } from "../onboarding/PostSignupShowcase";
 
 const fieldClass = "mt-1.5 min-h-11 w-full rounded-xl border border-neutral-300 bg-white px-3.5 py-2.5 text-[16px] text-neutral-900 outline-none focus:border-brand-600 focus:ring-4 focus:ring-brand-50 disabled:bg-neutral-50 sm:text-[14px]";
 export default function AccountForm({ onClose = () => {}, initialMode = "login", standalone = false, titleId = "account-login-title" }) {
@@ -51,7 +50,6 @@ export default function AccountForm({ onClose = () => {}, initialMode = "login",
       if (action === "google") {
         const { idToken, isNewUser } = await sdk.firebaseGoogleSignIn(config.firebase);
         if (active.current) {
-          if (isNewUser) markPostSignupShowcase();
           await signIn(idToken, config.nonce);
           if(standalone)router.replace("/dashboard");
         }
@@ -61,12 +59,10 @@ export default function AccountForm({ onClose = () => {}, initialMode = "login",
         if (result.resetRequested) { setMessage("If an eligible account exists, password reset instructions will be sent. Check your inbox and spam folder."); setPassword(""); }
         else if (result.verificationRequired) {
           setVerification(true); setMode("login"); setConfirm("");
-          if (action === "signup") markPostSignupShowcase();
           if (result.verificationSent) setResendAt(Date.now() + 60000);
           setMessage(result.verificationSent ? "Your account is ready for email verification. Open the verification link in your inbox, then sign in below. Check spam too. No signed-in session has been created yet." : result.accountCreated ? "Your account was created, but the verification email could not be sent. Do not register again. Enter your password below and choose Resend verification, or try again later." : result.verificationErrorCode ? "The verification email could not be sent. Your account still exists. Check the original email or try Resend again in a minute." : "Please verify your email before signing in. Open the original verification message, or request another below.");
           if (action === "signup") setPassword("");
         } else {
-          if (action === "signup") markPostSignupShowcase();
           await signIn(result.idToken, config.nonce);
           if(standalone)router.replace("/dashboard");
           setPassword(""); setConfirm("");
