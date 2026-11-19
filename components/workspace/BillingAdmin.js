@@ -49,7 +49,7 @@ export default function BillingAdmin() {
 
       {data && (
         <>
-          <Panel className="mt-7" title="Plan and collection" description="Read-only here. Public payment collection stays off until it is enabled deliberately.">
+          <Panel className="mt-7" title="Plan and collection" description="Read-only here. Collection is controlled by the published plan.">
             <dl className="mt-4 grid gap-4 text-[13px] sm:grid-cols-3">
               <div><dt className="font-bold text-neutral-500">Price</dt><dd className="mt-1 font-extrabold">{data.plan?.configured ? `${money(data.plan.priceBdt)} for ${data.plan.durationDays} days` : 'No plan saved'}</dd></div>
               <div><dt className="font-bold text-neutral-500">Public collection</dt><dd className="mt-1 font-extrabold">{data.plan?.enabled ? 'On' : 'Off'}</dd></div>

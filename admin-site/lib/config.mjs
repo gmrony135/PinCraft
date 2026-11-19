@@ -1,3 +1,6 @@
+// Mirrors PinCraft lib/billing/config.mjs PAYMENTS_ENABLED (bKash/Nagad collection on, 2026-11-19 22:36 BD).
+export const PINCRAFT_PAYMENTS_ENABLED = true;
+
 // Owner-only admin. Only this verified Google/email account may open the dashboard.
 export const OWNER_EMAIL = 'gmrony135@gmail.com';
 

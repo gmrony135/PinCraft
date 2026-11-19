@@ -2,7 +2,7 @@
 // same checks, same documents, same audit record. Public payment collection is not changed here.
 import { createHash } from 'node:crypto';
 import { db, auth } from './firebase.mjs';
-import { OWNER_EMAIL } from './config.mjs';
+import { OWNER_EMAIL, PINCRAFT_PAYMENTS_ENABLED } from './config.mjs';
 import { decryptPaymentReference } from './vault.mjs';
 
 const PLAN_REF = 'pincraft_system/subscriptionPlan';
@@ -56,7 +56,7 @@ export async function collectBilling() {
   });
   return {
     generatedAt: new Date().toISOString(),
-    plan: plan ? { configured: Boolean(plan.priceBdt && plan.durationDays), priceBdt: plan.priceBdt ?? null, durationDays: plan.durationDays ?? null, enabled: plan.enabled === true } : null,
+    plan: plan ? { configured: Boolean(plan.priceBdt && plan.durationDays), priceBdt: plan.priceBdt ?? null, durationDays: plan.durationDays ?? null, enabled: PINCRAFT_PAYMENTS_ENABLED } : null,
     counts: { pending: requests.length, pendingCapped: requests.length >= PENDING_LIMIT, allTime: totalSnap.data().count },
     requests,
     decisions,
