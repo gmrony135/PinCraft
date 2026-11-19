@@ -339,7 +339,7 @@ export default function ArticleWriter() {
                   <Link
                     href="/pin-generator"
                     prefetch={false}
-                    className="font-bold text-brand-600"
+                    className="inline-block py-3 -my-3 font-bold text-brand-600"
                   >
                     create a pin first
                   </Link>

@@ -4,8 +4,8 @@ import Link from "next/link";
 export function BrandMark({ size = 34, variant = "color", className = "" }) {
   const src =
     variant === "white"
-      ? "/brand/pincraft-mark-white.png"
-      : "/brand/pincraft-mark-red.png";
+      ? "/brand/pincraft-mark-white-160.png"
+      : "/brand/pincraft-mark-red-160.png";
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img

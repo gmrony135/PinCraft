@@ -16,7 +16,7 @@ export default function HowToWorkSection({ compact = false }) {
               <iframe className="h-full w-full" src={`https://www.youtube-nocookie.com/embed/${TUTORIAL_VIDEO_ID}`} title="PinCraft tutorial video" loading="lazy" referrerPolicy="strict-origin-when-cross-origin" allow="accelerometer; encrypted-media; gyroscope; picture-in-picture; web-share" allowFullScreen />
             </div>
           </div>
-          {!compact && <p className="text-[13px] leading-relaxed text-neutral-600">Prefer a dedicated page? <Link href="/how-to-work" className="font-bold text-brand-700 underline underline-offset-2">Open How to Work</Link>.</p>}
+          {!compact && <p className="text-[13px] leading-relaxed text-neutral-600">Prefer a dedicated page? <Link href="/how-to-work" className="inline-block py-3 -my-3 font-bold text-brand-700 underline underline-offset-2">Open How to Work</Link>.</p>}
         </div>
       </div>
     </section>
