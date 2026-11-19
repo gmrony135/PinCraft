@@ -28,7 +28,13 @@ function Glyph({ kind }) {
 export default function PostSignupShowcase() {
   const [show, setShow] = useState(false);
   useEffect(() => {
-    try { setShow(window.localStorage.getItem(POST_SIGNUP_KEY) === "1"); } catch {}
+    try {
+      if (window.localStorage.getItem(POST_SIGNUP_KEY) === "1") {
+        // Consume the flag on first display so the panel is shown only once.
+        window.localStorage.setItem(POST_SIGNUP_KEY, "0");
+        setShow(true);
+      }
+    } catch {}
   }, []);
   if (!show) return null;
   function dismiss() {

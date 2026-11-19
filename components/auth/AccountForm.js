@@ -49,8 +49,12 @@ export default function AccountForm({ onClose = () => {}, initialMode = "login",
     try {
       const sdk = await import("@/lib/firebase/client");
       if (action === "google") {
-        const idToken = await sdk.firebaseGoogleSignIn(config.firebase);
-        if (active.current) { await signIn(idToken, config.nonce); if(standalone)router.replace("/dashboard"); }
+        const { idToken, isNewUser } = await sdk.firebaseGoogleSignIn(config.firebase);
+        if (active.current) {
+          if (isNewUser) markPostSignupShowcase();
+          await signIn(idToken, config.nonce);
+          if(standalone)router.replace("/dashboard");
+        }
       } else {
         const result = await sdk.firebaseEmailAction(config.firebase, { action, email: email.trim(), password, name });
         if (!active.current) return;
