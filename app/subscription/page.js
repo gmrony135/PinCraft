@@ -10,6 +10,6 @@ export const metadata = {
   description: "One owned Blogger website to start; approved subscriptions for additional sites. Pinterest stays manual.",
   alternates: { canonical: "/subscription" },
   openGraph: pageOpenGraph(pageSeo),
-  robots: {index:true,follow:true},
+  robots: {index:false,follow:true},
 };
 export default function Page(){return <PageShell jsonLd={webPageJsonLd(pageSeo)}><Subscription manualPinterest={manualPinterestMode()}/></PageShell>;}
