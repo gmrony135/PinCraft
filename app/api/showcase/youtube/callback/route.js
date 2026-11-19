@@ -3,6 +3,7 @@ import { sessionUser } from '@/lib/automation/api';
 import { getDatabase } from '@/lib/automation/db.mjs';
 import { markVerified } from '@/lib/showcase/joins.mjs';
 import { exchangeYoutubeCode, showcaseConfig, verifyYoutubeState, YOUTUBE_STATE_COOKIE, youtubeSubscribed } from '@/lib/showcase/verify.mjs';
+import { showcaseResultPage } from '@/lib/showcase/popup-page.mjs';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
@@ -12,7 +13,9 @@ export async function GET(request) {
   const url = new URL(request.url);
   const origin = url.origin;
   const finish = code => {
-    const response = NextResponse.redirect(new URL(`/dashboard?showcase=${code}`, origin));
+    const response = new NextResponse(showcaseResultPage(code), {
+      headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'x-frame-options': 'DENY' },
+    });
     response.cookies.delete({ name: YOUTUBE_STATE_COOKIE, path: '/api/showcase/youtube' });
     return response;
   };
@@ -32,8 +35,8 @@ export async function GET(request) {
   try {
     const accessToken = await exchangeYoutubeCode({ clientId: config.googleClientId, clientSecret: config.googleClientSecret, code, redirectUri: `${origin}/api/showcase/youtube/callback` });
     subscribed = await youtubeSubscribed({ accessToken });
-  } catch {
-    return finish('youtube_unavailable');
+  } catch (error) {
+    return finish(['youtube_token_failed','youtube_api_disabled','youtube_scope_missing'].includes(error.message) ? error.message : 'youtube_unavailable');
   }
   if (!subscribed) return finish('youtube_not_subscribed');
 

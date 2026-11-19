@@ -32,7 +32,8 @@ const mockTelegram = (body, status = 200) => async () => ({ status, json: async 
 assert.equal(await fetchTelegramMembership({ token: TOKEN, userId: 1, fetchImpl: mockTelegram({ ok: true, result: { status: 'member' } }) }), true);
 assert.equal(await fetchTelegramMembership({ token: TOKEN, userId: 1, fetchImpl: mockTelegram({ ok: true, result: { status: 'left' } }) }), false);
 assert.equal(await fetchTelegramMembership({ token: TOKEN, userId: 1, fetchImpl: mockTelegram({ ok: false, description: 'Bad Request: user not found' }, 400) }), false);
-await assert.rejects(fetchTelegramMembership({ token: TOKEN, userId: 1, fetchImpl: mockTelegram({ ok: false, description: 'Forbidden: bot is not a member' }, 403) }), /telegram_unavailable/);
+await assert.rejects(fetchTelegramMembership({ token: TOKEN, userId: 1, fetchImpl: mockTelegram({ ok: false, description: 'Forbidden: bot is not a member of the channel chat' }, 403) }), /telegram_bot_not_admin/);
+await assert.rejects(fetchTelegramMembership({ token: TOKEN, userId: 1, fetchImpl: mockTelegram({ ok: false, description: 'Bad Request: CHAT_ADMIN_REQUIRED' }, 400) }), /telegram_bot_not_admin/);
 
 // --- YouTube state binding: cookie is valid only for the same UID and the same state
 const secret = 'test-secret';
@@ -58,7 +59,9 @@ assert.equal(u.searchParams.get('forChannelId'), YOUTUBE_CHANNEL_ID);
 assert.equal(calls[0].opts.headers.authorization, 'Bearer tok');
 assert.equal(await youtubeSubscribed({ accessToken: 't', fetchImpl: async () => ({ ok: true, json: async () => ({ items: [] }) }) }), false);
 await assert.rejects(youtubeSubscribed({ accessToken: 't', fetchImpl: async () => ({ ok: false, json: async () => ({}) }) }), /youtube_unavailable/);
-await assert.rejects(exchangeYoutubeCode({ clientId: 'a', clientSecret: 'b', code: 'c', redirectUri: 'd', fetchImpl: async () => ({ ok: false, json: async () => ({}) }) }), /youtube_unavailable/);
+await assert.rejects(exchangeYoutubeCode({ clientId: 'a', clientSecret: 'b', code: 'c', redirectUri: 'd', fetchImpl: async () => ({ ok: false, json: async () => ({ error: 'redirect_uri_mismatch' }) }) }), /youtube_token_failed/);
+await assert.rejects(youtubeSubscribed({ accessToken: 't', fetchImpl: async () => ({ ok: false, status: 403, json: async () => ({ error: { errors: [{ reason: 'accessNotConfigured' }] } }) }) }), /youtube_api_disabled/);
+await assert.rejects(youtubeSubscribed({ accessToken: 't', fetchImpl: async () => ({ ok: false, status: 403, json: async () => ({ error: { errors: [{ reason: 'insufficientPermissions' }] } }) }) }), /youtube_scope_missing/);
 
 // --- Firestore record: flags are written only through markVerified
 function fakeDb() {
@@ -80,12 +83,29 @@ assert.deepEqual(await readJoinStatus(db, 'uid-2'), { telegramJoined: false, you
 await assert.rejects(markVerified(db, 'uid-3', 'pinterest'), /unknown_channel/);
 assert.deepEqual(joinStatus({ telegramJoined: 'yes' }), { telegramJoined: false, youtubeSubscribed: false });
 
+// --- Result page: only known codes; the opener gets a postMessage, no page navigation for Telegram
+import { showcaseResultPage, safeResultCode } from '../lib/showcase/popup-page.mjs';
+assert.equal(safeResultCode('telegram_joined'), 'telegram_joined');
+assert.equal(safeResultCode('<script>'), 'youtube_unavailable');
+const page = showcaseResultPage('youtube_subscribed');
+assert.match(page, /pincraft-showcase/); assert.match(page, /window\.opener\.postMessage/);
+assert.doesNotMatch(showcaseResultPage('</script><script>alert(1)'), /alert\(1\)/);
+
 // --- Static checks: no self-reported confirmation left anywhere
 assert.equal(existsSync(new URL('../app/api/showcase/route.js', import.meta.url).pathname), true);
 const apiRoute = readFileSync(new URL('../app/api/showcase/route.js', import.meta.url), 'utf8');
 assert.doesNotMatch(apiRoute, /export async function POST/, 'no browser-writable POST');
 const popup = readFileSync(new URL('../components/onboarding/ChannelShowcase.js', import.meta.url), 'utf8');
 assert.doesNotMatch(popup, /I joined|I subscribed|pinterest/i);
+assert.doesNotMatch(popup, /stays until|until both are verified|must/i, 'joining is optional, never required');
+assert.match(popup, /Joining is optional/);
+assert.match(popup, /data-onauth/); assert.doesNotMatch(popup, /data-auth-url/, 'Telegram stays inline, no redirect');
+assert.match(popup, /window\.open\(YOUTUBE_START/);
+assert.match(popup, /fixed inset-x-2 bottom-2/); assert.doesNotMatch(popup, /bg-neutral-900\/50/, 'no blocking backdrop');
+assert.ok(existsSync(new URL('../app/api/showcase/telegram/verify/route.js', import.meta.url).pathname));
+const verifyRoute = readFileSync(new URL('../app/api/showcase/telegram/verify/route.js', import.meta.url), 'utf8');
+assert.match(verifyRoute, /markVerified\(getDatabase\(\), user\.id, 'telegram'\)/);
+assert.match(verifyRoute, /fetchTelegramMembership/);
 assert.doesNotMatch(popup, /localStorage|sessionStorage/);
 assert.match(popup, /https:\/\/t\.me\/pincraft_ai/); assert.match(popup, /https:\/\/www\.youtube\.com\/@PinCraftOfficial/);
 const yt = readFileSync(new URL('../lib/showcase/verify.mjs', import.meta.url), 'utf8');
