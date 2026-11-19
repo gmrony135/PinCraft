@@ -38,7 +38,7 @@ export default function AdminApp({ firebase }) {
       setUpdated(Date.now());
       setView('dashboard');
     } catch {
-      if (mounted.current) setError('Network problem. Showing the last successful read is not allowed, so this page will retry automatically.');
+      if (mounted.current) setError('Live data could not load just now. No figures are shown from an earlier read, and this page retries automatically.');
     }
   }, []);
 
