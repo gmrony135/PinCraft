@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { initializeApp, getApps } from 'firebase/app';
-import { GoogleAuthProvider, getAuth, signInWithPopup, signOut } from 'firebase/auth';
+import { GoogleAuthProvider, getAuth, getRedirectResult, signInWithRedirect, signOut } from 'firebase/auth';
 import BillingReview from './BillingReview';
 
 const REFRESH_MS = 30000;
@@ -11,13 +11,18 @@ const fmt = value => (typeof value === 'number' ? value.toLocaleString('en-US') 
 const when = iso => (iso ? new Date(iso).toLocaleString('en-GB', { timeZone: 'Asia/Dhaka', dateStyle: 'medium', timeStyle: 'short' }) : '—');
 const clock = ms => new Date(ms).toLocaleTimeString('en-GB', { timeZone: 'Asia/Dhaka' });
 
+// Same-origin auth domain (this site proxies /__/auth), so redirect sign-in works in phone browsers.
 function clientAuth(config) {
-  const app = getApps()[0] || initializeApp({ apiKey: config.apiKey, authDomain: config.authDomain, projectId: config.projectId, appId: config.appId });
+  const authDomain = typeof window !== 'undefined' ? window.location.host : config.authDomain;
+  const app = getApps()[0] || initializeApp({ apiKey: config.apiKey, authDomain, projectId: config.projectId, appId: config.appId });
   return getAuth(app);
 }
 
+const REFUSED = 'Sign-in was not allowed. Use the owner Google account in Chrome or Safari, then try again.';
+const FAILED = 'Sign-in did not complete. Open this page in Chrome or Safari (not inside another app) and try again.';
+
 export default function AdminApp({ firebase }) {
-  const [view, setView] = useState('checking'); // checking | login | denied | dashboard
+  const [view, setView] = useState('checking'); // checking | login | dashboard
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -34,7 +39,7 @@ export default function AdminApp({ firebase }) {
     try {
       const response = await fetch('/api/metrics', { cache: 'no-store', credentials: 'same-origin' });
       if (!mounted.current) return;
-      if (response.status === 401) { setView(current => (current === 'denied' ? current : 'login')); setData(null); return; }
+      if (response.status === 401) { setView('login'); setData(null); return; }
       if (!response.ok) {
         const body = await response.json().catch(() => ({}));
         setData(null);
@@ -56,9 +61,24 @@ export default function AdminApp({ firebase }) {
     }
   }, []);
 
+  // Returning from Google's redirect: exchange the Firebase result for the owner session cookie, then load.
   useEffect(() => {
     mounted.current = true;
-    load();
+    (async () => {
+      try {
+        const auth = clientAuth(firebase);
+        const result = await getRedirectResult(auth);
+        if (result && result.user) {
+          setBusy(true);
+          const idToken = await result.user.getIdToken(true);
+          const response = await fetch('/api/session', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ idToken }), cache: 'no-store', credentials: 'same-origin' });
+          if (!response.ok) { await signOut(auth).catch(() => {}); setError(REFUSED); setView('login'); setBusy(false); return; }
+        }
+      } catch {
+        if (mounted.current) setError(FAILED);
+      }
+      if (mounted.current) { setBusy(false); load(); }
+    })();
     return () => { mounted.current = false; };
   }, [load]);
 
@@ -72,22 +92,12 @@ export default function AdminApp({ firebase }) {
   async function signIn() {
     setBusy(true); setError('');
     try {
-      const auth = clientAuth(firebase);
       const provider = new GoogleAuthProvider();
       provider.setCustomParameters({ prompt: 'select_account' });
-      const result = await signInWithPopup(auth, provider);
-      const idToken = await result.user.getIdToken(true);
-      const response = await fetch('/api/session', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ idToken }), cache: 'no-store' });
-      if (response.status === 403) {
-        await signOut(auth).catch(() => {});
-        setView('denied');
-        return;
-      }
-      if (!response.ok) { setError('Sign-in could not be verified. Please try again.'); return; }
-      await load();
-    } catch (cause) {
-      if (cause?.code !== 'auth/popup-closed-by-user' && cause?.code !== 'auth/cancelled-popup-request') setError('Sign-in did not complete. Please try again.');
-    } finally {
+      // Full-page redirect: works on phones where popups are blocked. The result is read on return.
+      await signInWithRedirect(clientAuth(firebase), provider);
+    } catch {
+      setError(FAILED);
       setBusy(false);
     }
   }
@@ -101,18 +111,12 @@ export default function AdminApp({ firebase }) {
 
   if (view === 'checking') return <main className="wrap"><p className="muted">Checking access…</p></main>;
 
-  if (view === 'login' || view === 'denied') {
+  if (view === 'login') {
     return (
       <main className="wrap">
         <div className="login">
           <h1>PinCraft Admin</h1>
-          {view === 'denied' ? (
-            <>
-              <p className="banner error" role="alert" style={{ textAlign: 'left' }}><strong>Access denied.</strong> This admin site is only for the owner account. Your account cannot open it.</p>
-            </>
-          ) : (
-            <p>Owner sign-in only. Use the owner Google account.</p>
-          )}
+          <p>Owner sign-in only.</p>
           {error && <p className="banner error" role="alert">{error}</p>}
           <button className="btn primary" onClick={signIn} disabled={busy || !firebase.apiKey}>{busy ? 'Signing in…' : 'Sign in with Google'}</button>
           {!firebase.apiKey && <p className="banner error" style={{ marginTop: 14 }}>Sign-in is not configured on this site.</p>}

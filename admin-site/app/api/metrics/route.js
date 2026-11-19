@@ -1,19 +1,14 @@
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { collectMetrics } from '../../../lib/metrics.mjs';
-import { COOKIE, readSession } from '../../../lib/session.mjs';
+import { COOKIE, currentOwner } from '../../../lib/session.mjs';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 const noStore = { 'Cache-Control': 'no-store, max-age=0' };
 
 export async function GET() {
-  let session = null;
-  try {
-    session = readSession((await cookies()).get(COOKIE)?.value);
-  } catch {
-    return NextResponse.json({ error: 'unavailable' }, { status: 503, headers: noStore });
-  }
+  const session = await currentOwner((await cookies()).get(COOKIE)?.value);
   if (!session) return NextResponse.json({ error: 'sign_in_required' }, { status: 401, headers: noStore });
 
   try {

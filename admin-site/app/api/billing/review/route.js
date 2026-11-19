@@ -2,7 +2,7 @@ import { cookies, headers } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { collectBilling, reviewPayment, ownerUid, BillingError } from '../../../../lib/billing.mjs';
 import { db } from '../../../../lib/firebase.mjs';
-import { COOKIE, readSession } from '../../../../lib/session.mjs';
+import { COOKIE, currentOwner } from '../../../../lib/session.mjs';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -15,8 +15,7 @@ function sameOrigin(h) {
 }
 
 export async function POST(request) {
-  let session = null;
-  try { session = readSession((await cookies()).get(COOKIE)?.value); } catch { session = null; }
+  const session = await currentOwner((await cookies()).get(COOKIE)?.value);
   if (!session) return NextResponse.json({ error: 'sign_in_required' }, { status: 401, headers: noStore });
   if (!sameOrigin(await headers())) return NextResponse.json({ error: 'origin_rejected', message: 'This request was not allowed. Reload the page and try again.' }, { status: 403, headers: noStore });
   let body;
