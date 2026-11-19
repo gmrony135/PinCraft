@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { ExternalLink, LoaderCircle, Trash2, Check } from "lucide-react";
+import { Check, Copy, Download, ExternalLink, LoaderCircle, Trash2 } from "lucide-react";
 import { Panel, fieldClass, primaryClass, secondaryClass } from "@/components/workspace/WorkspaceUI";
 
 const PINTEREST_CREATOR = "https://www.pinterest.com/pin-creation-tool/";
@@ -12,6 +12,7 @@ export default function PinQueuePanel() {
   const [form, setForm] = useState({ title: "", description: "", link: "", imageUrl: "" });
   const [busy, setBusy] = useState("");
   const [message, setMessage] = useState("");
+  const [copyNote, setCopyNote] = useState("");
 
   const load = useCallback(async () => {
     try {
@@ -45,6 +46,50 @@ export default function PinQueuePanel() {
     }
   }
 
+  // Copy works on phones and desktops. Falls back to a hidden textarea where the Clipboard API is unavailable.
+  async function copyText(value, label) {
+    let ok = false;
+    try {
+      if (navigator.clipboard?.writeText) { await navigator.clipboard.writeText(value); ok = true; }
+    } catch { ok = false; }
+    if (!ok) {
+      const area = document.createElement("textarea");
+      area.value = value;
+      area.setAttribute("readonly", "");
+      area.style.position = "fixed";
+      area.style.opacity = "0";
+      document.body.appendChild(area);
+      area.select();
+      try { ok = document.execCommand("copy"); } catch { ok = false; }
+      area.remove();
+    }
+    setCopyNote(ok ? `${label} copied. Paste it in Pinterest.` : `Could not copy ${label}. Select the text and copy it manually.`);
+  }
+
+  // Downloads the pin image file. If the image host does not allow direct download, it opens the image instead.
+  async function downloadImage(item) {
+    setCopyNote("Preparing image…");
+    const name = (item.title || "pin").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60) || "pin";
+    try {
+      const response = await fetch(item.imageUrl, { mode: "cors", cache: "no-store", referrerPolicy: "no-referrer" });
+      if (!response.ok) throw new Error("http");
+      const blob = await response.blob();
+      if (!blob.type.startsWith("image/")) throw new Error("not-image");
+      const ext = blob.type.includes("png") ? "png" : blob.type.includes("webp") ? "webp" : "jpg";
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${name}.${ext}`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      setCopyNote("Image downloaded. Upload it in Pinterest.");
+    } catch {
+      setCopyNote("Direct download is blocked for this image. Use the Open image link: on a phone press and hold the image to save it; on desktop right-click and save.");
+    }
+  }
+
   async function add(event) {
     event.preventDefault();
     if (await send({ action: "add", ...form }, "add")) setForm({ title: "", description: "", link: "", imageUrl: "" });
@@ -70,6 +115,7 @@ export default function PinQueuePanel() {
           </form>
 
           {message && <p role="alert" className="mt-3 text-[12px] font-semibold text-brand-700">{message}</p>}
+          {copyNote && <p role="status" className="mt-3 text-[12px] font-semibold text-neutral-700">{copyNote}</p>}
 
           <h3 className="mt-7 text-[14px] font-extrabold">Ready to post ({queued.length})</h3>
           {queued.length === 0 && <p className="mt-2 text-[12px] text-neutral-500">Nothing queued. Add a pin above.</p>}
@@ -84,6 +130,10 @@ export default function PinQueuePanel() {
                   <p className="mt-1 break-all text-[11px] text-neutral-500">Image: <a href={item.imageUrl} target="_blank" rel="noopener noreferrer" className="underline">open image</a> (save it, then upload in Pinterest)</p>
                   <div className="mt-3 flex flex-wrap gap-2">
                     <a href={PINTEREST_CREATOR} target="_blank" rel="noopener noreferrer" className={secondaryClass}>Open Pinterest pin creator<ExternalLink size={13} aria-hidden="true" /></a>
+                    <button type="button" onClick={() => copyText(item.title, "Title")} className={secondaryClass}><Copy size={13} aria-hidden="true" />Copy title</button>
+                    <button type="button" disabled={!item.description} onClick={() => copyText(item.description, "Description")} className={secondaryClass}><Copy size={13} aria-hidden="true" />Copy description</button>
+                    <button type="button" onClick={() => copyText(item.link, "Link")} className={secondaryClass}><Copy size={13} aria-hidden="true" />Copy link</button>
+                    <button type="button" onClick={() => downloadImage(item)} className={secondaryClass}><Download size={13} aria-hidden="true" />Download image</button>
                     <button type="button" disabled={remaining === 0 || busy === item.id} onClick={() => send({ action: "posted", id: item.id }, item.id)} className={primaryClass}><Check size={13} aria-hidden="true" />Mark as posted</button>
                     <button type="button" disabled={busy === item.id} onClick={() => send({ action: "remove", id: item.id }, item.id)} className={secondaryClass}><Trash2 size={13} aria-hidden="true" />Remove</button>
                   </div>
