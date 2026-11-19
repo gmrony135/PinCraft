@@ -110,6 +110,9 @@ export async function collectMetrics() {
   const jobsByState = {};
   jobsSnap.docs.forEach(doc => { const state = String(doc.get('state') || 'unknown'); jobsByState[state] = (jobsByState[state] || 0) + 1; });
 
+  const providerSnap = await database.collection('pincraft_ai_metrics').doc(today).get();
+  const providerDay = providerSnap.exists ? providerSnap.data() : null;
+
   const tags = await Promise.all(MONETAG_TAG_URLS.map(probeTag));
 
   return {
@@ -130,7 +133,16 @@ export async function collectMetrics() {
     },
     users: rows.map(({ usageToday, usageTotal, activeIn7, activeIn30, pinQueueItems, pinQueuePostedToday, ...row }) => row),
     usage: rows.map(row => ({ uid: row.uid, name: row.name, email: row.email, usageToday: row.usageToday, usageTotal: row.usageTotal, lastActiveDay: row.lastActiveDay, pinQueueItems: row.pinQueueItems, pinQueuePostedToday: row.pinQueuePostedToday })),
-    providers: PROVIDERS.map(provider => ({ ...provider, requests: null, cost: null, note: 'Not recorded per provider by PinCraft. Cost is not available.' })),
+    providers: PROVIDERS.map(provider => {
+      const counted = providerDay && Object.prototype.hasOwnProperty.call(providerDay, provider.id) ? Number(providerDay[provider.id]) : null;
+      return {
+        ...provider,
+        requests: Number.isFinite(counted) ? counted : 0,
+        requestsDay: today,
+        cost: null,
+        note: 'Counted by PinCraft on each outbound call (failed attempts included) from the release that added this counter, per Asia/Dhaka day. Earlier requests are not recorded. Cost is not recorded: no provider billing is connected.',
+      };
+    }),
     monetag: {
       impressions: { inPagePush: null, vignette: null, classicPush: null, note: 'Not recorded by PinCraft. The site has no server-side ad-impression log.' },
       profit: null,

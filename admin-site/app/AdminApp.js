@@ -20,6 +20,8 @@ export default function AdminApp({ firebase }) {
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [billing, setBilling] = useState(null);
+  const [billingError, setBillingError] = useState('');
   const [updated, setUpdated] = useState(null);
   const mounted = useRef(true);
 
@@ -30,6 +32,7 @@ export default function AdminApp({ firebase }) {
       if (response.status === 401) { setView(current => (current === 'denied' ? current : 'login')); setData(null); return; }
       if (!response.ok) {
         const body = await response.json().catch(() => ({}));
+        setData(null);
         setError(body.message || 'Live data could not be read just now. It refreshes automatically.');
         return;
       }
@@ -37,8 +40,14 @@ export default function AdminApp({ firebase }) {
       setError('');
       setUpdated(Date.now());
       setView('dashboard');
+      const billingResponse = await fetch('/api/billing', { cache: 'no-store', credentials: 'same-origin' }).catch(() => null);
+      const billingBody = billingResponse && billingResponse.ok ? await billingResponse.json().catch(() => null) : null;
+      if (mounted.current) {
+        setBilling(billingBody);
+        setBillingError(billingBody ? '' : 'Payment reviews could not be read just now. They refresh automatically.');
+      }
     } catch {
-      if (mounted.current) setError('Live data could not load just now. No figures are shown from an earlier read, and this page retries automatically.');
+      if (mounted.current) { setData(null); setError('Live data could not load just now. No figures are shown from an earlier read, and this page retries automatically.'); }
     }
   }, []);
 
@@ -128,7 +137,7 @@ export default function AdminApp({ firebase }) {
         </div>
       </header>
 
-      {error && <div className="banner error" role="alert">{error} Last successful read shown below is from {updated ? clock(updated) : 'earlier'}.</div>}
+      {error && <div className="banner error" role="alert">{error}</div>}
 
       <section className="grid" aria-label="Summary">
         <Stat label="Total users" value={fmt(s.totalUsers)} hint="Registered accounts" />
@@ -213,7 +222,7 @@ export default function AdminApp({ firebase }) {
               {data.providers.map(p => (
                 <tr key={p.id}>
                   <td>{p.name}</td>
-                  <td className="num">{NA}</td>
+                  <td className="num">{typeof p.requests === 'number' ? fmt(p.requests) : NA}</td>
                   <td className="num">{NA}</td>
                   <td className="muted" style={{ whiteSpace: 'normal' }}>{p.note}</td>
                 </tr>
@@ -221,7 +230,7 @@ export default function AdminApp({ firebase }) {
             </tbody>
           </table>
         </div>
-        <p className="sub" style={{ marginTop: 8 }}>Shown instead: PinCraft’s own AI requests today are <strong>{fmt(s.aiRequestsToday)}</strong> (text {fmt(s.textRequestsToday)} + image {fmt(s.imageRequestsToday)}). Provider-side counts and billing need the provider dashboards.</p>
+        <p className="sub" style={{ marginTop: 8 }}>Shown instead: PinCraft’s own AI requests today are <strong>{fmt(s.aiRequestsToday)}</strong> (text {fmt(s.textRequestsToday)} + image {fmt(s.imageRequestsToday)}). Cost needs the provider billing dashboards.</p>
       </section>
 
       <section className="card" aria-labelledby="ads-h">
@@ -260,6 +269,40 @@ export default function AdminApp({ firebase }) {
             </tbody>
           </table>
         </div>
+      </section>
+
+      <section className="card" aria-labelledby="billing-h">
+        <h2 id="billing-h">Payment reviews</h2>
+        {billingError && <p className="banner error" role="alert">{billingError}</p>}
+        {billing && (
+          <>
+            <div className="grid" style={{ marginTop: 8 }}>
+              <Stat label="Awaiting review" value={fmt(billing.counts.pending)} hint={billing.counts.pendingCapped ? 'Showing the first 100' : 'Pending requests'} />
+              <Stat label="All payment requests" value={fmt(billing.counts.allTime)} hint="Any status" />
+              <Stat label="Public plan collection" value={billing.plan && billing.plan.enabled ? 'On' : 'Off'} hint={billing.plan && billing.plan.configured ? `${fmt(billing.plan.priceBdt)} BDT / ${fmt(billing.plan.durationDays)} days` : 'No plan saved'} />
+            </div>
+            <div className="table-scroll" style={{ marginTop: 12 }}>
+              <table>
+                <thead><tr><th>Submitted</th><th>Method</th><th>Txn ends</th><th>Payer ends</th><th className="num">Amount (BDT)</th><th className="num">Days</th><th>Status</th></tr></thead>
+                <tbody>
+                  {billing.requests.map(r => (
+                    <tr key={r.id}>
+                      <td>{when(r.submittedAt)}</td>
+                      <td>{r.method || '—'}</td>
+                      <td>{r.transactionSuffix ? `…${r.transactionSuffix}` : '—'}</td>
+                      <td>{r.payerSuffix ? `…${r.payerSuffix}` : '—'}</td>
+                      <td className="num">{fmt(r.amountBdt)}</td>
+                      <td className="num">{fmt(r.durationDays)}</td>
+                      <td><span className="pill">{r.status}</span></td>
+                    </tr>
+                  ))}
+                  {billing.requests.length === 0 && <tr><td colSpan={7} className="muted">No payment requests are awaiting review.</td></tr>}
+                </tbody>
+              </table>
+            </div>
+            <ul className="notes" style={{ marginTop: 12 }}>{billing.notes.map(n => <li key={n}>{n}</li>)}</ul>
+          </>
+        )}
       </section>
 
       <section className="card">
