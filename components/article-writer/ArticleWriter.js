@@ -173,7 +173,7 @@ export default function ArticleWriter() {
       }
       if (sequence !== generationRequest.current.sequence || identity.current !== owner) return;
       currentContent.current=generated.id;saveRequest.current=generated.libraryRequestKey;
-      setArticle(generated);setLoading(false);if(mode==='ai'){setImageBusy(true);setImageMessage('Text ready. Images are still generating; please wait for all three.');}else flash('Offline article template generated');
+      setArticle(generated);setLoading(false);if(mode==='ai'){setImageMessage('Text ready. Images are still generating; please wait for all three.');}else flash('Offline article template generated');
       setTimeout(() => resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
       try { await persistArticleDraft(generated, owner); } catch {}
       if(mode==='ai')await generateArticleImages(generated,owner);
@@ -414,7 +414,7 @@ export default function ArticleWriter() {
                 <section className="mt-4 rounded-2xl border border-brand-100 bg-brand-50/30 p-5" data-testid="article-publishing-handoff">
                   <h2 className="text-[15px] font-extrabold">Ready to publish this article?</h2>
                   <p className="mt-2 text-[12px] leading-relaxed text-neutral-600">Publishing review requires 1,000–1,600 words and the original AI cover plus both section illustrations. Choose your verified blog and select two to five relevant live internal links when available; if fewer exist, the one-time manual review can explicitly continue without links. Recurring automation still requires two. This step creates no job or recurring permission.</p>
-                  {imageBusy && <p role="status" className="mt-3 text-sm text-neutral-600">Images are still generating. Please wait; your article text is ready and nothing has failed.</p>}
+                  {imageBusy && article.imageStatus!=='complete' && article.images?.length!==3 && <p role="status" className="mt-3 text-sm text-neutral-600">Images are still generating. Please wait; your article text is ready and nothing has failed.</p>}
                   {!imageBusy && (article.wordCount<1000||article.wordCount>1600||article.imageStatus!=='complete'||article.images?.length!==3)&&<p role="status" className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-[11px] leading-relaxed text-amber-900">Not publish-ready: {article.wordCount<1000||article.wordCount>1600?'the word count is outside 1,000–1,600. ':''}{article.imageStatus!=='complete'||article.images?.length!==3?'one or more required AI images are missing.':''} Offline templates can be saved, but they cannot enter publishing review.</p>}
                   <button type="button" disabled={saving || imageBusy || authLoading || article.wordCount<1000 || article.wordCount>1600 || article.imageStatus!=='complete' || article.images?.length!==3} onClick={() => storeArticle(true)} className="btn-primary mt-4 !min-h-11 !px-4 !text-[12px]">{saving ? <Loader2 size={15} className="animate-spin" aria-hidden="true"/> : <ArrowRight size={15} aria-hidden="true"/>}{saved ? 'Open publishing review' : 'Save & open publishing review'}</button>
                 </section>
