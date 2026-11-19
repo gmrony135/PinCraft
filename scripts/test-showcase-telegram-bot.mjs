@@ -92,7 +92,7 @@ assert.ok(!webhookSecretMatches(undefined, TOKEN));
   const tg = fakeTelegram({ 555: CHANNEL_MEMBER });
   const token = await createLinkToken(db, 'uid-B');
   const reply = await handleBotUpdate({ update: start(token, 555), db, token: TOKEN, fetchImpl: tg.fetchImpl });
-  assert.match(reply, /^Verified\./);
+  assert.match(reply, /Verified/);
   assert.equal((await readJoinStatus(db, 'uid-B')).telegramJoined, true);
   assert.equal(await telegramIdForUid(db, 'uid-B'), 555);
   assert.ok(tg.calls.some(c => c.url.includes('/sendMessage')), 'bot replies to the user');
@@ -105,7 +105,7 @@ assert.ok(!webhookSecretMatches(undefined, TOKEN));
   const tg = fakeTelegram({ 777: 'left' });
   const token = await createLinkToken(db, 'uid-C');
   const reply = await handleBotUpdate({ update: start(token, 777), db, token: TOKEN, fetchImpl: tg.fetchImpl });
-  assert.match(reply, /^Linked\. Join @pincraft_ai/);
+  assert.match(reply, /Join @pincraft_ai/);
   assert.equal((await readJoinStatus(db, 'uid-C')).telegramJoined, false, 'not verified before joining');
   const join = { update_id: 2, chat_member: { chat: { username: 'pincraft_ai', type: 'channel' }, new_chat_member: { status: 'member', user: { id: 777, is_bot: false } } } };
   await handleBotUpdate({ update: join, db, token: TOKEN, fetchImpl: tg.fetchImpl });
@@ -146,7 +146,7 @@ assert.ok(!webhookSecretMatches(undefined, TOKEN));
   await handleBotUpdate({ update: start(first, 42), db, token: TOKEN, fetchImpl: tg.fetchImpl });
   const second = await createLinkToken(db, 'uid-G');
   const reply = await handleBotUpdate({ update: start(second, 42), db, token: TOKEN, fetchImpl: tg.fetchImpl });
-  assert.match(reply, /already linked to another/);
+  assert.match(reply, /already linked/);
   assert.equal((await readJoinStatus(db, 'uid-G')).telegramJoined, false);
 }
 
@@ -161,7 +161,7 @@ assert.ok(!webhookSecretMatches(undefined, TOKEN));
   assert.equal(await telegramIdForUid(db, 'uid-H'), 2);
   const other = await createLinkToken(db, 'uid-I');
   const reply = await handleBotUpdate({ update: start(other, 1), db, token: TOKEN, fetchImpl: tg.fetchImpl });
-  assert.match(reply, /^Verified\./, 'old Telegram account is free again');
+  assert.match(reply, /Verified/, 'old Telegram account is free again');
 }
 
 // --- Popup recheck: verifies only with a successful getChatMember
@@ -233,6 +233,31 @@ assert.ok(!webhookSecretMatches(undefined, TOKEN));
   assert.equal((await readJoinStatus(db, 'uid-R')).telegramJoined, false, 'restricted but still in channel is not a join');
 }
 
+// --- Bot message formatting: HTML mode, numbered steps on the welcome, one confirmation per real join
+{
+  const db = fakeDb();
+  const tg = fakeTelegram({});
+  await handleBotUpdate({ update: { message: { text: '/start', chat: { id: 77, type: 'private' }, from: { id: 77, is_bot: false } } }, db, token: TOKEN, fetchImpl: tg.fetchImpl });
+  const sent = JSON.parse(tg.calls.find(c => c.url.includes('/sendMessage')).body);
+  assert.equal(sent.parse_mode, 'HTML');
+  for (const step of ['1. Go back to PinCraft', '2. Tap <b>START</b>', '3. Join @pincraft_ai', '4. Return to PinCraft']) assert.ok(sent.text.includes(step), `welcome has ${step}`);
+  // Confirmation: sent once when a linked user joins; not again on a repeat event; not on a leave.
+  const linkDb = fakeDb();
+  const tg2 = fakeTelegram({ 606: 'left' });
+  const tok = await createLinkToken(linkDb, 'uid-note');
+  await handleBotUpdate({ update: start(tok, 606), db: linkDb, token: TOKEN, fetchImpl: tg2.fetchImpl });
+  const join = { update_id: 3, chat_member: { chat: { username: 'pincraft_ai', type: 'channel' }, new_chat_member: { status: 'member', user: { id: 606, is_bot: false } } } };
+  const before = tg2.calls.length;
+  await handleBotUpdate({ update: join, db: linkDb, token: TOKEN, fetchImpl: tg2.fetchImpl });
+  const notes = tg2.calls.slice(before).filter(c => c.url.includes('/sendMessage'));
+  assert.equal(notes.length, 1, 'one confirmation on a real join');
+  assert.equal(JSON.parse(notes[0].body).chat_id, 606, 'sent to the user, not the channel');
+  await handleBotUpdate({ update: join, db: linkDb, token: TOKEN, fetchImpl: tg2.fetchImpl });
+  assert.equal(tg2.calls.slice(before).filter(c => c.url.includes('/sendMessage')).length, 1, 'no repeat confirmation');
+  await handleBotUpdate({ update: { chat_member: { chat: { username: 'pincraft_ai' }, new_chat_member: { status: 'left', user: { id: 606, is_bot: false } } } }, db: linkDb, token: TOKEN, fetchImpl: tg2.fetchImpl });
+  assert.equal(tg2.calls.slice(before).filter(c => c.url.includes('/sendMessage')).length, 1, 'no message on leave');
+}
+
 // --- Source safety: the token is read from the env and never logged or returned
 for (const file of [
   'lib/showcase/telegram-bot.mjs',
@@ -265,7 +290,48 @@ assert.doesNotMatch(popup, /stays until|until both are verified|must/i);
   const token2 = await createLinkToken(db2, 'uid-markup2');
   await handleBotUpdate({ update: start(token2, 501), db: db2, token: TOKEN, fetchImpl: tg2.fetchImpl });
   const sent2 = JSON.parse(tg2.calls.find(c => c.url.includes('/sendMessage')).body);
-  assert.equal(sent2.reply_markup, undefined, 'no button once verified');
+  const joinButtons = sent2.reply_markup.inline_keyboard.flat().filter(b => /Join @pincraft_ai/.test(b.text));
+  assert.equal(joinButtons.length, 0, 'no Join button once verified');
+  assert.deepEqual(sent2.reply_markup.inline_keyboard.flat().map(b => b.url), ['https://t.me/pincraft_ai', 'https://t.me/gmrony_12', 'https://pincraftly.vercel.app/'], 'menu shown after verification');
+}
+// Bot menu: three URL buttons on the welcome, and on every link reply. Verification unchanged.
+const MENU_URLS = ['https://t.me/pincraft_ai', 'https://t.me/gmrony_12', 'https://pincraftly.vercel.app/'];
+const menuLabels = ['Telegram Channel', 'Support', 'Visit Website'];
+{
+  const db = fakeDb();
+  const tg = fakeTelegram({});
+  const reply = await handleBotUpdate({ update: { update_id: 5, message: { text: '/start', chat: { id: 9, type: 'private' }, from: { id: 9, is_bot: false } } }, db, token: TOKEN, fetchImpl: tg.fetchImpl });
+  assert.match(reply, /Welcome to PinCraft/);
+  const sent = JSON.parse(tg.calls.find(c => c.url.includes('/sendMessage')).body);
+  assert.deepEqual(sent.reply_markup.inline_keyboard.flat().map(b => b.url), MENU_URLS);
+  assert.deepEqual(sent.reply_markup.inline_keyboard.flat().map(b => b.text), menuLabels);
+  assert.ok(sent.reply_markup.inline_keyboard.flat().every(b => typeof b.url === 'string' && !('callback_data' in b)), 'URL buttons only');
+  // /start with an unrelated payload is still the welcome, never a link.
+  const tg2 = fakeTelegram({});
+  assert.match(await handleBotUpdate({ update: { message: { text: '/start hello', chat: { id: 9, type: 'private' }, from: { id: 9, is_bot: false } } }, db, token: TOKEN, fetchImpl: tg2.fetchImpl }), /Welcome to PinCraft/);
+  // Group chats and bot senders get nothing.
+  const tg3 = fakeTelegram({});
+  assert.equal(await handleBotUpdate({ update: { message: { text: '/start', chat: { id: 9, type: 'group' }, from: { id: 9, is_bot: false } } }, db, token: TOKEN, fetchImpl: tg3.fetchImpl }), null);
+  assert.equal(tg3.calls.length, 0);
+  // Ordinary text is ignored.
+  assert.equal(await handleBotUpdate({ update: { message: { text: 'hi', chat: { id: 9, type: 'private' }, from: { id: 9, is_bot: false } } }, db, token: TOKEN, fetchImpl: tg3.fetchImpl }), null);
+}
+{
+  // Link flow: not a member gets the Join button first, then the menu; the link still links.
+  const db = fakeDb();
+  const tg = fakeTelegram({ 910: 'left' });
+  const token = await createLinkToken(db, 'uid-menu');
+  await handleBotUpdate({ update: start(token, 910), db, token: TOKEN, fetchImpl: tg.fetchImpl });
+  const rows = JSON.parse(tg.calls.find(c => c.url.includes('/sendMessage')).body).reply_markup.inline_keyboard;
+  assert.deepEqual(rows[0], [{ text: 'Join @pincraft_ai', url: 'https://t.me/pincraft_ai' }]);
+  assert.deepEqual(rows.slice(1).map(r => r[0].url), MENU_URLS);
+  assert.equal(await telegramIdForUid(db, 'uid-menu'), 910, 'link still stored');
+  // Bad token: clear reply and the menu, no link.
+  const tg2 = fakeTelegram({});
+  const bad = await handleBotUpdate({ update: start('abcdefghijklmnopqrstuvwxyz0123456789', 911), db, token: TOKEN, fetchImpl: tg2.fetchImpl });
+  assert.match(bad, /not valid/);
+  const badRows = JSON.parse(tg2.calls.find(c => c.url.includes('/sendMessage')).body).reply_markup.inline_keyboard;
+  assert.deepEqual(badRows.map(r => r[0].url), MENU_URLS);
 }
 
 console.log('test-showcase-telegram-bot: all checks passed');
