@@ -7,8 +7,6 @@ const PUBLIC_PATHS = [
   '/',
   '/about',
   '/pin-generator',
-  '/subscription',
-  '/connector',
   '/content-studio',
   ...STUDIO_TOOLS.map(tool => tool.href),
   '/trend-finder',
