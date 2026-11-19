@@ -50,7 +50,7 @@ export default function Navbar() {
   function login() { setOpen(false); setAccountOpen(false); openLogin(); }
   async function logout() { setSigningOut(true); const ok = await signOut(); if (ok) setAccountOpen(false); setSigningOut(false); }
   const activeLink = href => pathname === href || href === "/content-studio" && pathname.startsWith("/content-studio/");
-  const linkClass = (href, mobile = false) => `${mobile ? "flex min-h-11 items-center gap-2 rounded-xl px-3 text-[14px]" : "inline-flex min-h-11 items-center gap-1.5 whitespace-nowrap rounded-lg px-2.5 text-[12px]"} font-semibold outline-none transition-colors focus-visible:ring-2 focus-visible:ring-brand-600 ${activeLink(href) ? "bg-brand-50 text-brand-700" : "text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900"}`;
+  const linkClass = (href, mobile = false) => `${mobile ? "flex min-h-11 items-center gap-2 rounded-xl px-3 text-[14px]" : "inline-flex min-h-11 items-center gap-1.5 whitespace-nowrap rounded-lg px-2 text-[12px]"} font-semibold outline-none transition-colors focus-visible:ring-2 focus-visible:ring-brand-600 ${activeLink(href) ? "bg-brand-50 text-brand-700" : "text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900"}`;
 
   return (
     <header className={`sticky top-0 z-50 w-full border-b transition-colors ${scrolled ? "border-neutral-200/80 bg-white/95 backdrop-blur-xl" : "border-transparent bg-white"}`}>
