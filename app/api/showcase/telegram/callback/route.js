@@ -3,6 +3,7 @@ import { sessionUser } from '@/lib/automation/api';
 import { getDatabase } from '@/lib/automation/db.mjs';
 import { markVerified } from '@/lib/showcase/joins.mjs';
 import { fetchTelegramMembership, showcaseConfig, verifyTelegramAuth } from '@/lib/showcase/verify.mjs';
+import { linkTelegramAccount } from '@/lib/showcase/telegram-bot.mjs';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
@@ -34,6 +35,10 @@ export async function GET(request) {
   }
   if (!member) return back('telegram_not_member');
 
-  await markVerified(getDatabase(), user.id, 'telegram');
+  // Store the Telegram ID so the server can re-check membership later (leave detection).
+  const db = getDatabase();
+  const linked = await linkTelegramAccount(db, user.id, auth.id);
+  if (linked.error) return back('telegram_auth_failed');
+  await markVerified(db, user.id, 'telegram');
   return back('telegram_joined');
 }

@@ -106,14 +106,14 @@ assert.doesNotMatch(popup, /youtube|YouTube|PinCraftOfficial|Subscribe|subscri/i
 assert.doesNotMatch(popup, /Joining is optional|Skip|optional/i, 'joining is required in the popup');
 assert.ok(existsSync(new URL('../app/api/showcase/telegram/verify/route.js', import.meta.url).pathname));
 const verifyRoute = readFileSync(new URL('../app/api/showcase/telegram/verify/route.js', import.meta.url), 'utf8');
-assert.match(verifyRoute, /markVerified\(getDatabase\(\), user\.id, 'telegram'\)/);
+assert.match(verifyRoute, /markVerified\(db, user\.id, 'telegram'\)/); assert.match(verifyRoute, /linkTelegramAccount\(db, user\.id, auth\.id\)/);
 assert.match(verifyRoute, /fetchTelegramMembership/);
 assert.doesNotMatch(popup, /localStorage|sessionStorage/);
 assert.match(popup, /https:\/\/t\.me\/pincraft_ai/);
 const yt = readFileSync(new URL('../lib/showcase/verify.mjs', import.meta.url), 'utf8');
 assert.doesNotMatch(yt, /TELEGRAM_BOT_TOKEN\s*=\s*['"][^'"]+['"]/, 'no hardcoded bot token');
 const cb = readFileSync(new URL('../app/api/showcase/telegram/callback/route.js', import.meta.url), 'utf8');
-assert.match(cb, /fetchTelegramMembership/); assert.match(cb, /markVerified\(getDatabase\(\), user\.id, 'telegram'\)/);
+assert.match(cb, /fetchTelegramMembership/); assert.match(cb, /markVerified\(db, user\.id, 'telegram'\)/); assert.match(cb, /linkTelegramAccount\(db, user\.id, auth\.id\)/);
 const ycb = readFileSync(new URL('../app/api/showcase/youtube/callback/route.js', import.meta.url), 'utf8');
 assert.match(ycb, /markVerified\(getDatabase\(\), user\.id, 'youtube'\)/);
 assert.match(ycb, /verifyYoutubeState/);

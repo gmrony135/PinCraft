@@ -35,7 +35,9 @@ export default function ChannelShowcase() {
   const [busy, setBusy] = useState(false);
   const [waiting, setWaiting] = useState(false);
   const [celebrate, setCelebrate] = useState(false);
+  const [slow, setSlow] = useState(false);
   const gatedRef = useRef(false);
+  const lastCheck = useRef(0);
   const joined = status?.telegramJoined === true;
 
   const loadStatus = useCallback(async () => {
@@ -76,6 +78,7 @@ export default function ChannelShowcase() {
   }, []);
 
   const refresh = useCallback(async () => {
+    lastCheck.current = Date.now();
     await recheck();
     await loadStatus();
   }, [recheck, loadStatus]);
@@ -91,7 +94,8 @@ export default function ChannelShowcase() {
       return undefined;
     }
     refresh();
-    const onFocus = () => { refresh(); };
+    // Returning to the tab re-checks at most once every 30 seconds.
+    const onFocus = () => { if (Date.now() - lastCheck.current > 30000) refresh(); };
     window.addEventListener("focus", onFocus);
     return () => window.removeEventListener("focus", onFocus);
   }, [uid, refresh]);
@@ -109,6 +113,14 @@ export default function ChannelShowcase() {
     return () => clearInterval(timer);
   }, [uid, status, joined, refresh]);
 
+  // A plain "checking" cover only if the first check is slow. The dialog is never shown until the
+  // server has said the account is not verified (or the check itself failed).
+  useEffect(() => {
+    if (!uid || status !== null || error) { setSlow(false); return undefined; }
+    const timer = setTimeout(() => setSlow(true), 1200);
+    return () => clearTimeout(timer);
+  }, [uid, status, error]);
+
   // Show the "Verified" confirmation only for someone who was gated in this session.
   useEffect(() => {
     if (status === null) return;
@@ -116,8 +128,13 @@ export default function ChannelShowcase() {
     else if (gatedRef.current) setCelebrate(true);
   }, [status, joined]);
 
+  // Dialog: the server says not verified, a service failure with no status, or the Verified step.
+  // Cover only: the first check is still running and has been slow.
+  const dialogOpen = Boolean(uid) && ((status !== null && !joined) || (status === null && Boolean(error)) || celebrate);
+  const coverOpen = Boolean(uid) && status === null && !error && slow;
+  const gated = dialogOpen || coverOpen;
+
   // Stop the page behind the gate from scrolling.
-  const gated = Boolean(uid) && (status === null || !joined || celebrate);
   useEffect(() => {
     if (!gated) return undefined;
     const previous = document.body.style.overflow;
@@ -147,6 +164,13 @@ export default function ChannelShowcase() {
   }
 
   if (!gated) return null;
+  if (coverOpen && !dialogOpen) {
+    return (
+      <div className="fixed inset-0 z-[90] flex items-center justify-center bg-neutral-900/70" data-testid="channel-showcase-check">
+        <p role="status" className="rounded-xl bg-white px-4 py-3 text-[13px] font-semibold text-neutral-800 shadow-2xl">Checking your Telegram membership...</p>
+      </div>
+    );
+  }
 
   const checking = status === null && !error;
   const botReady = status?.telegram?.configured === true;

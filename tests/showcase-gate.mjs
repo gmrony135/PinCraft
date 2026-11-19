@@ -8,19 +8,20 @@ const browser = await chromium.launch({ headless: true });
 
 // state: { joined, configured, statusFails, linkFails, recheck: 'ok'|'bot_not_admin'|'fail' }
 async function open(width, state = {}, path = '/') {
-  const s = { joined: false, configured: true, statusFails: false, linkFails: false, recheck: 'ok', ...state };
+  const s = { joined: false, configured: true, statusFails: false, linkFails: false, recheck: 'ok', statusDelayMs: 0, ...state };
   const context = await browser.newContext({ viewport: { width, height: 800 } });
   const calls = { link: 0, recheck: 0 };
   await context.route('**/api/auth/session', r => r.fulfill({ json: { user } }));
   await context.route(/https:\/\/(nap5k\.com|5gvci\.com|n6wxm\.com)\//, r => r.fulfill({ contentType: 'application/javascript', body: '/* vendor stub */' }));
   await context.route('**/api/showcase', r => {
     if (s.statusFails) return r.fulfill({ status: 500, json: { ok: false, code: 'server_error' } });
-    return r.fulfill({ json: { telegramJoined: s.joined, youtubeSubscribed: false, telegram: { configured: s.configured, botUsername: 'pincraft_bot' } } });
+    const body = { telegramJoined: s.joined, youtubeSubscribed: false, telegram: { configured: s.configured, botUsername: 'pincraft_bot' } };
+    return setTimeout(() => r.fulfill({ json: body }), s.statusDelayMs || 0);
   });
   await context.route('**/api/showcase/telegram/recheck', r => {
     calls.recheck += 1;
-    if (s.recheck === 'fail') return r.fulfill({ status: 503, json: { ok: false, code: 'telegram_unavailable', linked: true, telegramJoined: false } });
-    if (s.recheck === 'bot_not_admin') return r.fulfill({ status: 503, json: { ok: false, code: 'telegram_bot_not_admin', linked: true, telegramJoined: false } });
+    if (s.recheck === 'fail') return r.fulfill({ status: 503, json: { ok: false, code: 'telegram_unavailable', linked: true, telegramJoined: s.joined } });
+    if (s.recheck === 'bot_not_admin') return r.fulfill({ status: 503, json: { ok: false, code: 'telegram_bot_not_admin', linked: true, telegramJoined: s.joined } });
     if (s.joined) return r.fulfill({ json: { ok: true, linked: true, telegramJoined: true } });
     return r.fulfill({ json: { ok: true, linked: false, telegramJoined: false } });
   });
@@ -150,6 +151,41 @@ try {
     assert.equal(await dialog(page).count(), 0, 'Continue releases the site after verification');
     await context.close();
     console.log('PASS verification while open shows Verified, Continue releases the site');
+  }
+
+  // 10. Verified member: a slow check never shows the dialog (only a plain cover after 1.2s, and it is not
+  //     the popup). Verified members see nothing once the check finishes.
+  {
+    const { context, page } = await open(390, { joined: true, statusDelayMs: 2500 });
+    await page.waitForTimeout(600);
+    assert.equal(await dialog(page).count(), 0, 'no dialog while checking a verified member');
+    await page.waitForTimeout(2600);
+    assert.equal(await dialog(page).count(), 0, 'no dialog after the check for a verified member');
+    assert.equal(await page.getByTestId('channel-showcase').count(), 0, 'no cover after the check');
+    await context.close();
+    console.log('PASS verified member: no dialog during a slow check or after it');
+  }
+
+  // 11. Verified member, Telegram re-check fails: stored flag holds, no dialog and no error screen.
+  {
+    const { context, page } = await open(390, { joined: true, recheck: 'fail' });
+    await page.waitForTimeout(2000);
+    assert.equal(await dialog(page).count(), 0, 'verified member is not gated by a Telegram outage');
+    await context.close();
+    console.log('PASS verified member: Telegram outage does not bring the popup back');
+  }
+
+  // 12. A member who left: the gate returns on the next visit (page load), not only after a button press.
+  {
+    const { context, page, s } = await open(390, { joined: true });
+    await page.waitForTimeout(1500);
+    assert.equal(await dialog(page).count(), 0, 'member sees no gate');
+    s.joined = false;
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await dialog(page).waitFor({ timeout: 15000 });
+    assert.equal(await page.getByRole('button', { name: 'Join & Verify' }).count(), 1, 'leaver is asked to join again');
+    await context.close();
+    console.log('PASS member who left: gate returns on the next visit');
   }
 } finally {
   await browser.close();

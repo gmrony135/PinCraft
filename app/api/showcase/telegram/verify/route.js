@@ -2,6 +2,7 @@ import { apiError, json, readBody, sessionUser } from '@/lib/automation/api';
 import { getDatabase } from '@/lib/automation/db.mjs';
 import { markVerified } from '@/lib/showcase/joins.mjs';
 import { fetchTelegramMembership, showcaseConfig, verifyTelegramAuth } from '@/lib/showcase/verify.mjs';
+import { linkTelegramAccount } from '@/lib/showcase/telegram-bot.mjs';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
@@ -32,7 +33,11 @@ export async function POST(request) {
     }
     if (!member) return json({ ok: false, code: 'telegram_not_member' }, 200);
 
-    await markVerified(getDatabase(), user.id, 'telegram');
+    // Store the Telegram ID so the server can re-check membership later (leave detection).
+    const db = getDatabase();
+    const linked = await linkTelegramAccount(db, user.id, auth.id);
+    if (linked.error) return json({ ok: false, code: 'telegram_auth_failed' }, 409);
+    await markVerified(db, user.id, 'telegram');
     return json({ ok: true, code: 'telegram_joined' });
   } catch (error) {
     return apiError(error);

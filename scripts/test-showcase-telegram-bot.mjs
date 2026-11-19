@@ -189,6 +189,50 @@ assert.ok(!webhookSecretMatches(undefined, TOKEN));
   assert.equal((await readJoinStatus(db2, 'uid-K')).telegramJoined, false);
 }
 
+// --- Persistence rules: verified members never lose the flag while they are in the channel;
+// leaving clears it; a Telegram error never clears it; the webhook handles leave, kick and rejoin.
+{
+  const db = fakeDb();
+  const tg = fakeTelegram({ 700: 'member' });
+  const token = await createLinkToken(db, 'uid-P');
+  await handleBotUpdate({ update: start(token, 700), db, token: TOKEN, fetchImpl: tg.fetchImpl });
+  assert.equal((await readJoinStatus(db, 'uid-P')).telegramJoined, true);
+  // Still a member: re-check keeps the flag and does not write it back to false.
+  let r = await refreshTelegramVerification({ db, uid: 'uid-P', token: TOKEN, fetchImpl: fakeTelegram({ 700: 'member' }).fetchImpl });
+  assert.deepEqual(r, { linked: true, joined: true });
+  assert.equal((await readJoinStatus(db, 'uid-P')).telegramJoined, true, 'member stays verified');
+  // Left the channel: the next check clears the flag, so the gate returns.
+  r = await refreshTelegramVerification({ db, uid: 'uid-P', token: TOKEN, fetchImpl: fakeTelegram({ 700: 'left' }).fetchImpl });
+  assert.deepEqual(r, { linked: true, joined: false });
+  assert.equal((await readJoinStatus(db, 'uid-P')).telegramJoined, false, 'leaver is cleared');
+  // A Telegram outage on a verified account changes nothing and throws.
+  const db3 = fakeDb();
+  const t3 = await createLinkToken(db3, 'uid-Q');
+  await handleBotUpdate({ update: start(t3, 701), db: db3, token: TOKEN, fetchImpl: fakeTelegram({ 701: 'member' }).fetchImpl });
+  const down = async () => ({ ok: false, status: 500, json: async () => ({ ok: false, description: 'boom' }) });
+  await assert.rejects(refreshTelegramVerification({ db: db3, uid: 'uid-Q', token: TOKEN, fetchImpl: down }), /telegram_unavailable/);
+  assert.equal((await readJoinStatus(db3, 'uid-Q')).telegramJoined, true, 'outage never clears a verified flag');
+}
+// Webhook: leave, kick and restricted-out clear the flag; rejoin sets it again.
+{
+  const db = fakeDb();
+  const tg = fakeTelegram({ 800: 'member' });
+  const token = await createLinkToken(db, 'uid-R');
+  await handleBotUpdate({ update: start(token, 800), db, token: TOKEN, fetchImpl: tg.fetchImpl });
+  const change = (status, extra = {}) => ({ update_id: 9, chat_member: { chat: { username: 'pincraft_ai', type: 'channel' }, new_chat_member: { status, user: { id: 800, is_bot: false }, ...extra } } });
+  assert.equal(await handleBotUpdate({ update: change('left'), db, token: TOKEN, fetchImpl: tg.fetchImpl }), 'unverified');
+  assert.equal((await readJoinStatus(db, 'uid-R')).telegramJoined, false, 'leave clears');
+  await handleBotUpdate({ update: change('member'), db, token: TOKEN, fetchImpl: tg.fetchImpl });
+  assert.equal((await readJoinStatus(db, 'uid-R')).telegramJoined, true, 'rejoin verifies again');
+  await handleBotUpdate({ update: change('kicked'), db, token: TOKEN, fetchImpl: tg.fetchImpl });
+  assert.equal((await readJoinStatus(db, 'uid-R')).telegramJoined, false, 'kick clears');
+  await handleBotUpdate({ update: change('member'), db, token: TOKEN, fetchImpl: tg.fetchImpl });
+  await handleBotUpdate({ update: change('restricted', { is_member: false }), db, token: TOKEN, fetchImpl: tg.fetchImpl });
+  assert.equal((await readJoinStatus(db, 'uid-R')).telegramJoined, false, 'restricted out of channel clears');
+  await handleBotUpdate({ update: change('restricted', { is_member: true }), db, token: TOKEN, fetchImpl: tg.fetchImpl });
+  assert.equal((await readJoinStatus(db, 'uid-R')).telegramJoined, false, 'restricted but still in channel is not a join');
+}
+
 // --- Source safety: the token is read from the env and never logged or returned
 for (const file of [
   'lib/showcase/telegram-bot.mjs',
