@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 // Starts the YouTube read-only grant. The state is bound to the signed-in UID in a short-lived cookie.
 export async function GET(request) {
   const origin = new URL(request.url).origin;
-  const fail = code => NextResponse.redirect(new URL(`/dashboard?showcase=${code}`, origin));
+  const fail = code => NextResponse.redirect(new URL(`/api/showcase/youtube/done?code=${code}`, origin));
   let user;
   try { user = await sessionUser(request); } catch { return NextResponse.redirect(new URL('/login', origin)); }
 
