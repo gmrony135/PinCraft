@@ -110,11 +110,6 @@ export default function MonetagAdManager() {
       if (event.key && event.key !== AD_CONSENT_KEY) return;
       const nextAdConsent = readStoredChoice(AD_CONSENT_KEY, ['allow', 'deny']);
       setAdConsent(nextAdConsent);
-        if ((nextAdConsent !== 'allow') && hasLoadedAnyMonetagScript()) {
-        // A document reload ends the executing third-party context; removing
-        // script nodes alone cannot undo listeners, requests, or injected UI.
-        window.location.reload();
-      }
     };
     window.addEventListener('storage', onStorage);
     return () => window.removeEventListener('storage', onStorage);
@@ -153,7 +148,9 @@ export default function MonetagAdManager() {
 
   const isGuest = choicesReady && !authLoading && !authUnavailable;
   const profileMatchesDocument = documentProfile === routeProfile(pathname);
-  const mayLoadSiteAds = isMarketingRoute(pathname) && profileMatchesDocument && isGuest && choicesReady && adConsent === 'allow';
+  // Owner decision (2026-11-19): In-Page Push and Vignette load for every eligible visitor, whether they
+  // accept or reject the ad-cookie choice. The choice is still recorded and shown in the banner.
+  const mayLoadSiteAds = isMarketingRoute(pathname) && profileMatchesDocument && isGuest && choicesReady;
   const mayLoadVignette = mayLoadSiteAds && routeProfile(pathname) === 'home';
 
   useEffect(() => {
@@ -164,13 +161,12 @@ export default function MonetagAdManager() {
 
   const chooseAdCookies = useCallback((choice) => {
     if (!saveStoredChoice(AD_CONSENT_KEY, choice)) {
-      setStorageError('Your browser could not save this choice, so Monetag ads will remain off. Check your storage settings and try again.');
+      setStorageError('Your browser could not save this choice. Monetag ads still load on selected pages. Check your storage settings and try again.');
       return;
     }
     setAdConsent(choice);
     setStorageError('');
     setPreferencesOpen(false);
-    if (choice === 'deny' && hasLoadedAnyMonetagScript()) window.location.reload();
   }, []);
 
   const isMarketingGuest = choicesReady && isGuest && isMarketingRoute(pathname) && profileMatchesDocument;
@@ -192,7 +188,7 @@ export default function MonetagAdManager() {
           <div className="max-w-3xl">
             <h2 className="text-sm font-extrabold text-neutral-900">{preferencesOpen ? 'Advertising cookie choices' : 'Choose your advertising cookie settings'}</h2>
             <p className="mt-1 text-xs leading-relaxed text-neutral-600">
-              Allowing enables Monetag In-Page Push and Vignette ads on selected public pages. The third-party tags may use non-essential cookies or similar device storage and process technical, page-visit, and ad-interaction data. Push notifications are separate: PinCraft explains them first and asks the browser only after you click Enable. Rejecting ad cookies keeps on-page Monetag ads off; essential site functions remain available either way.
+              Monetag In-Page Push and Vignette ads load on selected public pages whether you allow or reject ad cookies. The third-party tags may use non-essential cookies or similar device storage and process technical, page-visit, and ad-interaction data. Your choice is saved in this browser and does not turn these ads off. Push notifications are separate: PinCraft explains them first and asks the browser only after you click Enable. Essential site functions remain available either way.
               {' '}<a className="font-bold text-brand-700 underline underline-offset-2" href="/privacy">PinCraft privacy choices</a>
               {' '}·{' '}<a className="font-bold text-brand-700 underline underline-offset-2" href="https://monetag.com/privacy/" target="_blank" rel="noreferrer">Monetag privacy policy</a>
               {' '}·{' '}<a className="font-bold text-brand-700 underline underline-offset-2" href="https://monetag.com/terms/" target="_blank" rel="noreferrer">Publisher Agreement</a>
