@@ -3,6 +3,7 @@
 import { createHash } from 'node:crypto';
 import { auth, db } from './firebase.mjs';
 import { LIMITS, PROVIDERS } from './config.mjs';
+import { splitNewUsers } from './new-users.mjs';
 
 const DAY = 86400000;
 // Same day boundary as PinCraft's free plan: Asia/Dhaka (UTC+6), midnight reset.
@@ -93,6 +94,9 @@ export async function collectMetrics() {
 
   const rows = await mapLimit(users, 20, user => userRow(user, ctx));
   rows.sort((a, b) => (b.joined || '').localeCompare(a.joined || ''));
+  // Each user is in exactly one list: New (under 24h since registration) or the regular users list.
+  const { fresh, regular } = splitNewUsers(rows, now);
+  const strip = ({ usageToday, usageTotal, activeIn7, activeIn30, pinQueueItems, pinQueuePostedToday, ...row }) => row;
 
   const sum = (fn) => rows.reduce((total, row) => total + fn(row), 0);
   const jobsSnap = await database.collection('pincraft_jobs').select('state').get();
@@ -109,6 +113,8 @@ export async function collectMetrics() {
     limits: LIMITS,
     summary: {
       totalUsers: rows.length,
+      newUsers: fresh.length,
+      regularUsers: regular.length,
       activeUsersToday: rows.filter(row => row.usageToday.pinPacks + row.usageToday.text + row.usageToday.image > 0).length,
       activeUsers7d: rows.filter(row => row.activeIn7).length,
       activeUsers30d: rows.filter(row => row.activeIn30).length,
@@ -119,7 +125,8 @@ export async function collectMetrics() {
       pinQueueItems: sum(row => row.pinQueueItems),
       pinQueuePostedToday: sum(row => row.pinQueuePostedToday),
     },
-    users: rows.map(({ usageToday, usageTotal, activeIn7, activeIn30, pinQueueItems, pinQueuePostedToday, ...row }) => row),
+    newUsers: fresh.map(row => ({ ...strip(row), usageToday: row.usageToday, usageTotal: row.usageTotal, pinQueueItems: row.pinQueueItems, pinQueuePostedToday: row.pinQueuePostedToday })),
+    users: regular.map(strip),
     usage: rows.map(row => ({ uid: row.uid, name: row.name, email: row.email, usageToday: row.usageToday, usageTotal: row.usageTotal, lastActiveDay: row.lastActiveDay, pinQueueItems: row.pinQueueItems, pinQueuePostedToday: row.pinQueuePostedToday })),
     providers: PROVIDERS.map(provider => {
       const counted = providerDay && Object.prototype.hasOwnProperty.call(providerDay, provider.id) ? Number(providerDay[provider.id]) : null;

@@ -9,6 +9,7 @@ const REFRESH_MS = 30000;
 const NA = <span className="na">Not recorded</span>;
 const fmt = value => (typeof value === 'number' ? value.toLocaleString('en-US') : '—');
 const when = iso => (iso ? new Date(iso).toLocaleString('en-GB', { timeZone: 'Asia/Dhaka', dateStyle: 'medium', timeStyle: 'short' }) : '—');
+const ago = iso => { if (!iso) return '—'; const mins = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000)); if (mins < 60) return `${mins} min ago`; const hours = Math.floor(mins / 60); return `${hours} hour${hours === 1 ? '' : 's'} ago`; };
 const clock = ms => new Date(ms).toLocaleTimeString('en-GB', { timeZone: 'Asia/Dhaka' });
 
 // Same-origin auth domain (this site proxies /__/auth), so redirect sign-in works in phone browsers.
@@ -162,8 +163,32 @@ export default function AdminApp({ firebase }) {
         <Stat label="Automation jobs" value={fmt(data.jobs.total)} hint={Object.entries(data.jobs.byState).map(([k, v]) => `${k}: ${v}`).join(' · ') || 'None'} />
       </section>
 
+      <section className="card" aria-labelledby="new-h">
+        <h2 id="new-h">New users <span className="tag">registered in the last 24 hours · {fmt(data.newUsers.length)} · newest first · after 24 hours they move to Users below</span></h2>
+        <div className="table-scroll">
+          <table>
+            <thead><tr><th>Name</th><th>Email</th><th>Registered</th><th>Last sign-in</th><th>Plan</th><th>Telegram verified</th><th className="num">Usage today (pin packs · text · image)</th><th className="num">Usage total (pin packs · text · image)</th></tr></thead>
+            <tbody>
+              {data.newUsers.map(u => (
+                <tr key={u.uid}>
+                  <td><span className="new-badge">NEW</span> {u.name}</td>
+                  <td>{u.email || '—'}</td>
+                  <td>{when(u.joined)}<div className="sub">{ago(u.joined)}</div></td>
+                  <td>{when(u.lastSignIn)}</td>
+                  <td>{u.plan}</td>
+                  <td><span className={`pill ${u.telegramVerified ? 'yes' : 'no'}`}>{u.telegramVerified ? 'Yes' : 'No'}</span></td>
+                  <td className="num">{fmt(u.usageToday.pinPacks)} · {fmt(u.usageToday.text)} · {fmt(u.usageToday.image)}</td>
+                  <td className="num">{fmt(u.usageTotal.pinPacks)} · {fmt(u.usageTotal.text)} · {fmt(u.usageTotal.image)}</td>
+                </tr>
+              ))}
+              {data.newUsers.length === 0 && <tr><td colSpan={8} className="muted">No new users in the last 24 hours.</td></tr>}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
       <section className="card" aria-labelledby="users-h">
-        <h2 id="users-h">Users <span className="tag">{fmt(data.users.length)} · plan = Free unless a paid plan is recorded</span></h2>
+        <h2 id="users-h">Users <span className="tag">{fmt(data.users.length)} regular · {fmt(data.summary.newUsers)} new shown above · plan = Free unless a paid plan is recorded</span></h2>
         <div className="table-scroll">
           <table>
             <thead><tr><th>Name</th><th>Email</th><th>Joined</th><th>Last sign-in</th><th>Plan</th><th>Telegram verified</th></tr></thead>
@@ -178,7 +203,7 @@ export default function AdminApp({ firebase }) {
                   <td><span className={`pill ${u.telegramVerified ? 'yes' : 'no'}`}>{u.telegramVerified ? 'Yes' : 'No'}</span></td>
                 </tr>
               ))}
-              {data.users.length === 0 && <tr><td colSpan={6} className="muted">No users yet.</td></tr>}
+              {data.users.length === 0 && <tr><td colSpan={6} className="muted">{data.summary.newUsers > 0 ? 'All registered users are shown in New users above.' : 'No users yet.'}</td></tr>}
             </tbody>
           </table>
         </div>
