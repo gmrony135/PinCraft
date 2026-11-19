@@ -240,7 +240,7 @@ assert.ok(!webhookSecretMatches(undefined, TOKEN));
   await handleBotUpdate({ update: { message: { text: '/start', chat: { id: 77, type: 'private' }, from: { id: 77, is_bot: false } } }, db, token: TOKEN, fetchImpl: tg.fetchImpl });
   const sent = JSON.parse(tg.calls.find(c => c.url.includes('/sendMessage')).body);
   assert.equal(sent.parse_mode, 'HTML');
-  for (const step of ['1. Go back to PinCraft', '2. Tap <b>START</b>', '3. Join @pincraft_ai', '4. Return to PinCraft']) assert.ok(sent.text.includes(step), `welcome has ${step}`);
+  for (const step of ['1\uFE0F\u20E3 Go back to PinCraft', '2\uFE0F\u20E3 Tap <b>START</b>', '3\uFE0F\u20E3 Join @pincraft_ai', '4\uFE0F\u20E3 Return to PinCraft']) assert.ok(sent.text.includes(step), `welcome has ${step}`);
   // Confirmation: sent once when a linked user joins; not again on a repeat event; not on a leave.
   const linkDb = fakeDb();
   const tg2 = fakeTelegram({ 606: 'left' });
@@ -296,7 +296,7 @@ assert.doesNotMatch(popup, /stays until|until both are verified|must/i);
 }
 // Bot menu: three URL buttons on the welcome, and on every link reply. Verification unchanged.
 const MENU_URLS = ['https://t.me/pincraft_ai', 'https://t.me/gmrony_12', 'https://pincraftly.vercel.app/'];
-const menuLabels = ['Telegram Channel', 'Support', 'Visit Website'];
+const menuLabels = ['\u{1F4E2} Telegram Channel', '\u{1F4AC} Support', '\u{1F310} Visit Website'];
 {
   const db = fakeDb();
   const tg = fakeTelegram({});
