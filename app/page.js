@@ -1,4 +1,3 @@
-import FreePlanNotice from '@/components/FreePlanNotice';
 import Link from 'next/link';
 import { ArrowRight, ArrowUpRight, CalendarClock, Check, CirclePause, Clock3, FolderHeart, Link2, ShieldCheck, WandSparkles } from 'lucide-react';
 import PageShell from '@/components/PageShell';
@@ -29,7 +28,7 @@ export default function HomePage() {
             <p className="mt-6 max-w-xl text-[15px] leading-relaxed text-neutral-500 sm:text-[16px]">
               Create a search-aware guide with a clear structure, original article imagery and relevant links from your own live Blogger site. Review every post before publication; Pinterest remains yours to manage.
             </p>
-            <FreePlanNotice /><div className="mt-7 flex flex-col gap-3 sm:flex-row">
+            <div className="mt-7 flex flex-col gap-3 sm:flex-row">
               <HomeAccountCTA />
               <Link href="/article-writer" prefetch={false} className="btn-outline">Create an article<ArrowUpRight size={16} aria-hidden="true" /></Link>
             </div>
