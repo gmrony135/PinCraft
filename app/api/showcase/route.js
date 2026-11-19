@@ -1,25 +1,25 @@
-import { apiError, json, readBody, sessionUser } from '@/lib/automation/api';
+import { apiError, json, sessionUser } from '@/lib/automation/api';
 import { getDatabase } from '@/lib/automation/db.mjs';
-import { confirmJoin, readJoinStatus } from '@/lib/showcase/joins.mjs';
+import { readJoinStatus } from '@/lib/showcase/joins.mjs';
+import { showcaseConfig, telegramBotUsername } from '@/lib/showcase/verify.mjs';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-export const maxDuration = 30;
 
-// Only the signed-in owner of a record can read or update it (UID comes from the verified session).
+// Read-only status. There is no POST: confirmations come only from verified server callbacks.
 export async function GET(request) {
   try {
     const user = await sessionUser(request);
-    return json(await readJoinStatus(getDatabase(), user.id));
-  } catch (error) {
-    return apiError(error);
-  }
-}
-
-export async function POST(request) {
-  try {
-    const user = await sessionUser(request, true);
-    const body = await readBody(request, 512);
-    return json(await confirmJoin(getDatabase(), user.id, body.channel));
+    const config = showcaseConfig();
+    const status = await readJoinStatus(getDatabase(), user.id);
+    let botUsername = '';
+    if (config.telegramBotToken && !status.telegramJoined) {
+      try { botUsername = await telegramBotUsername(config.telegramBotToken); } catch { botUsername = ''; }
+    }
+    return json({
+      ...status,
+      telegram: { configured: Boolean(config.telegramBotToken && botUsername), botUsername },
+      youtube: { configured: Boolean(config.googleClientId && config.googleClientSecret && config.stateSecret) },
+    });
   } catch (error) {
     return apiError(error);
   }
