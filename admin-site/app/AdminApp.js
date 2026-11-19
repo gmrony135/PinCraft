@@ -1,0 +1,286 @@
+'use client';
+
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { initializeApp, getApps } from 'firebase/app';
+import { GoogleAuthProvider, getAuth, signInWithPopup, signOut } from 'firebase/auth';
+
+const REFRESH_MS = 30000;
+const NA = <span className="na">Not recorded</span>;
+const fmt = value => (typeof value === 'number' ? value.toLocaleString('en-US') : '—');
+const when = iso => (iso ? new Date(iso).toLocaleString('en-GB', { timeZone: 'Asia/Dhaka', dateStyle: 'medium', timeStyle: 'short' }) : '—');
+const clock = ms => new Date(ms).toLocaleTimeString('en-GB', { timeZone: 'Asia/Dhaka' });
+
+function clientAuth(config) {
+  const app = getApps()[0] || initializeApp({ apiKey: config.apiKey, authDomain: config.authDomain, projectId: config.projectId, appId: config.appId });
+  return getAuth(app);
+}
+
+export default function AdminApp({ firebase }) {
+  const [view, setView] = useState('checking'); // checking | login | denied | dashboard
+  const [data, setData] = useState(null);
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [updated, setUpdated] = useState(null);
+  const mounted = useRef(true);
+
+  const load = useCallback(async () => {
+    try {
+      const response = await fetch('/api/metrics', { cache: 'no-store', credentials: 'same-origin' });
+      if (!mounted.current) return;
+      if (response.status === 401) { setView(current => (current === 'denied' ? current : 'login')); setData(null); return; }
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        setError(body.message || 'Live data could not be read just now. It refreshes automatically.');
+        return;
+      }
+      setData(await response.json());
+      setError('');
+      setUpdated(Date.now());
+      setView('dashboard');
+    } catch {
+      if (mounted.current) setError('Network problem. Showing the last successful read is not allowed, so this page will retry automatically.');
+    }
+  }, []);
+
+  useEffect(() => {
+    mounted.current = true;
+    load();
+    return () => { mounted.current = false; };
+  }, [load]);
+
+  // Auto-refresh while the dashboard is open and the tab is visible.
+  useEffect(() => {
+    if (view !== 'dashboard') return undefined;
+    const timer = setInterval(() => { if (document.visibilityState === 'visible') load(); }, REFRESH_MS);
+    return () => clearInterval(timer);
+  }, [view, load]);
+
+  async function signIn() {
+    setBusy(true); setError('');
+    try {
+      const auth = clientAuth(firebase);
+      const provider = new GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: 'select_account' });
+      const result = await signInWithPopup(auth, provider);
+      const idToken = await result.user.getIdToken(true);
+      const response = await fetch('/api/session', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ idToken }), cache: 'no-store' });
+      if (response.status === 403) {
+        await signOut(auth).catch(() => {});
+        setView('denied');
+        return;
+      }
+      if (!response.ok) { setError('Sign-in could not be verified. Please try again.'); return; }
+      await load();
+    } catch (cause) {
+      if (cause?.code !== 'auth/popup-closed-by-user' && cause?.code !== 'auth/cancelled-popup-request') setError('Sign-in did not complete. Please try again.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function signOutAll() {
+    setBusy(true);
+    await fetch('/api/session', { method: 'DELETE', cache: 'no-store' }).catch(() => {});
+    try { await signOut(clientAuth(firebase)); } catch {}
+    setData(null); setView('login'); setBusy(false);
+  }
+
+  if (view === 'checking') return <main className="wrap"><p className="muted">Checking access…</p></main>;
+
+  if (view === 'login' || view === 'denied') {
+    return (
+      <main className="wrap">
+        <div className="login">
+          <h1>PinCraft Admin</h1>
+          {view === 'denied' ? (
+            <>
+              <p className="banner error" role="alert" style={{ textAlign: 'left' }}><strong>Access denied.</strong> This admin site is only for the owner account. Your account cannot open it.</p>
+            </>
+          ) : (
+            <p>Owner sign-in only. Use the owner Google account.</p>
+          )}
+          {error && <p className="banner error" role="alert">{error}</p>}
+          <button className="btn primary" onClick={signIn} disabled={busy || !firebase.apiKey}>{busy ? 'Signing in…' : 'Sign in with Google'}</button>
+          {!firebase.apiKey && <p className="banner error" style={{ marginTop: 14 }}>Sign-in is not configured on this site.</p>}
+        </div>
+      </main>
+    );
+  }
+
+  if (!data) {
+    return <main className="wrap"><p className="muted">Loading live data…</p>{error && <p className="banner error">{error}</p>}</main>;
+  }
+
+  const s = data.summary;
+  const L = data.limits;
+  return (
+    <main className="wrap">
+      <header className="top">
+        <div>
+          <h1>PinCraft Admin</h1>
+          <div className="sub">Owner only · not indexed · Today (Asia/Dhaka): {data.today}</div>
+        </div>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+          <span className="live"><span className="dot" />Live · auto-refresh 30s</span>
+          <span className="sub">Last read {updated ? clock(updated) : '—'}</span>
+          <button className="btn" onClick={load} disabled={busy}>Refresh now</button>
+          <button className="btn" onClick={signOutAll} disabled={busy}>Sign out</button>
+        </div>
+      </header>
+
+      {error && <div className="banner error" role="alert">{error} Last successful read shown below is from {updated ? clock(updated) : 'earlier'}.</div>}
+
+      <section className="grid" aria-label="Summary">
+        <Stat label="Total users" value={fmt(s.totalUsers)} hint="Registered accounts" />
+        <Stat label="Active users today" value={fmt(s.activeUsersToday)} hint="Any AI usage today" />
+        <Stat label="Pins generated today" value={fmt(s.pinPacksToday)} hint="Pin idea packs today" />
+        <Stat label="API requests today" value={fmt(s.aiRequestsToday)} hint="Text + image requests" />
+      </section>
+
+      <section className="grid" aria-label="Activity">
+        <Stat label="Active 7 days" value={fmt(s.activeUsers7d)} hint="Users with AI usage" />
+        <Stat label="Active 30 days" value={fmt(s.activeUsers30d)} hint="Users with AI usage" />
+        <Stat label="Pin Queue items" value={fmt(s.pinQueueItems)} hint={`${fmt(s.pinQueuePostedToday)} posted today`} />
+        <Stat label="Automation jobs" value={fmt(data.jobs.total)} hint={Object.entries(data.jobs.byState).map(([k, v]) => `${k}: ${v}`).join(' · ') || 'None'} />
+      </section>
+
+      <section className="card" aria-labelledby="users-h">
+        <h2 id="users-h">Users <span className="tag">{fmt(data.users.length)} · plan = Free unless a paid plan is recorded</span></h2>
+        <div className="table-scroll">
+          <table>
+            <thead><tr><th>Name</th><th>Email</th><th>Joined</th><th>Last sign-in</th><th>Plan</th><th>Telegram verified</th></tr></thead>
+            <tbody>
+              {data.users.map(u => (
+                <tr key={u.uid}>
+                  <td>{u.name}</td>
+                  <td>{u.email || '—'}</td>
+                  <td>{when(u.joined)}</td>
+                  <td>{when(u.lastSignIn)}</td>
+                  <td>{u.plan}</td>
+                  <td><span className={`pill ${u.telegramVerified ? 'yes' : 'no'}`}>{u.telegramVerified ? 'Yes' : 'No'}</span></td>
+                </tr>
+              ))}
+              {data.users.length === 0 && <tr><td colSpan={6} className="muted">No users yet.</td></tr>}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section className="card" aria-labelledby="usage-h">
+        <h2 id="usage-h">Per-user usage <span className="tag">today against daily limits · totals since sign-up records</span></h2>
+        <p className="sub" style={{ margin: '4px 0 8px' }}>Limits per user per day: {L.pinPacks} pin packs · {L.text} text requests · {L.image} image requests. Articles are counted within text requests.</p>
+        <div className="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>User</th>
+                <th className="num">Pin packs today</th>
+                <th className="num">Text today</th>
+                <th className="num">Image today</th>
+                <th className="num">Pin packs total</th>
+                <th className="num">Text total</th>
+                <th className="num">Image total</th>
+                <th className="num">Pin Queue</th>
+                <th>Last active day</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.usage.map(u => (
+                <tr key={u.uid}>
+                  <td>{u.name}<div className="sub">{u.email || ''}</div></td>
+                  <td className="num">{over(u.usageToday.pinPacks, L.pinPacks)}</td>
+                  <td className="num">{over(u.usageToday.text, L.text)}</td>
+                  <td className="num">{over(u.usageToday.image, L.image)}</td>
+                  <td className="num">{fmt(u.usageTotal.pinPacks)}</td>
+                  <td className="num">{fmt(u.usageTotal.text)}</td>
+                  <td className="num">{fmt(u.usageTotal.image)}</td>
+                  <td className="num">{fmt(u.pinQueueItems)}<div className="sub">{fmt(u.pinQueuePostedToday)} posted today</div></td>
+                  <td>{u.lastActiveDay || '—'}</td>
+                </tr>
+              ))}
+              {data.usage.length === 0 && <tr><td colSpan={9} className="muted">No usage yet.</td></tr>}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section className="card" aria-labelledby="api-h">
+        <h2 id="api-h">AI provider usage</h2>
+        <div className="table-scroll">
+          <table>
+            <thead><tr><th>Provider</th><th className="num">Requests</th><th className="num">Cost</th><th>Note</th></tr></thead>
+            <tbody>
+              {data.providers.map(p => (
+                <tr key={p.id}>
+                  <td>{p.name}</td>
+                  <td className="num">{NA}</td>
+                  <td className="num">{NA}</td>
+                  <td className="muted" style={{ whiteSpace: 'normal' }}>{p.note}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p className="sub" style={{ marginTop: 8 }}>Shown instead: PinCraft’s own AI requests today are <strong>{fmt(s.aiRequestsToday)}</strong> (text {fmt(s.textRequestsToday)} + image {fmt(s.imageRequestsToday)}). Provider-side counts and billing need the provider dashboards.</p>
+      </section>
+
+      <section className="card" aria-labelledby="ads-h">
+        <h2 id="ads-h">Revenue and ads (Monetag)</h2>
+        <div className="table-scroll">
+          <table>
+            <thead><tr><th>Format</th><th className="num">Impressions</th><th className="num">Profit</th><th className="num">CPM</th></tr></thead>
+            <tbody>
+              {[['In-Page Push'], ['Vignette'], ['Classic Push']].map(([name]) => (
+                <tr key={name}><td>{name}</td><td className="num">{NA}</td><td className="num">{NA}</td><td className="num">{NA}</td></tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p className="banner info" style={{ marginTop: 12 }}>{data.monetag.earningsNote} PinCraft does not record ad impressions, so they are not shown here.</p>
+        <table style={{ marginTop: 8 }}>
+          <tbody>
+            <tr><td>Last ad-request result</td><td>{NA}</td></tr>
+            <tr><td>No-fill state</td><td>{NA}</td></tr>
+          </tbody>
+        </table>
+        <h2 style={{ marginTop: 16 }}>On-site tag check <span className="tag">live from this server</span></h2>
+        <p className="sub">{data.monetag.adStateNote}</p>
+        <div className="table-scroll">
+          <table>
+            <thead><tr><th>Tag script</th><th className="num">HTTP status</th><th className="num">Response time</th><th>Checked</th></tr></thead>
+            <tbody>
+              {data.monetag.tags.map(t => (
+                <tr key={t.url}>
+                  <td>{t.url}</td>
+                  <td className="num">{t.status ? <span className={`pill ${t.reachable ? 'ok' : 'bad'}`}>{t.status}</span> : <span className="pill bad">{t.error || 'failed'}</span>}</td>
+                  <td className="num">{t.ms} ms</td>
+                  <td>{when(t.checkedAt)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section className="card">
+        <h2>Notes</h2>
+        <ul className="notes">{data.notes.map(n => <li key={n}>{n}</li>)}</ul>
+      </section>
+    </main>
+  );
+}
+
+function over(value, limit) {
+  const text = `${fmt(value)} / ${limit}`;
+  return <span style={value >= limit ? { color: '#991b1b', fontWeight: 700 } : undefined}>{text}</span>;
+}
+
+function Stat({ label, value, hint }) {
+  return (
+    <div className="stat">
+      <div className="label">{label}</div>
+      <div className="value">{value}</div>
+      <div className="hint">{hint}</div>
+    </div>
+  );
+}
