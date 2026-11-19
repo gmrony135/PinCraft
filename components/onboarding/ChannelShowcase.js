@@ -1,208 +1,209 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { CheckCircle2, X } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { CheckCircle2 } from "lucide-react";
 import { useAuth } from "@/components/providers/AppProvider";
 
 export const TELEGRAM_URL = "https://t.me/pincraft_ai";
-export const YOUTUBE_URL = "https://www.youtube.com/@PinCraftOfficial";
-const YOUTUBE_START = "/api/showcase/youtube/start";
 
-const PATHS = { yt: "M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z", tg: "M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z" };
+const TG_PATH = "M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z";
 
-const MESSAGES = {
-  telegram_joined: ["ok", "Telegram membership verified. Thank you."],
-  youtube_subscribed: ["ok", "YouTube subscription verified. Thank you."],
-  telegram_not_member: ["err", "We could not find your Telegram account in the channel yet. You can join and try again any time."],
-  telegram_auth_failed: ["err", "Telegram sign-in could not be verified. Please try again."],
-  telegram_auth_expired: ["err", "The Telegram sign-in expired. Please try again."],
-  telegram_unavailable: ["err", "Telegram could not be checked right now. Please try again later."],
-  telegram_bot_not_admin: ["err", "Telegram check is temporarily unavailable. Joining is still optional."],
-  telegram_not_configured: ["err", "Telegram check is not available right now."],
-  youtube_not_subscribed: ["err", "No subscription to @PinCraftOfficial was found on that Google account. You can subscribe and try again any time."],
-  youtube_denied: ["err", "YouTube permission was not granted, so the subscription was not checked."],
-  youtube_state_invalid: ["err", "That check expired. Please try again."],
-  youtube_unavailable: ["err", "YouTube could not be checked right now. Please try again later."],
-  youtube_token_failed: ["err", "Google did not complete the YouTube check. Please try again."],
-  youtube_api_disabled: ["err", "YouTube check is temporarily unavailable. Joining is still optional."],
-  youtube_scope_missing: ["err", "YouTube permission is incomplete. Please try the check again and allow read-only YouTube access."],
-  youtube_not_configured: ["err", "YouTube check is not available right now."],
+// Plain messages for each failure. These are service errors, never "not joined yet".
+const ERRORS = {
+  network: "PinCraft could not reach the Telegram check. Check your connection and try again.",
+  sign_in_required: "Your sign-in has ended. Sign in again to continue.",
+  telegram_unavailable: "Telegram could not be checked right now. Try again in a moment.",
+  telegram_bot_not_admin: "The Telegram check is temporarily unavailable. Try again in a moment.",
+  telegram_not_configured: "The Telegram check is not available right now. Try again later.",
+  telegram_auth_failed: "Telegram sign-in could not be verified. Try again.",
+  telegram_auth_expired: "The Telegram sign-in expired. Try again.",
+  unknown: "Telegram could not be checked right now. Try again.",
 };
 
-function Glyph({ kind }) {
-  return <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="#FFFFFF" d={PATHS[kind]} /></svg>;
+function errorText(code) {
+  return ERRORS[code] || ERRORS.unknown;
 }
 
-// Optional and never blocking: no backdrop, the rest of the site stays usable.
-// X and "Skip for now" hide it for this visit only. It stops once both checks are verified.
+// Hard gate for signed-in users: until Telegram membership is verified by the server, the whole site
+// is covered. There is no close button and no way past it. Service errors show a message and a retry.
 export default function ChannelShowcase() {
   const { user } = useAuth() || {};
   const uid = user?.id || null;
-  const [status, setStatus] = useState(null);
-  const [open, setOpen] = useState(false);
-  const [notice, setNotice] = useState(null);
+  const [status, setStatus] = useState(null); // null = not loaded yet
+  const [error, setError] = useState(null); // service error code, or null
+  const [linked, setLinked] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [telegramLinked, setTelegramLinked] = useState(false);
-  const [polling, setPolling] = useState(false);
-
-  const recheckTelegram = useCallback(async () => {
-    try {
-      const response = await fetch("/api/showcase/telegram/recheck", { method: "POST", credentials: "same-origin", cache: "no-store" });
-      const data = await response.json().catch(() => ({}));
-      if (data.linked) setTelegramLinked(true);
-      if (data.telegramJoined) setStatus(prev => (prev ? { ...prev, telegramJoined: true } : prev));
-      return data;
-    } catch {
-      return null;
-    }
-  }, []);
+  const [waiting, setWaiting] = useState(false);
+  const [celebrate, setCelebrate] = useState(false);
+  const gatedRef = useRef(false);
+  const joined = status?.telegramJoined === true;
 
   const loadStatus = useCallback(async () => {
     try {
       const response = await fetch("/api/showcase", { credentials: "same-origin", cache: "no-store" });
-      if (!response.ok) throw new Error("status");
-      setStatus(await response.json());
+      const data = await response.json().catch(() => null);
+      if (!response.ok || !data) {
+        setError(data?.code || "network");
+        return;
+      }
+      setStatus(data);
+      if (!data.telegramJoined && !data.telegram?.configured) setError("telegram_not_configured");
     } catch {
-      setStatus(prev => prev || { telegramJoined: false, youtubeSubscribed: false, telegram: { configured: false }, youtube: { configured: false } });
+      setError("network");
     }
   }, []);
 
-  const showCode = useCallback((code) => {
-    if (MESSAGES[code]) setNotice({ tone: MESSAGES[code][0], text: MESSAGES[code][1] });
-    loadStatus();
-  }, [loadStatus]);
-
-  useEffect(() => {
-    if (!uid) { setStatus(null); setOpen(false); return; }
-    setOpen(true);
-    const params = new URLSearchParams(window.location.search);
-    const code = params.get("showcase");
-    if (code) {
-      params.delete("showcase");
-      const qs = params.toString();
-      window.history.replaceState(null, "", window.location.pathname + (qs ? `?${qs}` : "") + window.location.hash);
-      showCode(code);
-    } else {
-      loadStatus();
-    }
-    recheckTelegram().then(() => loadStatus());
-  }, [uid, loadStatus, showCode, recheckTelegram]);
-
-  // Results from the YouTube popup window, and a refresh when the user returns to this tab.
-  useEffect(() => {
-    if (!uid) return undefined;
-    const onMessage = event => {
-      if (event.origin !== window.location.origin || event.data?.source !== "pincraft-showcase") return;
-      showCode(String(event.data.code || ""));
-    };
-    const onFocus = () => { recheckTelegram().then(() => loadStatus()); };
-    window.addEventListener("message", onMessage);
-    window.addEventListener("focus", onFocus);
-    return () => { window.removeEventListener("message", onMessage); window.removeEventListener("focus", onFocus); };
-  }, [uid, loadStatus, showCode, recheckTelegram]);
-
-  // After "Verify in Telegram", check every 4 seconds for up to 3 minutes so START updates the popup
-  // inline without any further button press.
-  useEffect(() => {
-    if (!polling) return undefined;
-    let ticks = 0;
-    const timer = setInterval(async () => {
-      ticks += 1;
-      await recheckTelegram();
-      const fresh = await fetch("/api/showcase", { credentials: "same-origin", cache: "no-store" }).then(r => (r.ok ? r.json() : null)).catch(() => null);
-      if (fresh) setStatus(fresh);
-      if ((fresh && fresh.telegramJoined) || ticks >= 45) setPolling(false);
-    }, 4000);
-    return () => clearInterval(timer);
-  }, [polling, recheckTelegram]);
-
-  // Opens a blank tab first so the popup blocker allows it, then points it at the bot deep link.
-  async function verifyInTelegram() {
-    setBusy(true);
-    const tab = window.open("", "_blank", "noopener");
+  // Asks the server to check membership for a linked account. The server sets the verified flag only
+  // after a successful getChatMember call.
+  const recheck = useCallback(async () => {
     try {
-      const response = await fetch("/api/showcase/telegram/link", { method: "POST", credentials: "same-origin", headers: { "content-type": "application/json" }, body: "{}" });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok || !data.url) {
-        if (tab) tab.close();
-        showCode(data.code === "telegram_not_configured" ? "telegram_not_configured" : "telegram_unavailable");
+      const response = await fetch("/api/showcase/telegram/recheck", { method: "POST", credentials: "same-origin", cache: "no-store" });
+      const data = await response.json().catch(() => null);
+      if (!data) {
+        setError("network");
         return;
       }
-      if (tab) tab.location.href = data.url; else window.location.href = data.url;
-      setTelegramLinked(true);
-      setNotice({ tone: "info", text: "Open Telegram and tap START. This popup updates by itself once the bot confirms." });
-      setPolling(true);
+      setLinked(Boolean(data.linked));
+      if (data.telegramJoined) {
+        setStatus(prev => (prev ? { ...prev, telegramJoined: true } : { telegramJoined: true }));
+        setError(null);
+        return;
+      }
+      setError(data.ok ? null : data.code || (response.ok ? "unknown" : "network"));
     } catch {
-      if (tab) tab.close();
-      showCode("telegram_unavailable");
+      setError("network");
+    }
+  }, []);
+
+  const refresh = useCallback(async () => {
+    await recheck();
+    await loadStatus();
+  }, [recheck, loadStatus]);
+
+  // Load on sign-in, and check again whenever the user returns to this tab.
+  useEffect(() => {
+    if (!uid) {
+      setStatus(null);
+      setError(null);
+      setLinked(false);
+      setCelebrate(false);
+      gatedRef.current = false;
+      return undefined;
+    }
+    refresh();
+    const onFocus = () => { refresh(); };
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [uid, refresh]);
+
+  // While not verified: check every 4 seconds for three minutes, then every 30 seconds. START and the
+  // channel join both show up here without a button press.
+  useEffect(() => {
+    if (!uid || status === null || joined) return undefined;
+    let ticks = 0;
+    const timer = setInterval(() => {
+      ticks += 1;
+      if (ticks > 45 && ticks % 8 !== 0) return;
+      refresh();
+    }, 4000);
+    return () => clearInterval(timer);
+  }, [uid, status, joined, refresh]);
+
+  // Show the "Verified" confirmation only for someone who was gated in this session.
+  useEffect(() => {
+    if (status === null) return;
+    if (!joined) gatedRef.current = true;
+    else if (gatedRef.current) setCelebrate(true);
+  }, [status, joined]);
+
+  // Stop the page behind the gate from scrolling.
+  const gated = Boolean(uid) && (status === null || !joined || celebrate);
+  useEffect(() => {
+    if (!gated) return undefined;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = previous; };
+  }, [gated]);
+
+  // Opens the bot deep link. The server creates a single-use, 10-minute token tied to this account.
+  async function joinAndVerify() {
+    setBusy(true);
+    try {
+      const response = await fetch("/api/showcase/telegram/link", { method: "POST", credentials: "same-origin", headers: { "content-type": "application/json" }, body: "{}" });
+      const data = await response.json().catch(() => null);
+      if (!response.ok || !data?.url) {
+        setError(data?.code || (response.ok ? "unknown" : "network"));
+        return;
+      }
+      setLinked(true);
+      setError(null);
+      setWaiting(true);
+      window.location.assign(data.url);
+    } catch {
+      setError("network");
     } finally {
       setBusy(false);
     }
   }
 
-  function openYoutube() {
-    const win = window.open(YOUTUBE_START, "pincraft-youtube", "popup,width=520,height=680");
-    if (!win) window.location.href = YOUTUBE_START;
-  }
+  if (!gated) return null;
 
-  if (!uid || !open || !status) return null;
-  if (status.telegramJoined && status.youtubeSubscribed) return null;
-
-  const telegramAction = status.telegramJoined ? (
-    <span className="inline-flex min-h-11 items-center gap-1.5 text-[12px] font-bold text-emerald-700"><CheckCircle2 size={16} aria-hidden="true" />Verified</span>
-  ) : status.telegram?.configured ? (
-    telegramLinked ? (
-      <p className="text-[12px] leading-relaxed text-neutral-600">Linked. Join @pincraft_ai and this updates automatically. Tap Verify in Telegram again any time to re-open the bot.</p>
-    ) : (
-      <button type="button" onClick={verifyInTelegram} disabled={busy} className="inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-neutral-300 bg-white px-4 text-[12px] font-bold text-neutral-800 hover:bg-neutral-50 disabled:opacity-60">Verify in Telegram</button>
-    )
-  ) : (
-    <span className="text-[12px] text-neutral-500">Telegram check is not available right now.</span>
-  );
-
-  const youtubeAction = status.youtubeSubscribed ? (
-    <span className="inline-flex min-h-11 items-center gap-1.5 text-[12px] font-bold text-emerald-700"><CheckCircle2 size={16} aria-hidden="true" />Verified</span>
-  ) : status.youtube?.configured ? (
-    <button type="button" onClick={openYoutube} disabled={busy} className="inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-neutral-300 bg-white px-4 text-[12px] font-bold text-neutral-800 hover:bg-neutral-50 disabled:opacity-60">Verify subscription</button>
-  ) : (
-    <span className="text-[12px] text-neutral-500">YouTube check is not available right now.</span>
-  );
-
-  const cards = [
-    { key: "telegram", name: "Telegram", note: "t.me/pincraft_ai", href: TELEGRAM_URL, cta: "Join channel", tone: "bg-[#229ED9]", icon: "tg", done: status.telegramJoined, action: telegramAction },
-    { key: "youtube", name: "YouTube", note: "@PinCraftOfficial", href: YOUTUBE_URL, cta: "Subscribe", tone: "bg-[#FF0000]", icon: "yt", done: status.youtubeSubscribed, action: youtubeAction },
-  ];
+  const checking = status === null && !error;
+  const botReady = status?.telegram?.configured === true;
 
   return (
-    <div className="pointer-events-none fixed inset-x-2 bottom-2 z-[80] sm:inset-x-auto sm:bottom-4 sm:right-4 sm:w-[420px]" data-testid="channel-showcase">
-      <div role="dialog" aria-labelledby="channel-showcase-title" className="pointer-events-auto relative max-h-[calc(100dvh-1rem)] overflow-y-auto rounded-2xl border border-neutral-200 bg-white p-4 shadow-2xl sm:p-5">
-        <button type="button" onClick={() => setOpen(false)} aria-label="Close" className="absolute right-2 top-2 grid h-11 w-11 place-items-center rounded-full text-neutral-500 hover:bg-neutral-100 hover:text-neutral-800">
-          <X size={18} aria-hidden="true" />
-        </button>
-        <p className="pr-10 text-[10px] font-extrabold uppercase tracking-[0.13em] text-brand-700">Stay connected (optional)</p>
-        <h2 id="channel-showcase-title" className="mt-1 pr-10 text-[18px] font-extrabold leading-tight tracking-[-0.02em] text-neutral-900">Join the PinCraft channels</h2>
-        <p className="mt-2 text-[13px] leading-relaxed text-neutral-600">Joining is optional. You can skip this and use PinCraft normally. Verified joins stop this message.</p>
+    <div className="fixed inset-0 z-[90] overflow-y-auto bg-neutral-900/70" data-testid="channel-showcase">
+      <div className="flex min-h-full items-center justify-center p-3">
+        <div role="dialog" aria-modal="true" aria-labelledby="channel-showcase-title" aria-describedby="channel-showcase-body" className="relative w-full max-w-[420px] rounded-2xl border border-neutral-200 bg-white p-4 shadow-2xl sm:p-5">
+          {celebrate ? (
+            <>
+              <span className="inline-flex min-h-11 items-center gap-1.5 text-[13px] font-extrabold text-emerald-700"><CheckCircle2 size={18} aria-hidden="true" />Verified</span>
+              <h2 id="channel-showcase-title" className="mt-1 text-[18px] font-extrabold leading-tight text-neutral-900">Telegram membership verified</h2>
+              <p id="channel-showcase-body" className="mt-2 text-[13px] leading-relaxed text-neutral-600">Thank you for joining @pincraft_ai. You can use PinCraft now.</p>
+              <button type="button" onClick={() => setCelebrate(false)} className="mt-4 inline-flex min-h-11 w-full items-center justify-center rounded-xl bg-neutral-900 px-4 text-[13px] font-bold text-white hover:bg-neutral-700 focus:outline-none focus-visible:ring-4 focus-visible:ring-brand-100">Continue</button>
+            </>
+          ) : (
+            <>
+              <p className="text-[10px] font-extrabold uppercase tracking-[0.13em] text-brand-700">Required to continue</p>
+              <h2 id="channel-showcase-title" className="mt-1 text-[18px] font-extrabold leading-tight tracking-[-0.02em] text-neutral-900">Join PinCraft on Telegram</h2>
+              <p id="channel-showcase-body" className="mt-2 text-[13px] leading-relaxed text-neutral-600">
+                Tap Join &amp; Verify. Telegram opens the PinCraft bot: tap START, then tap Join @pincraft_ai in the bot chat. This screen updates by itself once you have joined.
+              </p>
 
-        <ul className="mt-4 grid gap-3">
-          {cards.map(card => (
-            <li key={card.key} className="grid gap-3 rounded-xl border border-neutral-200 bg-neutral-50 p-3 sm:p-4">
-              <div className="flex items-center gap-3">
-                <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-xl ${card.tone}`}><Glyph kind={card.icon} /></span>
+              <div className="mt-4 flex items-center gap-3 rounded-xl border border-neutral-200 bg-neutral-50 p-3">
+                <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[#229ED9]">
+                  <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="#FFFFFF" d={TG_PATH} /></svg>
+                </span>
                 <div className="min-w-0 flex-1">
-                  <p className="whitespace-normal break-words text-[14px] font-extrabold text-neutral-900">{card.name}</p>
-                  <p className="break-all text-[12px] text-neutral-500">{card.note}</p>
+                  <p className="text-[14px] font-extrabold text-neutral-900">Telegram channel</p>
+                  <p className="break-all text-[12px] text-neutral-500">@pincraft_ai</p>
                 </div>
               </div>
-              {!card.done && <a href={card.href} target="_blank" rel="noopener noreferrer" aria-label={`${card.cta} on ${card.name} (opens in a new tab)`} className="inline-flex min-h-11 w-full items-center justify-center rounded-xl bg-neutral-900 px-4 text-center text-[12px] font-bold text-white hover:bg-neutral-700 focus:outline-none focus-visible:ring-4 focus-visible:ring-brand-100">{card.cta}</a>}
-              <div className="w-full">{card.action}</div>
-            </li>
-          ))}
-        </ul>
 
-        {notice && <p role="status" className={`mt-4 break-words text-[12px] font-semibold ${notice.tone === "ok" ? "text-emerald-700" : "text-neutral-700"}`}>{notice.text}</p>}
+              <div role="status" aria-live="polite" className="mt-3 min-h-[20px] break-words text-[12px] font-semibold leading-relaxed">
+                {error ? (
+                  <p className="text-red-700">{errorText(error)}</p>
+                ) : checking ? (
+                  <p className="text-neutral-600">Checking your Telegram membership...</p>
+                ) : waiting || linked ? (
+                  <p className="text-neutral-700">Waiting for you to join @pincraft_ai in Telegram. This updates automatically.</p>
+                ) : (
+                  <p className="text-neutral-700">Not verified yet.</p>
+                )}
+              </div>
 
-        <div className="mt-4 flex justify-end border-t border-neutral-100 pt-3">
-          <button type="button" onClick={() => setOpen(false)} className="inline-flex min-h-11 items-center rounded-xl px-4 text-[12px] font-bold text-neutral-600 hover:bg-neutral-100">Skip for now</button>
+              {!checking && botReady ? (
+                <button type="button" onClick={joinAndVerify} disabled={busy} className="mt-4 inline-flex min-h-11 w-full items-center justify-center rounded-xl bg-neutral-900 px-4 text-[13px] font-bold text-white hover:bg-neutral-700 focus:outline-none focus-visible:ring-4 focus-visible:ring-brand-100 disabled:opacity-60">
+                  {busy ? "Opening Telegram..." : "Join & Verify"}
+                </button>
+              ) : !checking ? (
+                <button type="button" onClick={refresh} className="mt-4 inline-flex min-h-11 w-full items-center justify-center rounded-xl bg-neutral-900 px-4 text-[13px] font-bold text-white hover:bg-neutral-700 focus:outline-none focus-visible:ring-4 focus-visible:ring-brand-100">
+                  Try again
+                </button>
+              ) : null}
+              <p className="mt-3 text-center text-[11px] text-neutral-500">Verification is checked by PinCraft&apos;s server. It cannot be set from this screen.</p>
+            </>
+          )}
         </div>
       </div>
     </div>

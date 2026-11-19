@@ -203,9 +203,25 @@ for (const file of [
 }
 const popup = readFileSync(new URL('../components/onboarding/ChannelShowcase.js', import.meta.url), 'utf8');
 assert.doesNotMatch(popup, /telegram-widget\.js|data-onauth|oauth\.telegram/, 'popup no longer loads the Login Widget');
-assert.match(popup, /Verify in Telegram/);
+assert.match(popup, /Join &amp;|Join & Verify/);
+assert.doesNotMatch(popup, /Verify in Telegram|Join channel|Verify subscription/, 'one Telegram button only');
 assert.match(popup, /\/api\/showcase\/telegram\/link/);
 assert.match(popup, /\/api\/showcase\/telegram\/recheck/);
 assert.doesNotMatch(popup, /stays until|until both are verified|must/i);
+// Bot reply carries the inline Join button only while the user still needs to join.
+{
+  const db = fakeDb();
+  const tg = fakeTelegram({ 500: 'left' });
+  const token = await createLinkToken(db, 'uid-markup');
+  await handleBotUpdate({ update: start(token, 500), db, token: TOKEN, fetchImpl: tg.fetchImpl });
+  const sent = JSON.parse(tg.calls.find(c => c.url.includes('/sendMessage')).body);
+  assert.deepEqual(sent.reply_markup.inline_keyboard[0][0], { text: 'Join @pincraft_ai', url: 'https://t.me/pincraft_ai' });
+  const db2 = fakeDb();
+  const tg2 = fakeTelegram({ 501: 'member' });
+  const token2 = await createLinkToken(db2, 'uid-markup2');
+  await handleBotUpdate({ update: start(token2, 501), db: db2, token: TOKEN, fetchImpl: tg2.fetchImpl });
+  const sent2 = JSON.parse(tg2.calls.find(c => c.url.includes('/sendMessage')).body);
+  assert.equal(sent2.reply_markup, undefined, 'no button once verified');
+}
 
 console.log('test-showcase-telegram-bot: all checks passed');

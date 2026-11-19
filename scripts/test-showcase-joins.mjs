@@ -97,17 +97,19 @@ const apiRoute = readFileSync(new URL('../app/api/showcase/route.js', import.met
 assert.doesNotMatch(apiRoute, /export async function POST/, 'no browser-writable POST');
 const popup = readFileSync(new URL('../components/onboarding/ChannelShowcase.js', import.meta.url), 'utf8');
 assert.doesNotMatch(popup, /I joined|I subscribed|pinterest/i);
-assert.doesNotMatch(popup, /stays until|until both are verified|must/i, 'joining is optional, never required');
-assert.match(popup, /Joining is optional/);
-assert.match(popup, /Verify in Telegram/); assert.doesNotMatch(popup, /data-auth-url|telegram-widget/, 'Telegram uses the bot deep link, no redirect or Login Widget');
-assert.match(popup, /window\.open\(YOUTUBE_START/);
-assert.match(popup, /fixed inset-x-2 bottom-2/); assert.doesNotMatch(popup, /bg-neutral-900\/50/, 'no blocking backdrop');
+assert.doesNotMatch(popup, /stays until|until both are verified|must/i, 'no mandatory wording in the popup copy');
+assert.match(popup, /Join &amp;|Join & Verify/); assert.doesNotMatch(popup, /data-auth-url|telegram-widget/, 'Telegram uses the bot deep link, no redirect or Login Widget');
+// Hard gate: full cover, modal, no close, no skip, no YouTube anywhere in the popup.
+assert.match(popup, /fixed inset-0 z-\[90\]/); assert.match(popup, /aria-modal="true"/);
+assert.doesNotMatch(popup, /aria-label="Close"|Skip for now|onClick=\{\(\) => setOpen\(false\)\}/, 'no close or skip escape');
+assert.doesNotMatch(popup, /youtube|YouTube|PinCraftOfficial|Subscribe|subscri/i, 'popup has no YouTube logic');
+assert.doesNotMatch(popup, /Joining is optional|Skip|optional/i, 'joining is required in the popup');
 assert.ok(existsSync(new URL('../app/api/showcase/telegram/verify/route.js', import.meta.url).pathname));
 const verifyRoute = readFileSync(new URL('../app/api/showcase/telegram/verify/route.js', import.meta.url), 'utf8');
 assert.match(verifyRoute, /markVerified\(getDatabase\(\), user\.id, 'telegram'\)/);
 assert.match(verifyRoute, /fetchTelegramMembership/);
 assert.doesNotMatch(popup, /localStorage|sessionStorage/);
-assert.match(popup, /https:\/\/t\.me\/pincraft_ai/); assert.match(popup, /https:\/\/www\.youtube\.com\/@PinCraftOfficial/);
+assert.match(popup, /https:\/\/t\.me\/pincraft_ai/);
 const yt = readFileSync(new URL('../lib/showcase/verify.mjs', import.meta.url), 'utf8');
 assert.doesNotMatch(yt, /TELEGRAM_BOT_TOKEN\s*=\s*['"][^'"]+['"]/, 'no hardcoded bot token');
 const cb = readFileSync(new URL('../app/api/showcase/telegram/callback/route.js', import.meta.url), 'utf8');

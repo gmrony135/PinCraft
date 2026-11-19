@@ -6,7 +6,7 @@ try{
   const c=await browser.newContext({viewport:{width:1440,height:900}});
   await c.addInitScript(({result})=>{let p='default';window.__calls=0;window.__clock=0;const realNow=Date.now;Date.now=()=>realNow()+window.__clock;Object.defineProperty(window,'Notification',{value:{get permission(){return p},requestPermission(){window.__calls++;p=result;return Promise.resolve(result)}}});},{result});
   await c.route('**/api/auth/session',r=>r.fulfill({json:{user}}));
-  await c.route('**/api/showcase',r=>r.fulfill({json:{telegramJoined:false,youtubeSubscribed:false,telegram:{configured:false},youtube:{configured:false}}}));
+  await c.route('**/api/showcase',r=>r.fulfill({json:{telegramJoined:true,youtubeSubscribed:false,telegram:{configured:false},youtube:{configured:false}}}));
   await c.route('**/5gvci.com/**',r=>r.fulfill({contentType:'application/javascript',body:'/* vendor stub */'}));
   await c.route(/https:\/\/(nap5k\.com|n6wxm\.com)\//,r=>r.fulfill({contentType:'application/javascript',body:'/* vendor stub */'}));
   const p=await c.newPage();await p.goto(base,{waitUntil:'networkidle'});await p.getByTestId('registered-monetag-push').waitFor();assert.equal(await p.evaluate(()=>window.__calls),0);
