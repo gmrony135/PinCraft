@@ -37,7 +37,8 @@ check('welcome email: Bengali, real logo, free-limit numbers, dashboard button',
   const { subject, html } = welcomeEmail({ name: 'রহিম' });
   assert.match(subject, /স্বাগতম/);
   assert.ok(html.includes(LOGO_URL), 'logo URL');
-  assert.ok(html.includes('লোগো') || html.includes('alt="PinCraft logo"'));
+  assert.ok(html.includes('alt="PinCraft"'), 'logo alt text');
+  assert.ok(html.includes('Pin Queue'), 'welcome mentions Pin Queue');
   assert.ok(html.includes('২০টি পিন আইডিয়া প্যাক'));
   assert.ok(html.includes('১৫০টি টেক্সট রিকোয়েস্ট'));
   assert.ok(html.includes('২০টি ইমেজ রিকোয়েস্ট'));
