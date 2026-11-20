@@ -33,16 +33,16 @@ check('unsubscribe URL points at the site and carries the token', () => {
   assert.equal(verifyUnsubscribeToken('uid_abc', 'all', params.get('t'), SECRET), true);
 });
 
-check('welcome email: Bengali, real logo, free-limit numbers, dashboard button', () => {
-  const { subject, html } = welcomeEmail({ name: 'রহিম' });
-  assert.match(subject, /স্বাগতম/);
+check('welcome email: English, real logo, free-limit numbers, dashboard button', () => {
+  const { subject, html } = welcomeEmail({ name: 'Rahim' });
+  assert.match(subject, /Welcome/);
   assert.ok(html.includes(LOGO_URL), 'logo URL');
   assert.ok(html.includes('alt="PinCraft"'), 'logo alt text');
   assert.ok(html.includes('Pin Queue'), 'welcome mentions Pin Queue');
-  assert.ok(html.includes('২০টি পিন আইডিয়া প্যাক'));
-  assert.ok(html.includes('১৫০টি টেক্সট রিকোয়েস্ট'));
-  assert.ok(html.includes('২০টি ইমেজ রিকোয়েস্ট'));
-  assert.ok(html.includes('বাংলাদেশ সময় মধ্যরাতে'));
+  assert.ok(html.includes('20 pin idea packs'));
+  assert.ok(html.includes('150 text requests'));
+  assert.ok(html.includes('20 image requests'));
+  assert.ok(html.includes('midnight Bangladesh time'));
   assert.ok(html.includes(`${SITE_URL}/dashboard`));
   assert.ok(html.includes('name="viewport"'), 'mobile viewport');
 });
@@ -60,15 +60,15 @@ check('weekly email shows real numbers and both unsubscribe links', () => {
     name: 'Ayesha', stats: { pinPacks: 3, text: 12, image: 4, pinsPosted: 2 },
     today: { pinPacks: 1, text: 5, image: 0 }, weeklyUrl: 'https://u/weekly', allUrl: 'https://u/all',
   });
-  assert.match(subject, /সাপ্তাহিক সারাংশ/);
+  assert.match(subject, /weekly summary/);
   assert.ok(html.includes('https://u/weekly') && html.includes('https://u/all'));
-  assert.ok(html.includes('পিন প্যাক: ১ / ২০'));
-  assert.ok(html.includes('টেক্সট: ৫ / ১৫০'));
+  assert.ok(html.includes('Pin packs: 1 / 20'));
+  assert.ok(html.includes('Text: 5 / 150'));
 });
 
-check('re-engagement email: Bengali copy about the 24-hour absence, unsubscribe links', () => {
+check('re-engagement email: English copy about the 24-hour absence, unsubscribe links', () => {
   const { html } = reengageEmail({ name: 'Karim', weeklyUrl: 'https://u/w', allUrl: 'https://u/a' });
-  assert.ok(html.includes('গত ২৪ ঘণ্টায় আপনি PinCraft-এ আসেননি'));
+  assert.ok(html.includes("You haven't visited PinCraft in the last 24 hours"));
   assert.ok(html.includes('https://u/w') && html.includes('https://u/a'));
 });
 
