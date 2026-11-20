@@ -1,4 +1,6 @@
 import {NextResponse} from 'next/server';
+import {getDatabase} from '@/lib/automation/db.mjs';
+import {enqueueWelcome} from '@/lib/email/planner.mjs';
 import {authSettings,cookieOptions,createSession,matchingNonce,NONCE_COOKIE,sameOrigin,SESSION_COOKIE,verifyFirebaseCredential} from '@/lib/auth-server';
 export const runtime='nodejs';export const dynamic='force-dynamic';
 const headers={'Cache-Control':'no-store, private','Referrer-Policy':'no-referrer'};
@@ -12,6 +14,9 @@ export async function POST(request){
  if(!matchingNonce(body?.nonce,request.cookies.get(NONCE_COOKIE)?.value))return NextResponse.json({error:'The sign-in request expired. Reload and try again.'},{status:403,headers});
  try{
   const verified=await verifyFirebaseCredential(body.idToken,config),user={id:verified.id,name:verified.name},response=NextResponse.json({user},{headers});
-  response.cookies.set(SESSION_COOKIE,await createSession(verified,config),cookieOptions(request));response.cookies.set(NONCE_COOKIE,'',cookieOptions(request,0));response.cookies.set('pincraft.session.v1','',cookieOptions(request,0));return response;
+  response.cookies.set(SESSION_COOKIE,await createSession(verified,config),cookieOptions(request));response.cookies.set(NONCE_COOKIE,'',cookieOptions(request,0));response.cookies.set('pincraft.session.v1','',cookieOptions(request,0));
+  // Welcome email: queued once per verified account after a successful sign-in. A failure here never blocks sign-in.
+  try{await enqueueWelcome(getDatabase(),verified.id);}catch{}
+  return response;
  }catch{return NextResponse.json({error:'We could not verify this sign-in. Verify your email, then try again.'},{status:401,headers});}
 }
