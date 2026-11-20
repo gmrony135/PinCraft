@@ -6,13 +6,7 @@ export const metadata = {
   robots: { index: false, follow: false, nocache: true },
 };
 
-// Public Firebase Web identifiers only. No Admin credentials reach the browser.
+// Login is Gmail + PIN, checked on the server. No Firebase sign-in runs in the browser.
 export default function Page() {
-  const firebase = {
-    apiKey: process.env.FIREBASE_WEB_API_KEY || '',
-    authDomain: process.env.FIREBASE_AUTH_DOMAIN || '',
-    projectId: process.env.FIREBASE_PROJECT_ID || '',
-    appId: process.env.FIREBASE_APP_ID || '',
-  };
-  return <AdminApp firebase={firebase} />;
+  return <AdminApp />;
 }

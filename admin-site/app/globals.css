@@ -34,6 +34,10 @@ td.num, th.num { text-align:right; font-variant-numeric: tabular-nums; }
 .banner.info { background:#fffbeb; border:1px solid #fde68a; color:#78350f; }
 .login { max-width:440px; margin:12vh auto 0; background:#fff; border:1px solid var(--line); border-radius:16px; padding:28px; text-align:center; }
 .login p { color:var(--muted); }
+.login form { text-align:left; margin-top:18px; display:grid; gap:8px; }
+.login label { font-size:13px; font-weight:700; color:var(--muted); margin-top:6px; }
+.login input { font:inherit; font-size:16px; padding:12px 14px; border:1px solid var(--line); border-radius:10px; width:100%; box-sizing:border-box; }
+.login form .btn { margin-top:14px; width:100%; }
 ul.notes { margin:8px 0 0; padding-left:18px; color:var(--muted); font-size:12px; }
 section h2 span.tag { font-size:11px; font-weight:600; color:var(--muted); margin-left:8px; }
 @media (max-width: 640px) { h1 { font-size:19px; } .stat .value { font-size:24px; } }

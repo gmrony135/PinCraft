@@ -1,8 +1,6 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { initializeApp, getApps } from 'firebase/app';
-import { GoogleAuthProvider, getAuth, getRedirectResult, signInWithRedirect, signOut } from 'firebase/auth';
 import BillingReview from './BillingReview';
 
 const REFRESH_MS = 30000;
@@ -12,17 +10,9 @@ const when = iso => (iso ? new Date(iso).toLocaleString('en-GB', { timeZone: 'As
 const ago = iso => { if (!iso) return '—'; const mins = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000)); if (mins < 60) return `${mins} min ago`; const hours = Math.floor(mins / 60); return `${hours} hour${hours === 1 ? '' : 's'} ago`; };
 const clock = ms => new Date(ms).toLocaleTimeString('en-GB', { timeZone: 'Asia/Dhaka' });
 
-// Same-origin auth domain (this site proxies /__/auth), so redirect sign-in works in phone browsers.
-function clientAuth(config) {
-  const authDomain = typeof window !== 'undefined' ? window.location.host : config.authDomain;
-  const app = getApps()[0] || initializeApp({ apiKey: config.apiKey, authDomain, projectId: config.projectId, appId: config.appId });
-  return getAuth(app);
-}
+const REFUSED = 'Sign-in was not allowed. Check the Gmail address and PIN, then try again.';
 
-const REFUSED = 'Sign-in was not allowed. Use the owner Google account in Chrome or Safari, then try again.';
-const FAILED = 'Sign-in did not complete. Open this page in Chrome or Safari (not inside another app) and try again.';
-
-export default function AdminApp({ firebase }) {
+export default function AdminApp() {
   const [view, setView] = useState('checking'); // checking | login | dashboard
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
@@ -34,6 +24,8 @@ export default function AdminApp({ firebase }) {
     if (result && result.requests) { setBilling(result); setBillingError(''); setBillingNotice(message || ''); }
   }, []);
   const [updated, setUpdated] = useState(null);
+  const [email, setEmail] = useState('');
+  const [pin, setPin] = useState('');
   const mounted = useRef(true);
 
   const load = useCallback(async () => {
@@ -62,24 +54,10 @@ export default function AdminApp({ firebase }) {
     }
   }, []);
 
-  // Returning from Google's redirect: exchange the Firebase result for the owner session cookie, then load.
+  // On open: if the owner session cookie is valid, load the dashboard; otherwise show the login form.
   useEffect(() => {
     mounted.current = true;
-    (async () => {
-      try {
-        const auth = clientAuth(firebase);
-        const result = await getRedirectResult(auth);
-        if (result && result.user) {
-          setBusy(true);
-          const idToken = await result.user.getIdToken(true);
-          const response = await fetch('/api/session', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ idToken }), cache: 'no-store', credentials: 'same-origin' });
-          if (!response.ok) { await signOut(auth).catch(() => {}); setError(REFUSED); setView('login'); setBusy(false); return; }
-        }
-      } catch {
-        if (mounted.current) setError(FAILED);
-      }
-      if (mounted.current) { setBusy(false); load(); }
-    })();
+    load();
     return () => { mounted.current = false; };
   }, [load]);
 
@@ -90,24 +68,39 @@ export default function AdminApp({ firebase }) {
     return () => clearInterval(timer);
   }, [view, load]);
 
-  async function signIn() {
+  async function signIn(event) {
+    event.preventDefault();
+    if (busy) return;
     setBusy(true); setError('');
+    let response = null;
     try {
-      const provider = new GoogleAuthProvider();
-      provider.setCustomParameters({ prompt: 'select_account' });
-      // Full-page redirect: works on phones where popups are blocked. The result is read on return.
-      await signInWithRedirect(clientAuth(firebase), provider);
+      response = await fetch('/api/session', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ email: email.trim(), pin }),
+        cache: 'no-store',
+        credentials: 'same-origin',
+      });
     } catch {
-      setError(FAILED);
-      setBusy(false);
+      response = null;
     }
+    setPin('');
+    if (!response) { setError('Sign-in is unavailable right now. Try again in a few minutes.'); setBusy(false); return; }
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({}));
+      setError(body.message || REFUSED);
+      setBusy(false);
+      return;
+    }
+    setBusy(false);
+    setView('checking');
+    load();
   }
 
   async function signOutAll() {
     setBusy(true);
-    await fetch('/api/session', { method: 'DELETE', cache: 'no-store' }).catch(() => {});
-    try { await signOut(clientAuth(firebase)); } catch {}
-    setData(null); setView('login'); setBusy(false);
+    await fetch('/api/session', { method: 'DELETE', cache: 'no-store', credentials: 'same-origin' }).catch(() => {});
+    setData(null); setEmail(''); setPin(''); setView('login'); setBusy(false);
   }
 
   if (view === 'checking') return <main className="wrap"><p className="muted">Checking access…</p></main>;
@@ -119,8 +112,13 @@ export default function AdminApp({ firebase }) {
           <h1>PinCraft Admin</h1>
           <p>Owner sign-in only.</p>
           {error && <p className="banner error" role="alert">{error}</p>}
-          <button className="btn primary" onClick={signIn} disabled={busy || !firebase.apiKey}>{busy ? 'Signing in…' : 'Sign in with Google'}</button>
-          {!firebase.apiKey && <p className="banner error" style={{ marginTop: 14 }}>Sign-in is not configured on this site.</p>}
+          <form onSubmit={signIn} noValidate>
+            <label htmlFor="admin-email">Gmail address</label>
+            <input id="admin-email" type="email" name="email" autoComplete="username" inputMode="email" autoCapitalize="none" spellCheck={false} required value={email} onChange={e => setEmail(e.target.value)} disabled={busy} />
+            <label htmlFor="admin-pin">4-digit PIN</label>
+            <input id="admin-pin" type="password" name="pin" autoComplete="current-password" inputMode="numeric" pattern="[0-9]{4}" maxLength={4} required value={pin} onChange={e => setPin(e.target.value.replace(/\D/g, '').slice(0, 4))} disabled={busy} />
+            <button className="btn primary" type="submit" disabled={busy}>{busy ? 'Signing in…' : 'Sign in'}</button>
+          </form>
         </div>
       </main>
     );

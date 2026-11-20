@@ -27,17 +27,18 @@ process.env.ADMIN_SESSION_SECRET = 'short';
 assert.throws(() => signSession(OWNER_EMAIL, UID, now), /too short/);
 process.env.ADMIN_SESSION_SECRET = 'x'.repeat(40);
 
-// Headers and rewrites: noindex everywhere, strict framing, no caching, Firebase handler proxied.
+// Headers: noindex everywhere, strict framing, no caching. No Firebase sign-in proxy any more.
 const cfg = (await import('../next.config.mjs')).default;
 const headerSet = (await cfg.headers())[0];
 const h = Object.fromEntries(headerSet.headers.map(x => [x.key, x.value]));
-assert.equal(headerSet.source, '/((?!__/).*)', 'headers exclude Firebase handler paths');
+assert.equal(headerSet.source, '/:path*', 'headers apply to every path');
 assert.match(h['X-Robots-Tag'], /noindex/);
 assert.equal(h['X-Frame-Options'], 'DENY');
 assert.match(h['Content-Security-Policy'], /frame-ancestors 'none'/);
 assert.match(h['Content-Security-Policy'], /default-src 'self'/);
 assert.match(h['Cache-Control'], /no-store/);
-const rewrites = await cfg.rewrites();
-assert.ok(rewrites.some(r => r.source === '/__/auth/:path*' && r.destination.startsWith('https://pincraft-ly.firebaseapp.com/')));
+assert.equal(cfg.rewrites, undefined, 'no Firebase sign-in proxy');
+assert.doesNotMatch(h['Content-Security-Policy'], /google|firebase/i, 'CSP allows no Google or Firebase origins');
+assert.equal(h['Cross-Origin-Opener-Policy'], 'same-origin');
 
 console.log('test-owner-session: all checks passed');
