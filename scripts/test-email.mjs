@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { LOGO_URL, SITE_URL } from '../lib/email/config.mjs';
 import { unsubscribeToken, verifyUnsubscribeToken, unsubscribeUrl } from '../lib/email/token.mjs';
 import { welcomeEmail, weeklyEmail, reengageEmail, firebaseVerificationTemplate, adminNewUserEmail, adminPaymentEmail } from '../lib/email/templates.mjs';
@@ -8,6 +8,7 @@ import { enqueue, outboxId, sendPending } from '../lib/email/outbox.mjs';
 import { buildRawMessage, consentUrl, newState, sendGmail, stateMatches, stateTag, verifyGrant } from '../lib/email/gmail.mjs';
 import { saveGmailGrant, loadGmailRefreshToken } from '../lib/email/gmail-store.mjs';
 import { SENDER_EMAIL } from '../lib/email/config.mjs';
+import { requestVerification, htmlForSend, dhakaHourKey, VERIFY_SUBJECT } from '../lib/email/verification.mjs';
 
 const tests = [];
 const check = (name, fn) => tests.push([name, fn]);
@@ -307,6 +308,116 @@ check('no Resend provider remains in the email code', () => {
   for (const file of ['lib/email/config.mjs', 'lib/email/outbox.mjs', 'lib/email/gmail.mjs', 'app/api/internal/email/tick/route.js']) {
     assert.doesNotMatch(readFileSync(new URL(`../${file}`, import.meta.url), 'utf8'), /resend/i, file);
   }
+});
+
+// ---- PinCraft-sent email verification (Firebase's own verification email is bypassed) ----
+function fakeAuth({ users = {}, tokens = {}, link = 'https://pincraftly.firebaseapp.com/__/auth/action?mode=verifyEmail&oobCode=abc123' } = {}) {
+  const calls = { links: [] };
+  return {
+    calls,
+    verifyIdToken: async (token) => { if (!tokens[token]) throw new Error('bad token'); return { uid: tokens[token] }; },
+    getUser: async (uid) => { if (!users[uid]) throw new Error('not found'); return users[uid]; },
+    generateEmailVerificationLink: async (email, settings) => { calls.links.push([email, settings]); return link; },
+  };
+}
+function fakeOutboxDb() {
+  const rows = new Map();
+  return {
+    rows,
+    collection: () => ({ doc: id => ({
+      create: async data => { if (rows.has(id)) { const e = new Error('exists'); e.code = 6; throw e; } rows.set(id, data); },
+    }) }),
+  };
+}
+const verifiedUser = { uid: 'uid_v', email: 'verified@example.com', emailVerified: true };
+const newUser = { uid: 'uid_n1', email: 'newuser@example.com', emailVerified: false, providerData: [{ providerId: 'password' }] };
+const T_NEW = 'token-new-user', T_VER = 'token-verified', T_FORGED = 'token-forged';
+const NOW = Date.parse('2026-11-20T08:30:00Z');
+
+check('verification: an unverified password user gets one English branded row for their own address', async () => {
+  const auth = fakeAuth({ users: { uid_n1: newUser }, tokens: { [T_NEW]: 'uid_n1' } });
+  const db = fakeOutboxDb();
+  const out = await requestVerification({ idToken: T_NEW, auth, db, now: NOW });
+  assert.deepEqual(out, { ok: true, verificationSent: true });
+  assert.equal(db.rows.size, 1);
+  const row = [...db.rows.values()][0];
+  assert.equal(row.to, 'newuser@example.com');
+  assert.equal(row.subject, VERIFY_SUBJECT);
+  assert.equal(row.template, 'verify');
+  assert.ok(row.html.includes(LOGO_URL), 'branded logo');
+  assert.ok(row.html.includes('Verify email'), 'English verify button');
+  assert.equal(row.html.split('%LINK%').length - 1, 3, 'stored html keeps the placeholders');
+  assert.equal(auth.calls.links.length, 0, 'no link is generated at enqueue time');
+});
+
+check('verification: an already verified user is refused and nothing is queued', async () => {
+  const auth = fakeAuth({ users: { uid_v: verifiedUser }, tokens: { [T_VER]: 'uid_v' } });
+  const db = fakeOutboxDb();
+  const out = await requestVerification({ idToken: T_VER, auth, db, now: NOW });
+  assert.deepEqual(out, { ok: false, verificationSent: false, verificationErrorCode: 'already_verified' });
+  assert.equal(db.rows.size, 0);
+});
+
+check('verification: a forged or other-project token is refused and the body cannot pick a recipient', async () => {
+  const auth = fakeAuth({ users: { uid_n1: newUser, uid_v: verifiedUser }, tokens: { [T_NEW]: 'uid_n1' } });
+  const db = fakeOutboxDb();
+  const forged = await requestVerification({ idToken: T_FORGED, auth, db, now: NOW });
+  assert.deepEqual(forged, { ok: false, verificationSent: false, verificationErrorCode: 'invalid_token' });
+  assert.equal(await requestVerification({ idToken: '', auth, db, now: NOW }).then(r => r.verificationErrorCode), 'invalid_token');
+  // A valid token for newUser: the stored recipient is newUser's own address, never another account's.
+  await requestVerification({ idToken: T_NEW, auth, db, now: NOW });
+  const recipients = [...db.rows.values()].map(r => r.to);
+  assert.deepEqual(recipients, ['newuser@example.com']);
+  assert.ok(!recipients.includes('verified@example.com'));
+});
+
+check('verification: a resend inside the same Dhaka hour is a duplicate, and the next hour is a fresh row', async () => {
+  const auth = fakeAuth({ users: { uid_n1: newUser }, tokens: { [T_NEW]: 'uid_n1' } });
+  const db = fakeOutboxDb();
+  assert.equal((await requestVerification({ idToken: T_NEW, auth, db, now: NOW })).verificationSent, true);
+  const again = await requestVerification({ idToken: T_NEW, auth, db, now: NOW + 5 * 60000 });
+  assert.deepEqual(again, { ok: true, verificationSent: false, alreadySent: true });
+  assert.equal(db.rows.size, 1, 'no second row inside the hour');
+  const nextHour = await requestVerification({ idToken: T_NEW, auth, db, now: NOW + 60 * 60000 });
+  assert.equal(nextHour.verificationSent, true);
+  assert.equal(db.rows.size, 2);
+  assert.equal(dhakaHourKey(Date.parse('2026-11-20T17:59:00Z')), '2026-11-20:23', 'Dhaka hour, not UTC');
+});
+
+check('verification: the tick sender replaces every %LINK% with a freshly generated Firebase link', async () => {
+  const auth = fakeAuth({ tokens: {} });
+  const row = { template: 'verify', to: 'newuser@example.com', subject: VERIFY_SUBJECT, html: firebaseVerificationTemplate() };
+  const html = await htmlForSend(row, { auth });
+  assert.equal(html.includes('%LINK%'), false, 'no placeholder may be sent');
+  assert.ok(html.includes('https://pincraftly.firebaseapp.com/__/auth/action'), 'real Firebase action URL');
+  assert.ok(html.includes('oobCode=abc123'), 'fresh oobCode in the link');
+  assert.deepEqual(auth.calls.links[0], ['newuser@example.com', { url: `${SITE_URL}/login`, handleCodeInApp: false }]);
+  // Non-verify rows are sent exactly as stored.
+  assert.equal(await htmlForSend({ template: 'welcome', html: '<p>x</p>' }, { auth }), '<p>x</p>');
+});
+
+check('verification: when link generation fails, the verify row is never sent with a placeholder', async () => {
+  const auth = { generateEmailVerificationLink: async () => { throw new Error('quota'); } };
+  const row = { template: 'verify', to: 'newuser@example.com', html: firebaseVerificationTemplate() };
+  await assert.rejects(htmlForSend(row, { auth }), /quota/);
+  const blank = { generateEmailVerificationLink: async () => '' };
+  await assert.rejects(htmlForSend(row, { auth: blank }), /verification_link_unavailable/);
+});
+
+check('verification: no sendEmailVerification call remains anywhere in the app code', () => {
+  const root = new URL('../', import.meta.url).pathname;
+  const hits = [];
+  const walk = dir => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      if (['node_modules', '.next', '.git', 'scripts', 'docs'].includes(entry.name)) continue;
+      const full = `${dir}/${entry.name}`;
+      if (entry.isDirectory()) walk(full);
+      else if (/\.(m?js|jsx?|tsx?|mjs)$/.test(entry.name) && readFileSync(full, 'utf8').includes('sendEmailVerification')) hits.push(full);
+    }
+  };
+  walk(root);
+  assert.deepEqual(hits, [], 'sendEmailVerification must not be called');
+  assert.ok(readFileSync(`${root}lib/firebase/client.js`, 'utf8').includes('/api/auth/send-verification'));
 });
 
 let passed = 0;

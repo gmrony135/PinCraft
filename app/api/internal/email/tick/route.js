@@ -5,6 +5,8 @@ import { cronSecret } from '@/lib/email/config.mjs';
 import { sendPending } from '@/lib/email/outbox.mjs';
 import { sendGmail } from '@/lib/email/gmail.mjs';
 import { loadGmailRefreshToken } from '@/lib/email/gmail-store.mjs';
+import { htmlForSend } from '@/lib/email/verification.mjs';
+import { firebaseAuth } from '@/lib/firebase/admin.mjs';
 import { applyPlan, planEmails } from '@/lib/email/planner.mjs';
 import { timingSafeEqual } from 'node:crypto';
 
@@ -32,7 +34,11 @@ export async function POST(request) {
     const queued = await applyPlan(db, plan, now);
     // Sends only when the Dream Boost Gmail grant is connected. Otherwise messages wait in the outbox.
     const refreshToken = await loadGmailRefreshToken(db);
-    const sender = refreshToken ? row => sendGmail({ refreshToken, to: row.to, subject: row.subject, html: row.html }) : null;
+    // Verify rows get a fresh Firebase link at send time (see verification.mjs). Other rows send their stored html.
+    const sender = refreshToken ? async row => {
+      const html = await htmlForSend(row, { auth: firebaseAuth() });
+      return sendGmail({ refreshToken, to: row.to, subject: row.subject, html });
+    } : null;
     const delivery = await sendPending(db, { now, sender });
     return json({
       ok: true,
