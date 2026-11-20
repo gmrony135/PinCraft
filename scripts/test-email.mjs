@@ -76,7 +76,7 @@ check('Firebase verification template keeps the %LINK% placeholder and the real 
   const html = firebaseVerificationTemplate();
   assert.ok(html.includes('href="%LINK%"'));
   assert.ok(html.includes(LOGO_URL));
-  assert.ok(html.includes('ইমেইল যাচাই করুন'));
+  assert.ok(html.includes('Verify email'));
   assert.ok(!html.includes('[object'), 'no broken interpolation');
 });
 
