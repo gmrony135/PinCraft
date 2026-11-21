@@ -36,7 +36,7 @@ async function fixture({enabled=true,quality,feedOptions={},aiOptions={},publish
  // Keep each synthetic fixture independent of the shared daily website counter;
  // dedicated quota tests below still exercise the real production limits.
  await db.doc(`pincraft_system/ai-${freeUsageDay()}`).delete();
- const f=await reviewedFixture(publishingOptions),time=new Date(f.now()+60*60000).toISOString().slice(11,16),settings={...basic,postingTimes:[time]},ai=automaticAI({quality,...aiOptions}),imageWaits=[];
+ const f=await reviewedFixture(publishingOptions),time=new Intl.DateTimeFormat('en-GB',{timeZone:'America/New_York',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(new Date(f.now()+60*60000)),settings={...basic,postingTimes:[time]},ai=automaticAI({quality,...aiOptions}),imageWaits=[];
  ai.dependencies.now=f.now;
  const livePosts=[
   {id:'123456789012301',title:'Balcony Container Garden Layout Ideas',url:'https://example.com/balcony-garden/container-layout-ideas',status:'LIVE',published:new Date(f.now()-5*86400000).toISOString(),labels:['balcony','container garden','gardening']},
@@ -47,7 +47,8 @@ async function fixture({enabled=true,quality,feedOptions={},aiOptions={},publish
  const raw={requestId:randomUUID(),expectedRevision:null,settings,enabled,consent:enabled};
  await saveBlogAutomation(db,f.uid,raw,{now:f.now(),...setup});
  const send=async(url,init)=>{isolatedFirebase();const endpoint=String(url);if(endpoint.startsWith('https://news.google.com/rss/search?'))return newsXML(f.now(),feedOptions);if(endpoint.startsWith('https://trends.google.com/trending/rss?'))return trendXML(f.now(),{relevant:false});return f.send(url,init);};
- const sleep=async duration=>{imageWaits.push(duration);f.advance(duration);};
+ // The text cooldown reads real time, so a simulated wait must also age the stored last request.
+ const sleep=async duration=>{imageWaits.push(duration);f.advance(duration);await clearCooldown(f.uid);};
  return {...f,settings,raw,ai,imageWaits,sleep,feedSend:send,process:extra=>processBlogAutomation(db,f.uid,{now:f.now,send,generationDependencies:ai.dependencies,sleep,...extra})};
 }
 async function clearCooldown(uid){const day=freeUsageDay(),ref=accountRef(db,uid).collection('aiUsage').doc(day);if((await ref.get()).exists)await ref.update({last_text_at:new Date(Date.now()-6000)});}
@@ -240,4 +241,40 @@ check('Marker-bound uncertain-draft inspection after pause recovers the ID but c
 check('Inspection-only ADMIN-list recovery after a post 404 cannot revive paused recurring publication authority',async()=>{
  const f=await fixture({publishingOptions:{draft:()=>{throw new AutomationError('network_error','Explicit local lost draft response',{uncertain:true});},get:()=>{throw new AutomationError('provider_request','Explicit local lookup 404',{upstreamStatus:404});}}}),job=await queue(f);await processPublishingJob(db,job.id,{uid:f.uid,send:f.send,now:f.now});await pause(f);const listsBeforeInspection=f.calls.list;
  const inspection=await reviewPublishingJob(db,f.uid,job.id,{action:'verify',remoteId:POST,inspected:true},{now:f.now(),send:f.send});assert.equal(inspection.job.inspection.source,'admin_list');assert.equal(inspection.job.remoteId,POST);assert.equal(f.calls.list-listsBeforeInspection,3);const result=await processPublishingJob(db,job.id,{uid:f.uid,send:f.send,now:f.now});assert.equal(result.job.error.code,'automation_authorization_changed');assert.equal(f.calls.draft,1);assert.equal(f.calls.publish,0);assert.equal(data(await db.collection('publish_jobs').doc(job.id).get()).reviewedAt,null);
+});
+
+check('An SEO-only article failure gets one repair pass fed with the exact failures, then continues through the normal gates to a queued job',async()=>{
+ const f=await fixture({aiOptions:{articleSeo:'repairable'}});
+ await queue(f);
+ const articleCalls=f.ai.calls.filter(c=>c.task==='article');
+ assert.equal(articleCalls.length,2,'exactly one repair request, no regenerate loop');
+ assert.equal(articleCalls[0].input.seoRepair,undefined,'the first request is the normal article request');
+ assert.ok(articleCalls[1].input.seoRepair.failures.some(m=>/secondaryKeywords/.test(m)),'the keyword failure is fed back');
+  assert.equal((await slots(f.uid))[0].state,'queued');
+});
+check('An SEO failure that survives the one repair is rejected as a quality gate that names the failing fields',async()=>{
+ const f=await fixture({aiOptions:{articleSeo:'always'}});
+ const result=await f.process();
+ assert.equal(result.state,'skipped',JSON.stringify(result));
+ const outcome=(await cfg(f.uid)).lastOutcome;
+ assert.equal(outcome.error.code,'automation_quality_gate');
+ assert.match(outcome.error.message,/After one SEO repair pass: at least 3 secondaryKeywords/);
+ assert.equal(f.ai.calls.filter(c=>c.task==='article').length,2,'one repair only');
+ assert.equal((await slots(f.uid))[0].state,'skipped');
+});
+check('A non-SEO gate failure beside an SEO failure is never repaired and skips on the first draft',async()=>{
+ const f=await fixture({aiOptions:{articleSeo:'repairable-with-placeholder'}});
+ const result=await f.process();
+ assert.equal(result.state,'skipped',JSON.stringify(result));
+ assert.equal(f.ai.calls.filter(c=>c.task==='article').length,1,'no repair request when a hard gate also fails');
+ assert.equal((await cfg(f.uid)).lastOutcome.error.code,'automation_quality_gate');
+});
+check('A sponsored headline in the live feed is never selected and its rejection is kept in the owner config with the exact reason',async()=>{
+ const f=await fixture({feedOptions:{sponsored:true}});
+ const first=await f.process();
+ assert.equal(first.state,'article_generated',JSON.stringify(first));
+ const config=await cfg(f.uid),logged=(config.rejectedTopics||[]).find(r=>/Sponsored/.test(r.title));
+ assert.ok(logged,'sponsored headline logged');
+ assert.match(logged.reason,/advertisement marker "Sponsored"/);
+ assert.ok(!/Sponsored/.test((await slots(f.uid))[0].evidence.topic),'the selected topic is not the sponsored headline');
 });

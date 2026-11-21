@@ -77,4 +77,12 @@ check('signup/verify screen shows the spam-folder notice only in the verify step
   assert.match(form, /Check your Spam or Promotions folder/);
 });
 
+check('expiry: both parts warn the link expires in 1 hour, and the button and fallback link are unchanged', () => {
+  const line = 'This link expires in 1 hour \u2014 please click it soon.';
+  assert.equal(html.split(line).length - 1, 1, 'html has the expiry line exactly once');
+  assert.equal(text.split(line).length - 1, 1, 'text part has the expiry line exactly once');
+  const verifyHrefs = [...html.matchAll(/href="([^"]*)"/g)].map(m => decodeAttr(m[1])).filter(h => h === LINK);
+  assert.equal(verifyHrefs.length, 2, 'button and printed fallback still point at the fresh link');
+  assert.match(html, /Verify email<\/a>/);
+});
 console.log(`\n${passed} verification-mail checks passed`);

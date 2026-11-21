@@ -4,9 +4,9 @@ import {AutomationError} from '../lib/automation/errors.mjs';
 import {rawQuality} from './ai-fixtures.mjs';
 import {isolatedFirebase} from './automation-fixtures.mjs';
 
-export function newsXML(now=Date.now(),{stale=false,irrelevant=false,singlePublisher=false,unsafe=false}={}){
+export function newsXML(now=Date.now(),{stale=false,irrelevant=false,singlePublisher=false,unsafe=false,sponsored=false}={}){
  const date=new Date(now-(stale?72:2)*3600000).toUTCString(),topic=unsafe?'Garden investment scam allegations':irrelevant?'Football match results this weekend':'Balcony garden container planting for compact homes';
- return '<rss><channel>'+['Studio Journal',singlePublisher?'Studio Journal':'Plant Review'].map((publisher,i)=>`<item><title>${topic}${i?' with a careful light plan':''} - ${publisher}</title><pubDate>${date}</pubDate><link>https://news.google.com/rss/articles/explicit-local-fixture-${i}</link><source url="https://example.com/">${publisher}</source></item>`).join('')+'</channel></rss>';
+ return '<rss><channel>'+['Studio Journal',singlePublisher?'Studio Journal':'Plant Review'].map((publisher,i)=>`<item><title>${topic}${i?' with a careful light plan':''} - ${publisher}</title><pubDate>${date}</pubDate><link>https://news.google.com/rss/articles/explicit-local-fixture-${i}</link><source url="https://example.com/">${publisher}</source></item>`).join('')+(sponsored?`<item><title>Sponsored: Balcony garden container planting kits - Partner Studio</title><pubDate>${date}</pubDate><link>https://news.google.com/rss/articles/explicit-local-fixture-sponsored</link><source url="https://example.com/">Partner Studio</source></item>`:'')+'</channel></rss>';
 }
 export function trendXML(now=Date.now(),{relevant=true,stale=false}={}){return `<rss xmlns:ht="https://trends.google.com/trending/rss"><channel><item><title>${relevant?'balcony garden containers':'unrelated sports final'}</title><pubDate>${new Date(now-(stale?72:1)*3600000).toUTCString()}</pubDate><ht:news_item><ht:news_item_title>${relevant?'Balcony garden container planting with a careful light plan':'Football match results tonight'}</ht:news_item_title><ht:news_item_url>https://example.com/explicit-fixture-signal</ht:news_item_url><ht:news_item_source>Explicit Synthetic Publisher</ht:news_item_source></ht:news_item></item></channel></rss>`;}
 
@@ -74,7 +74,17 @@ export const automaticQuality=()=>({...rawQuality,score:90,summary:'Explicit syn
 
 let pngPromise;
 const testPNG=()=>pngPromise||=(async()=>sharp({create:{width:640,height:480,channels:3,background:{r:78,g:124,b:83}}}).png().toBuffer())();
-export function automaticAI({quality=automaticQuality,hold=null,failImageAt=null}={}){
+// Test-only article variants. 'repairable': SEO fields are wrong on the first draft only (the repair pass fixes them).
+// 'always': SEO stays wrong. 'repairable-with-placeholder': SEO wrong plus a non-SEO placeholder (never repaired).
+function articleVariant(input,mode){
+ const article=automaticArticle(input.title);
+ const seoBroken={...article,secondaryKeywords:['vertical herb wall','drip tray','patio shade cloth','railing planter','window box']};
+ if(mode==='always')return seoBroken;
+ if(mode==='repairable'&&!input.seoRepair)return seoBroken;
+ if(mode==='repairable-with-placeholder'&&!input.seoRepair)return {...seoBroken,intro:article.intro+' TODO'};
+ return article;
+}
+export function automaticAI({quality=automaticQuality,hold=null,failImageAt=null,articleSeo=null}={}){
  const calls=[];let imageCalls=0;
  const send=async(url,init={})=>{
   isolatedFirebase();const endpoint=String(url);
@@ -84,7 +94,7 @@ export function automaticAI({quality=automaticQuality,hold=null,failImageAt=null
   if(endpoint!=='https://api.groq.com/openai/v1/chat/completions')throw new Error('Unexpected synthetic AI endpoint');
   const prompt=JSON.parse(init.body).messages[0].content,input=JSON.parse(prompt.split('Task data: ')[1]),task=prompt.includes('Create an original, practical, publish-ready blog article')?'article':'quality';calls.push({task,input});
   if(hold)await hold(task);
-  const result=task==='article'?automaticArticle(input.title):quality();
+  const result=task==='article'?articleVariant(input,articleSeo):quality();
   return {choices:[{finish_reason:'stop',message:{content:JSON.stringify(result)}}]};
  };
  const config={accountId:'a'.repeat(32),token:'isolated-cloudflare-token-fixture',models:['@cf/black-forest-labs/flux-1-schnell']};
