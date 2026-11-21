@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { generatePinPack } from "@/lib/generator";
+import { recordGenerationCompleted } from "@/lib/ads/vignette-frequency.mjs";
 import { saveToLibrary } from "@/lib/library";
 import { saveCloudDraft } from "@/lib/cloud-library";
 import { useAuth } from "../providers/AppProvider";
@@ -103,6 +104,7 @@ export default function PinGenerator() {
       }
       if (sequence !== generationRequest.current.sequence || identity.current !== owner) return;
       setPack(generated);
+      recordGenerationCompleted(); // Vignette trigger counter (pin packs and articles together)
       setArtworkPrompt(generated.imageIdea?.prompt || createPinArtworkPrompt(generated.topic || value));
       flash(mode === 'ai' ? 'AI Pin pack generated' : 'Offline pin template generated');
       await persistPinHistory(generated, requestKey, mode === 'ai', owner, sequence, alreadySaved);

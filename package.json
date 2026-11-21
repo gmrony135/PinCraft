@@ -30,7 +30,8 @@
     "test:library-history": "node --conditions=react-server scripts/check-library-history.mjs",
     "test:library-history:ui": "node --conditions=react-server scripts/check-library-history-ui.mjs",
     "test:ai-rotation": "node --conditions=react-server scripts/test-ai-rotation.mjs",
-    "test:ai:public-trends": "node --conditions=react-server scripts/test-ai-public-trends.mjs"
+    "test:ai:public-trends": "node --conditions=react-server scripts/test-ai-public-trends.mjs",
+    "test:vignette": "node tests/vignette-frequency.mjs && node tests/vignette-triggers.mjs"
   },
   "dependencies": {
     "firebase": "^13.3.0",

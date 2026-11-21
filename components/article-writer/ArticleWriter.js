@@ -11,6 +11,7 @@ import { saveCloudDraft } from "@/lib/cloud-library";
 import { useAuth } from "../providers/AppProvider";
 import { generateWithAI } from "@/lib/ai-client";
 import { GenerationReceipt, TrendingHint } from "../ai/GenerationMode";
+import { recordGenerationCompleted } from "@/lib/ads/vignette-frequency.mjs";
 import { handoffPin } from "@/lib/publishing/review-content.mjs";
 import {
   Sparkles,
@@ -173,7 +174,7 @@ export default function ArticleWriter() {
       }
       if (sequence !== generationRequest.current.sequence || identity.current !== owner) return;
       currentContent.current=generated.id;saveRequest.current=generated.libraryRequestKey;
-      setArticle(generated);setLoading(false);if(mode==='ai'){setImageMessage('Text ready. Images are still generating; please wait for all three.');}else flash('Offline article template generated');
+      setArticle(generated);recordGenerationCompleted();setLoading(false);if(mode==='ai'){setImageMessage('Text ready. Images are still generating; please wait for all three.');}else flash('Offline article template generated');
       setTimeout(() => resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
       try { await persistArticleDraft(generated, owner); } catch {}
       if(mode==='ai')await generateArticleImages(generated,owner);

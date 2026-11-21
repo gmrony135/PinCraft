@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/components/providers/AppProvider';
+import { recordMarketingPageView } from '@/lib/ads/vignette-frequency.mjs';
 
 const ZONES = {
   ipp: { id: '12287927', src: 'https://nap5k.com/tag.min.js' },
@@ -81,6 +82,7 @@ export default function MonetagAdManager() {
   const { user, authLoading, authUnavailable } = useAuth();
   const [documentProfile, setDocumentProfile] = useState(routeProfile(pathname));
   const previousPath = useRef(pathname);
+  const countedPath = useRef(null);
   const hasAuthenticatedContext = useRef(false);
   const [adConsent, setAdConsent] = useState(null);
   const [choicesReady, setChoicesReady] = useState(false);
@@ -158,6 +160,17 @@ export default function MonetagAdManager() {
     appendMonetagScript('ipp');
     if (mayLoadVignette) appendMonetagScript('vignette');
   }, [mayLoadSiteAds, mayLoadVignette]);
+
+  // Trigger-based Vignette (owner order 2026-11-21). Each eligible marketing page view counts once.
+  // A show queued by 2 completed generations or by 3 page views is consumed here, on the next
+  // marketing page. Generator pages never append ad code. /about gets the tag at trigger time;
+  // home already loads Vignette on every eligible visit, so nothing extra is appended there.
+  useEffect(() => {
+    if (!mayLoadSiteAds || countedPath.current === pathname) return;
+    countedPath.current = pathname;
+    const { show } = recordMarketingPageView(window.localStorage);
+    if (show && routeProfile(pathname) === 'about') appendMonetagScript('vignette');
+  }, [mayLoadSiteAds, pathname]);
 
   const chooseAdCookies = useCallback((choice) => {
     if (!saveStoredChoice(AD_CONSENT_KEY, choice)) {
