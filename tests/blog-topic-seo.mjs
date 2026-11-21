@@ -20,7 +20,8 @@ const FAILING_HEADLINE = 'FRIDAY, NOVEMBER 20, 2026 Ad - Saxony House Furniture'
 const GENUINE_HEADLINE = 'Small Living Room Storage Ideas That Make a Space Feel Bigger';
 
 let passed = 0;
-const check = (name, fn) => { fn(); passed++; console.log(`ok - ${name}`); };
+const queue = [];
+const check = (name, fn) => queue.push(async () => { await fn(); passed++; console.log(`ok - ${name}`); });
 
 let linkCounter = 0;
 const rss = items => `<rss><channel>${items.map(({ title, publisher, ageHours = 2 }) => `<item><title>${title} - ${publisher}</title><pubDate>${new Date(NOW - ageHours * 3600000).toUTCString()}</pubDate><link>https://news.google.com/rss/articles/blog-topic-fixture-${++linkCounter}</link><source url="https://example.com/">${publisher}</source></item>`).join('')}</channel></rss>`;
@@ -106,6 +107,101 @@ check('(d) when only ad headlines exist, the slot waits with category_trends_una
   });
 });
 
+const ASHLEY_EVENT = "Tennessee's largest Ashley Furniture store opens near West Town Mall";
+const EVENT_HEADLINES = [
+  ASHLEY_EVENT,
+  'Practical guide: ' + ASHLEY_EVENT,
+  "Bob's Discount Furniture shown for third Jacksonville location",
+  'Detroit Furniture Announces Availability of $2,999 Whole House Furniture Package in Metro Detroit',
+  'CB2 rolls out new retail concept in Flatiron showroom',
+  'West Town Knoxville Wholesale Furniture makes way for largest Ashley Furniture in Tennessee',
+  'Retired couple opens business selling clothing, furniture, antiques and more',
+  'Mortgage lender Rate launches DTC home furnishings brand',
+  'Blue Mountain Seniors Tour Ashley Furniture in Ripley',
+];
+const HOME_DECOR_GUIDES = [
+  'Living Room Storage Ideas for Small Apartments',
+  'Renter-Friendly Lighting Ideas for a Calm Bedroom',
+  'Entryway Organization Tips for Small Homes',
+  'Styling Open Shelves: A Beginner Guide',
+  'How to Choose a Rug for Your Living Room',
+];
+
+check('(e) the Ashley Furniture store-opening headline is rejected by the filter, with a reason naming the event wording', () => {
+  assert.match(guideTopicRejection(ASHLEY_EVENT), /news-event wording "opens"/);
+  assert.match(guideTopicRejection('Practical guide: ' + ASHLEY_EVENT), /news-event wording "opens"/);
+});
+
+check('(e) every dated store, launch, announcement or local-news headline in the set is rejected', () => {
+  for (const title of EVENT_HEADLINES) assert.notEqual(guideTopicRejection(title), null, `should be rejected: ${title}`);
+});
+
+check('(f) at least 3 genuine Home Decor guide topics pass the filter (here: 5)', () => {
+  const passing = HOME_DECOR_GUIDES.filter(title => guideTopicRejection(title) === null);
+  assert.ok(passing.length >= 3, `only ${passing.length} passed`);
+  assert.equal(passing.length, HOME_DECOR_GUIDES.length);
+});
+
+check('(f) the Ashley event is rejected by the feed parser; the guide next to it is kept', () => {
+  const rejected = [];
+  const items = parseCategoryNews(rss([{ title: ASHLEY_EVENT, publisher: 'Knox News' }, { title: HOME_DECOR_GUIDES[0], publisher: 'Home Journal' }]), SETTINGS, NOW, rejected);
+  assert.deepEqual(items.map(i => i.title), [HOME_DECOR_GUIDES[0]]);
+  assert.match(rejected[0].reason, /news-event wording/);
+});
+
+check('(e) a feed with only the Ashley event selects nothing and the slot waits', async () => {
+  const feed = rss([{ title: ASHLEY_EVENT, publisher: 'Knox News' }, { title: 'Furniture store opens new showroom', publisher: 'Local Post' }]);
+  const send = async url => (String(url).includes('news.google.com') ? feed : EMPTY_TRENDS);
+  await assert.rejects(selectCategoryTrend(SETTINGS, [], { send, now: NOW }), error => error.code === 'category_trends_unavailable');
+});
+
+check('(e) with the Ashley event ranked first by two publishers, the guide topic is still the one selected', async () => {
+  const feed = rss([
+    { title: ASHLEY_EVENT, publisher: 'Knox News' },
+    { title: ASHLEY_EVENT.replace('tennessee', 'Tennessee'), publisher: 'Tribune Local' },
+    { title: HOME_DECOR_GUIDES[0], publisher: 'Home Journal' },
+    { title: HOME_DECOR_GUIDES[0].replace('Small Apartments', 'Compact Homes'), publisher: 'Design Weekly' },
+  ]);
+  const send = async url => (String(url).includes('news.google.com') ? feed : EMPTY_TRENDS);
+  const selected = await selectCategoryTrend(SETTINGS, [], { send, now: NOW });
+  assert.doesNotMatch(selected.topic, /Ashley|store|opens/);
+  assert.match(selected.topic, /Living Room Storage Ideas/);
+});
+
+check('(e) the topic worker path (chooseTopic) never selects a rejected headline', async () => {
+  const { chooseTopic } = await import('../lib/automation/trends.mjs');
+  const xml = `<rss><channel>`
+    + [ASHLEY_EVENT, HOME_DECOR_GUIDES[0]].map(title => `<item><title>${title}</title><pubDate>${new Date(Date.now() - 3600000).toUTCString()}</pubDate></item>`).join('')
+    + `</channel></rss>`;
+  const emptyQuery = { where() { return this; }, orderBy() { return this; }, limit() { return this; }, async get() { return { docs: [] }; } };
+  const database = { collection: () => emptyQuery };
+  const send = async () => xml;
+  const account = { topic_source: 'google_trends', trend_region: 'US', user_id: 'test-user' };
+  const selected = await chooseTopic(account, { id: 'job-1', topic: '' }, database, send);
+  assert.equal(selected.topic, HOME_DECOR_GUIDES[0]);
+});
+
+check('(g) ordinary news with no guide cue is rejected by the feed parser, with a logged reason', () => {
+  const rejected = [];
+  const items = parseCategoryNews(rss([{ title: 'Windsor girl with genetic disability gifted new bedroom', publisher: 'WIVT' }, { title: 'Warm, dry fall could leave some garden plants stressed', publisher: 'WWMT' }]), { ...SETTINGS, categoryIds: ['home-decor', 'gardening-outdoor'] }, NOW, rejected);
+  assert.equal(items.length, 0);
+  assert.equal(rejected.length, 2);
+  assert.match(rejected[0].reason, /no guide cue/);
+});
+
+check('(g) a news-style "ahead of" or "shares" tip story is rejected as an event, not selected as a guide', () => {
+  assert.notEqual(guideTopicRejection('Red Cross shares cooking safety tips ahead of Thanksgiving'), null);
+  assert.match(guideTopicRejection('Red Cross shares cooking safety tips ahead of Thanksgiving'), /news-event wording/);
+});
+
+check('(g) a genuine how-to with a cue still passes the parser (the live Thanksgiving how-to)', () => {
+  const rejected = [];
+  const title = 'Thanksgiving food safety: How to avoid food poisoning while preparing your holiday meal';
+  const items = parseCategoryNews(rss([{ title, publisher: '13WMAZ' }]), { ...SETTINGS, categoryIds: ['food-recipes'] }, NOW, rejected);
+  assert.equal(items.length, 1);
+  assert.equal(rejected.length, 0);
+});
+
 // (c) SEO-field repair gate. Built through the real generator normalizer, as the existing suite does.
 const sourceTitle = 'Practical guide: Balcony garden container planting for compact homes';
 const evidence = { topicTokens: topicTokens('balcony garden container planting for compact homes'), categoryIds: ['gardening-outdoor'] };
@@ -145,4 +241,5 @@ check('(c) a non-SEO hard gate still rejects even when the SEO group is the only
   assert.throws(() => validateAutomaticArticle(badBoth, sourceTitle, evidence, { ...gate, skipSeo: true }), { code: 'automation_quality_gate' });
 });
 
+for (const run of queue) await run();
 console.log(`\nblog-topic-seo: ${passed} checks passed`);
