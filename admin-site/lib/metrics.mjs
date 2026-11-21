@@ -4,6 +4,7 @@ import { createHash } from 'node:crypto';
 import { auth, db } from './firebase.mjs';
 import { LIMITS, PROVIDERS } from './config.mjs';
 import { splitNewUsers } from './new-users.mjs';
+import { keySlotStatuses } from './key-slots.mjs';
 
 const DAY = 86400000;
 // Same day boundary as PinCraft's free plan: Asia/Dhaka (UTC+6), midnight reset.
@@ -128,6 +129,7 @@ export async function collectMetrics() {
     newUsers: fresh.map(row => ({ ...strip(row), usageToday: row.usageToday, usageTotal: row.usageTotal, pinQueueItems: row.pinQueueItems, pinQueuePostedToday: row.pinQueuePostedToday })),
     users: regular.map(strip),
     usage: rows.map(row => ({ uid: row.uid, name: row.name, email: row.email, usageToday: row.usageToday, usageTotal: row.usageTotal, lastActiveDay: row.lastActiveDay, pinQueueItems: row.pinQueueItems, pinQueuePostedToday: row.pinQueuePostedToday })),
+    keySlots: { day: today, recorded: Boolean(providerDay), providers: keySlotStatuses(providerDay) },
     providers: PROVIDERS.map(provider => {
       const counted = providerDay && Object.prototype.hasOwnProperty.call(providerDay, provider.id) ? Number(providerDay[provider.id]) : null;
       return {

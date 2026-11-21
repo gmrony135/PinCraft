@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import BillingReview from './BillingReview';
+import { KEY_STATUS_LABEL } from '../lib/key-slots.mjs';
 
 const REFRESH_MS = 30000;
 const NA = <span className="na">Not recorded</span>;
@@ -263,6 +264,29 @@ export default function AdminApp() {
           </table>
         </div>
         <p className="sub" style={{ marginTop: 8 }}>Shown instead: PinCraft’s own AI requests today are <strong>{fmt(s.aiRequestsToday)}</strong> (text {fmt(s.textRequestsToday)} + image {fmt(s.imageRequestsToday)}). Cost needs the provider billing dashboards.</p>
+      </section>
+
+      <section className="card" aria-labelledby="keys-h">
+        <h2 id="keys-h">Per-key AI usage today</h2>
+        <p className="sub">Every text key slot per provider (1–10). Slot numbers only: key values, tokens and account IDs are never shown. Counts start at this release. Resets at midnight Bangladesh time{data.keySlots?.day ? ` (today ${data.keySlots.day})` : ''}.</p>
+        {data.keySlots && !data.keySlots.recorded && <p className="sub">No key activity is recorded yet today, so every configured slot shows UNUSED.</p>}
+        <div className="table-scroll">
+          <table>
+            <thead><tr><th>Provider</th><th className="num">Slot</th><th>Status</th><th className="num">Calls today</th><th className="num">Limit hits today</th><th>Last limit hit (Dhaka)</th></tr></thead>
+            <tbody>
+              {(data.keySlots?.providers || []).flatMap(provider => provider.slots.map(slot => (
+                <tr key={`${provider.id}-${slot.slot}`}>
+                  <td>{provider.name}</td>
+                  <td className="num">{slot.slot}</td>
+                  <td><strong>{KEY_STATUS_LABEL[slot.status] || slot.status}</strong></td>
+                  <td className="num">{fmt(slot.calls)}</td>
+                  <td className="num">{fmt(slot.limitHits)}</td>
+                  <td>{slot.lastLimitedAt ? new Date(slot.lastLimitedAt).toLocaleString('en-GB', { timeZone: 'Asia/Dhaka' }) : NA}</td>
+                </tr>
+              )))}
+            </tbody>
+          </table>
+        </div>
       </section>
 
 

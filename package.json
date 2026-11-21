@@ -28,7 +28,8 @@
     "test:pinterest": "node --conditions=react-server --test scripts/test-pinterest-workflow.mjs",
     "test:trend-finder": "node --conditions=react-server --test scripts/test-trend-finder.mjs",
     "test:library-history": "node --conditions=react-server scripts/check-library-history.mjs",
-    "test:library-history:ui": "node --conditions=react-server scripts/check-library-history-ui.mjs"
+    "test:library-history:ui": "node --conditions=react-server scripts/check-library-history-ui.mjs",
+    "test:ai-rotation": "node --conditions=react-server scripts/test-ai-rotation.mjs"
   },
   "dependencies": {
     "firebase": "^13.3.0",
