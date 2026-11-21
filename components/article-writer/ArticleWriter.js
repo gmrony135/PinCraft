@@ -10,7 +10,7 @@ import { getLibrary, saveToLibrary } from "@/lib/library";
 import { saveCloudDraft } from "@/lib/cloud-library";
 import { useAuth } from "../providers/AppProvider";
 import { generateWithAI } from "@/lib/ai-client";
-import { GenerationReceipt } from "../ai/GenerationMode";
+import { GenerationReceipt, TrendingHint } from "../ai/GenerationMode";
 import { handoffPin } from "@/lib/publishing/review-content.mjs";
 import {
   Sparkles,
@@ -167,7 +167,7 @@ export default function ArticleWriter() {
       const topic = params.get('topic')?.slice(0, 160) || undefined;let generated;
       if (mode === 'ai') {
         const result = await generateWithAI('article', { title: value, ...(topic ? { topic } : {}), language, ...(length!=='auto'?{length}:{}) }, { signal: generationRequest.current.controller.signal });
-        generated = { ...result.result, generation: result.generation, images:[], imageStatus:'pending', imageError:'', libraryRequestKey:result.requestKey, cloudHistorySaved:result.library?.saved===true };
+        generated = { ...result.result, generation: result.generation, trendContext: result.trendContext || null, images:[], imageStatus:'pending', imageError:'', libraryRequestKey:result.requestKey, cloudHistorySaved:result.library?.saved===true };
       } else {
         await new Promise(resolve => requestAnimationFrame(resolve));generated = { ...generateArticle(value, topic), libraryRequestKey:crypto.randomUUID() };
       }
@@ -407,6 +407,7 @@ export default function ArticleWriter() {
             {article && !loading && (
               <div ref={resultRef} className="animate-fade-up mt-6 scroll-mt-20">
                 <GenerationReceipt generation={article.generation} />
+                <TrendingHint trendContext={article.trendContext} />
                 {saveError && <p role="alert" className="mb-4 rounded-xl border border-brand-100 bg-brand-50 p-3 text-[12px] leading-relaxed text-brand-800">{saveError} Your article is still on this page; use Save to retry.</p>}
                 <ArticleView article={article} />
                 {article.generation?.kind==='ai'&&<section className={`mt-4 rounded-2xl border p-4 sm:p-5 ${article.imageStatus==='complete'?'border-emerald-200 bg-emerald-50/40':'border-amber-200 bg-amber-50/50'}`} data-testid="article-image-status" aria-live="polite"><div className="flex items-start gap-3"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-white text-brand-700"><ImagePlus size={17} aria-hidden="true"/></span><div className="min-w-0 flex-1"><h2 className="text-[13px] font-extrabold">Three article images · {article.images?.length||0}/3 saved</h2><p className="mt-1 text-[11px] leading-relaxed text-neutral-600">{imageBusy?imageMessage:article.imageStatus==='complete'?'All three original AI images are stored privately and ready for publication review.':article.imageError||imageMessage||'The cover and two section images are required before publication. Per-account daily capacity, cooldowns and provider limits may affect image generation.'}</p>{article.imageStatus!=='complete'&&<button type="button" disabled={imageBusy||!user||!article.imageBriefs?.length} onClick={()=>generateArticleImages(article)} className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-xl border border-neutral-300 bg-white px-4 text-[11px] font-bold text-neutral-700 disabled:opacity-50">{imageBusy?<Loader2 size={14} className="animate-spin" aria-hidden="true"/>:<ImagePlus size={14} aria-hidden="true"/>}{imageBusy?'Generating image…':article.images?.length?'Generate missing image':'Generate three AI images'}</button>}</div></div></section>}

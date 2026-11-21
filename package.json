@@ -29,7 +29,8 @@
     "test:trend-finder": "node --conditions=react-server --test scripts/test-trend-finder.mjs",
     "test:library-history": "node --conditions=react-server scripts/check-library-history.mjs",
     "test:library-history:ui": "node --conditions=react-server scripts/check-library-history-ui.mjs",
-    "test:ai-rotation": "node --conditions=react-server scripts/test-ai-rotation.mjs"
+    "test:ai-rotation": "node --conditions=react-server scripts/test-ai-rotation.mjs",
+    "test:ai:public-trends": "node --conditions=react-server scripts/test-ai-public-trends.mjs"
   },
   "dependencies": {
     "firebase": "^13.3.0",

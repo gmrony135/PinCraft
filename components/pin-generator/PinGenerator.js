@@ -8,6 +8,7 @@ import { saveCloudDraft } from "@/lib/cloud-library";
 import { useAuth } from "../providers/AppProvider";
 import { generateWithAI } from "@/lib/ai-client";
 import ImageGenerator from "../ai/ImageGenerator";
+import { TrendingHint } from "../ai/GenerationMode";
 import { CATEGORIES } from "@/lib/product.mjs";
 import { handoffPin } from "@/lib/publishing/review-content.mjs";
 import {
@@ -94,7 +95,7 @@ export default function PinGenerator() {
       let generated, requestKey, alreadySaved = false;
       if (mode === 'ai') {
         const result = await generateWithAI('pin', { topic: value, language }, { signal: generationRequest.current.controller.signal });
-        generated = { ...result.result, generation: result.generation };
+        generated = { ...result.result, generation: result.generation, trendContext: result.trendContext || null };
         requestKey = result.requestKey; alreadySaved = result.library?.saved === true;
       } else {
         await new Promise(resolve => requestAnimationFrame(resolve));
@@ -257,6 +258,7 @@ export default function PinGenerator() {
               </p>
             </form>
             {pack && <section aria-label="Generated Pin ideas" data-testid="pin-ideas-result" className="mt-5 space-y-4 rounded-2xl border border-neutral-200 bg-white p-5">
+              <TrendingHint trendContext={pack.trendContext} />
               <h2 className="text-lg font-extrabold">Your Pin ideas</h2>
               <ol className="list-inside list-decimal space-y-2">{pack.titles.map((title,index)=><li key={index} className="text-sm font-bold">{title}</li>)}</ol>
               <h3 className="text-sm font-bold">Description</h3>
