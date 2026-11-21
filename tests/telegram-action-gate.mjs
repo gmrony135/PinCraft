@@ -88,7 +88,8 @@ await check('layout still mounts the prompt, but it renders nothing unless opene
 });
 await check('email-already-in-use wording and the Reload sign-in settings button', () => {
   const src = read('lib/firebase/client.js');
-  assert.ok(src.includes("'auth/email-already-in-use': 'An account with this email already exists. Please sign in, or reset your password to continue.'"));
+  assert.ok(src.includes("'auth/email-already-in-use': 'You already have an account with this email. Please sign in with your password — or reset your password if you forgot it.'"));
+  assert.ok(src.includes("'auth/account-exists-with-different-credential': 'This email already has an account, but with a different sign-in method. Please use the sign-in method you used when you created it.'"));
   assert.doesNotMatch(src, /This account could not be created/);
 });
 console.log(`\n${passed} Telegram action-gate checks passed`);
