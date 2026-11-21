@@ -30,6 +30,13 @@ export default function AccountForm({ onClose = () => {}, initialMode = "login",
   const setupRef = useRef(null);
   const active = useRef(true);
   useEffect(() => { active.current = true; return () => { active.current = false; }; }, []);
+  // Landing from the verification link: the email is verified (or the link could not be used). Show one clear notice.
+  useEffect(() => {
+    if (!standalone) return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("verified") === "1") setMessage("Your email is verified — please sign in.");
+    else if (params.get("verify") === "failed") setMessage("This verification link could not be used. Sign in with your password to request a new verification email.");
+  }, [standalone]);
   useEffect(() => {
     const controller = new AbortController();
     setConfig(null); setError("");
@@ -60,7 +67,8 @@ export default function AccountForm({ onClose = () => {}, initialMode = "login",
         else if (result.verificationRequired) {
           setVerification(true); setMode("login"); setConfirm("");
           if (result.verificationSent) setResendAt(Date.now() + 60000);
-          setMessage(result.verificationSent ? "Your account is ready for email verification. Open the verification link in your inbox, then sign in below. Check spam too. No signed-in session has been created yet." : result.accountCreated ? "Your account was created, but the verification email could not be sent. Do not register again. Enter your password below and choose Resend verification, or try again later." : result.verificationErrorCode ? "The verification email could not be sent. Your account still exists. Check the original email or try Resend again in a minute." : "Please verify your email before signing in. Open the original verification message, or request another below.");
+          if (result.verificationErrorCode === "cooldown") setResendAt(Date.now() + Math.max(1, Number(result.retryAfterSeconds) || 60) * 1000);
+          setMessage(result.verificationSent ? "Your account is ready for email verification. Open the verification link in your inbox, then sign in below. Check spam too. No signed-in session has been created yet." : result.verificationErrorCode === "cooldown" ? `A verification email was just requested. Please wait about ${Math.max(1, Number(result.retryAfterSeconds) || 60)} seconds, then try again. Check your Spam or Promotions folder too.` : result.accountCreated ? "Your account was created, but the verification email could not be sent. Do not register again. Enter your password below and choose Resend verification, or try again later." : result.verificationErrorCode ? "The verification email could not be sent. Your account still exists. Check the original email or try Resend again in a minute." : "Please verify your email before signing in. Open the original verification message, or request another below.");
           if (action === "signup") setPassword("");
         } else {
           await signIn(result.idToken, config.nonce);

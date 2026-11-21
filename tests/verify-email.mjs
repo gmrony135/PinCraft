@@ -12,9 +12,10 @@ const check = (name, fn) => { fn(); passed++; console.log(`ok - ${name}`); };
 const decodeAttr = value => value.replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'");
 let calls = 0;
 const auth = { generateEmailVerificationLink: async () => { calls++; return LINK; } };
-const row = { template: 'verify', to: 'newuser@example.com', subject: 'Verify your email for PinCraft', html: firebaseVerificationTemplate() };
+const SECRET = 'verify-email-test-secret-0123456789abcdef';
+const row = { template: 'verify', to: 'newuser@example.com', uid: 'uid_new', subject: 'Verify your email for PinCraft', html: firebaseVerificationTemplate() };
 
-const { html, text } = await messageForSend(row, { auth });
+const { html, text } = await messageForSend(row, { auth, secret: SECRET });
 
 check('button href is the same link as the printed fallback link', () => {
   const verifyHrefs = [...html.matchAll(/<a href="([^"]+)"/g)].map(m => decodeAttr(m[1])).filter(h => h.includes('oobCode'));
@@ -46,7 +47,7 @@ check('html keeps the in-page ignore notice and the placeholder-free result', ()
 check('non-verify rows are untouched and have no text part', async () => {
   const welcome = await messageForSend({ template: 'welcome', html: '<p>x</p>' }, { auth });
   assert.deepEqual(welcome, { html: '<p>x</p>' });
-  assert.equal(await htmlForSend(row, { auth }), html, 'htmlForSend still returns the html part');
+  assert.equal(await htmlForSend(row, { auth, secret: SECRET }), html, 'htmlForSend still returns the html part');
 });
 check('MIME: with text, multipart/alternative with text/plain first and text/html second, both decode exactly', () => {
   const raw = buildRawMessage({ to: 'newuser@example.com', subject: 'Verify your email for PinCraft', html, text });

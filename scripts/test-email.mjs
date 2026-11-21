@@ -8,12 +8,14 @@ import { enqueue, outboxId, sendPending } from '../lib/email/outbox.mjs';
 import { buildRawMessage, consentUrl, newState, sendGmail, stateMatches, stateTag, verifyGrant } from '../lib/email/gmail.mjs';
 import { saveGmailGrant, loadGmailRefreshToken } from '../lib/email/gmail-store.mjs';
 import { SENDER_EMAIL } from '../lib/email/config.mjs';
-import { requestVerification, htmlForSend, dhakaHourKey, VERIFY_SUBJECT } from '../lib/email/verification.mjs';
+import { requestVerification, htmlForSend, verificationStatus, VERIFY_SUBJECT } from '../lib/email/verification.mjs';
+import { completeVerifyLink, verifyLinkToken } from '../lib/email/verify-link.mjs';
 
 const tests = [];
 const check = (name, fn) => tests.push([name, fn]);
 const DAY = 86400000;
 const SECRET = 'test-secret-value-1234567890';
+const VERIFY_SECRET = 'verify-link-test-secret-0123456789abcdef';
 
 check('unsubscribe token verifies only for its uid and kind', () => {
   const t = unsubscribeToken('uid_abc', 'weekly', SECRET);
@@ -320,13 +322,29 @@ function fakeAuth({ users = {}, tokens = {}, link = 'https://pincraftly.firebase
     generateEmailVerificationLink: async (email, settings) => { calls.links.push([email, settings]); return link; },
   };
 }
+// In-memory stand-in for Firestore: email_outbox rows are exposed as `rows`; other collections live in `other`.
 function fakeOutboxDb() {
   const rows = new Map();
+  const other = new Map();
+  const ref = (col, id) => {
+    const map = col === 'email_outbox' ? rows : other;
+    const key = col === 'email_outbox' ? id : `${col}/${id}`;
+    return {
+      id, map, key,
+      get: async () => ({ exists: map.has(key), data: () => map.get(key) }),
+      create: async data => { if (map.has(key)) { const e = new Error('exists'); e.code = 6; throw e; } map.set(key, { ...data }); },
+      set: async data => { map.set(key, { ...data }); },
+      update: async patch => { Object.assign(map.get(key), patch); },
+    };
+  };
   return {
-    rows,
-    collection: () => ({ doc: id => ({
-      create: async data => { if (rows.has(id)) { const e = new Error('exists'); e.code = 6; throw e; } rows.set(id, data); },
-    }) }),
+    rows, other,
+    collection: col => ({ doc: id => ref(col, id) }),
+    runTransaction: async fn => fn({
+      get: r => r.get(),
+      set: (r, data) => { r.map.set(r.key, { ...data }); },
+      update: (r, patch) => { Object.assign(r.map.get(r.key), patch); },
+    }),
   };
 }
 const verifiedUser = { uid: 'uid_v', email: 'verified@example.com', emailVerified: true };
@@ -337,8 +355,8 @@ const NOW = Date.parse('2026-11-20T08:30:00Z');
 check('verification: an unverified password user gets one English branded row for their own address', async () => {
   const auth = fakeAuth({ users: { uid_n1: newUser }, tokens: { [T_NEW]: 'uid_n1' } });
   const db = fakeOutboxDb();
-  const out = await requestVerification({ idToken: T_NEW, auth, db, now: NOW });
-  assert.deepEqual(out, { ok: true, verificationSent: true });
+  const out = await requestVerification({ idToken: T_NEW, auth, db, now: NOW, secret: VERIFY_SECRET });
+  assert.deepEqual(out, { ok: true, verificationSent: true, sentNow: false }, 'queued, no grant connected: the tick will send it');
   assert.equal(db.rows.size, 1);
   const row = [...db.rows.values()][0];
   assert.equal(row.to, 'newuser@example.com');
@@ -356,7 +374,9 @@ check('verification: an already verified user is refused and nothing is queued',
   const db = fakeOutboxDb();
   const out = await requestVerification({ idToken: T_VER, auth, db, now: NOW });
   assert.deepEqual(out, { ok: false, verificationSent: false, verificationErrorCode: 'already_verified' });
+  assert.equal(verificationStatus('already_verified'), 409);
   assert.equal(db.rows.size, 0);
+  assert.equal(auth.calls.links.length, 0, 'no activation link is generated for a verified address');
 });
 
 check('verification: a forged or other-project token is refused and the body cannot pick a recipient', async () => {
@@ -372,37 +392,42 @@ check('verification: a forged or other-project token is refused and the body can
   assert.ok(!recipients.includes('verified@example.com'));
 });
 
-check('verification: a resend inside the same Dhaka hour is a duplicate, and the next hour is a fresh row', async () => {
+check('verification: a resend inside the 60-second cooldown is refused politely; after it, a fresh row is queued', async () => {
   const auth = fakeAuth({ users: { uid_n1: newUser }, tokens: { [T_NEW]: 'uid_n1' } });
   const db = fakeOutboxDb();
-  assert.equal((await requestVerification({ idToken: T_NEW, auth, db, now: NOW })).verificationSent, true);
-  const again = await requestVerification({ idToken: T_NEW, auth, db, now: NOW + 5 * 60000 });
-  assert.deepEqual(again, { ok: true, verificationSent: false, alreadySent: true });
-  assert.equal(db.rows.size, 1, 'no second row inside the hour');
-  const nextHour = await requestVerification({ idToken: T_NEW, auth, db, now: NOW + 60 * 60000 });
-  assert.equal(nextHour.verificationSent, true);
-  assert.equal(db.rows.size, 2);
-  assert.equal(dhakaHourKey(Date.parse('2026-11-20T17:59:00Z')), '2026-11-20:23', 'Dhaka hour, not UTC');
+  assert.equal((await requestVerification({ idToken: T_NEW, auth, db, now: NOW, secret: VERIFY_SECRET })).verificationSent, true);
+  const early = await requestVerification({ idToken: T_NEW, auth, db, now: NOW + 10000, secret: VERIFY_SECRET });
+  assert.deepEqual(early, { ok: false, verificationSent: false, verificationErrorCode: 'cooldown', retryAfterSeconds: 50 });
+  assert.equal(verificationStatus('cooldown'), 429);
+  assert.equal(db.rows.size, 1, 'nothing queued inside the cooldown');
+  const later = await requestVerification({ idToken: T_NEW, auth, db, now: NOW + 61000, secret: VERIFY_SECRET });
+  assert.equal(later.verificationSent, true, 'resend after the cooldown is queued');
+  assert.equal(db.rows.size, 2, 'a second, separate row');
+  const keys = [...db.rows.values()].map(r => r.key);
+  assert.notEqual(keys[0], keys[1], 'each send has its own key');
 });
 
 check('verification: the tick sender replaces every %LINK% with a freshly generated Firebase link', async () => {
   const auth = fakeAuth({ tokens: {} });
-  const row = { template: 'verify', to: 'newuser@example.com', subject: VERIFY_SUBJECT, html: firebaseVerificationTemplate() };
-  const html = await htmlForSend(row, { auth });
+  const row = { template: 'verify', to: 'newuser@example.com', uid: 'uid_n1', subject: VERIFY_SUBJECT, html: firebaseVerificationTemplate() };
+  const html = await htmlForSend(row, { auth, secret: VERIFY_SECRET });
   assert.equal(html.includes('%LINK%'), false, 'no placeholder may be sent');
   assert.ok(html.includes('https://pincraftly.firebaseapp.com/__/auth/action'), 'real Firebase action URL');
   assert.ok(html.includes('oobCode=abc123'), 'fresh oobCode in the link');
-  assert.deepEqual(auth.calls.links[0], ['newuser@example.com', { url: `${SITE_URL}/login`, handleCodeInApp: false }]);
+  const [linkEmail, linkSettings] = auth.calls.links[0];
+  assert.equal(linkEmail, 'newuser@example.com');
+  assert.equal(linkSettings.handleCodeInApp, false);
+  assert.ok(linkSettings.url.startsWith(`${SITE_URL}/api/auth/verify-link?t=uid_n1.`), 'continue URL is the PinCraft verify-link route, bound to the user');
   // Non-verify rows are sent exactly as stored.
   assert.equal(await htmlForSend({ template: 'welcome', html: '<p>x</p>' }, { auth }), '<p>x</p>');
 });
 
 check('verification: when link generation fails, the verify row is never sent with a placeholder', async () => {
   const auth = { generateEmailVerificationLink: async () => { throw new Error('quota'); } };
-  const row = { template: 'verify', to: 'newuser@example.com', html: firebaseVerificationTemplate() };
-  await assert.rejects(htmlForSend(row, { auth }), /quota/);
+  const row = { template: 'verify', to: 'newuser@example.com', uid: 'uid_n1', html: firebaseVerificationTemplate() };
+  await assert.rejects(htmlForSend(row, { auth, secret: VERIFY_SECRET }), /quota/);
   const blank = { generateEmailVerificationLink: async () => '' };
-  await assert.rejects(htmlForSend(row, { auth: blank }), /verification_link_unavailable/);
+  await assert.rejects(htmlForSend(row, { auth: blank, secret: VERIFY_SECRET }), /verification_link_unavailable/);
 });
 
 check('verification: no sendEmailVerification call remains anywhere in the app code', () => {
