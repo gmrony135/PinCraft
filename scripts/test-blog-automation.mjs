@@ -171,9 +171,18 @@ check('A nonpassing editorial review keeps the private draft and skips, never fa
 check('The editorial gate rejects any review/improve check even with a high score',()=>{
  for(const status of ['improve','review'])assert.equal(automaticEditorialReview({...automaticQuality(),score:100,checks:[...automaticQuality().checks,{label:'Claims',status,detail:'Not verified'}]}).passed,false);assert.equal(automaticEditorialReview({...automaticQuality(),score:81}).passed,false);assert.equal(automaticEditorialReview(automaticQuality()).passed,true);
 });
-check('Missing category evidence retries finitely and skips without any AI generation or fixed-topic fallback',async()=>{
- const f=await fixture({feedOptions:{irrelevant:true}});for(let i=0;i<3;i++){const result=await f.process();assert.equal(result.state,i===2?'skipped':'retry');f.advance(10*60000+1);}assert.equal(f.ai.calls.length,0);assert.equal((await listPublishingJobs(db,f.uid)).jobs.length,0);assert.equal((await slots(f.uid))[0].error.code,'category_trends_unavailable');
+check('Missing category evidence uses an unused evergreen topic instead of skipping the slot',async()=>{
+ const f=await fixture({feedOptions:{irrelevant:true}});
+ const result=await f.process();
+ assert.equal(result.state,'article_generated');
+ const slot=(await slots(f.uid))[0],current=await cfg(f.uid);
+ assert.equal(slot.evidence.evergreen,true);
+ assert.equal(slot.evidence.signal,'evergreen_guide');
+ assert.equal(f.ai.calls.filter(call=>call.task==='article').length,1);
+ assert.equal(current.evergreenUses.length,1);
+ assert.equal(current.evergreenUses[0].key,slot.evidence.topicKey);
 });
+
 check('The per-account text cap still stops recurring requests without offline substitution',async()=>{
  const f=await fixture(),day=new Date(f.now()+6*3600000).toISOString().slice(0,10),globalRef=accountRef(db,f.uid).collection('aiUsage').doc(day),previous=data(await globalRef.get());await globalRef.set({...previous,day,text:aiLimits().user.text,image:Number(previous?.image)||0,active:[]});
  try{const result=await f.process();assert.equal(result.state,'skipped');assert.equal(f.ai.calls.length,0);assert.equal((await slots(f.uid))[0].error.code,'ai_daily_limit');assert.equal((await listPublishingJobs(db,f.uid)).jobs.length,0);}finally{if(previous)await globalRef.set(previous);else await globalRef.delete();}
