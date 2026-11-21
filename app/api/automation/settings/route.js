@@ -1,3 +1,4 @@
+import { requireTelegramVerified } from '@/lib/showcase/gate.mjs';
 import { randomUUID } from 'node:crypto';
 import { apiError,automationResponse,json,preferencesInput,readBody,requireInfrastructure,sessionUser } from '@/lib/automation/api';
 import { getDatabase } from '@/lib/automation/db.mjs';
@@ -12,6 +13,7 @@ export const runtime='nodejs';export const dynamic='force-dynamic';export const 
 export async function POST(request){
   try{
     const user=await sessionUser(request,true),body=await readBody(request),db=getDatabase();
+    if(body.action!=='remove_ai'&&!(body.action==='mode'&&body.enabled===false))await requireTelegramVerified(db,user.id);
     if(body.action==='mode'){
       if(typeof body.enabled!=='boolean')throw new AutomationError('invalid_mode','Choose ON or OFF.');
       if(body.enabled){if(body.consent!==true)throw new AutomationError('consent_required','Confirm real scheduled publishing before enabling Auto Mode.');await requireInfrastructure();requireOAuthConfig('pinterest');const s=await getSettings(db,user.id);if(s?.posting_mode==='generated')requireOAuthConfig('blogger');}

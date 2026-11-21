@@ -1,3 +1,4 @@
+import { requireTelegramVerified } from '@/lib/showcase/gate.mjs';
 import { apiError,automationResponse,json,readBody,sessionUser } from '@/lib/automation/api';
 import { getDatabase } from '@/lib/automation/db.mjs';
 import { AutomationError } from '@/lib/automation/errors.mjs';
@@ -8,6 +9,7 @@ export const runtime='nodejs';export const dynamic='force-dynamic';export const 
 export async function POST(request){
   try{
     const user=await sessionUser(request,true),body=await readBody(request),db=getDatabase();
+    if(['queue','retry'].includes(body.action))await requireTelegramVerified(db,user.id);
     if(body.action==='queue')await addQueuedPin(db,user.id,queueInput(body));
     else if(body.action==='remove')await removeQueuedPin(db,user.id,body.jobId);
     else if(body.action==='retry'&&validJobId(body.jobId))await retryFailedJob(db,user.id,body.jobId);

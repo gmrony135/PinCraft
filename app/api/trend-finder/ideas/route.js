@@ -1,3 +1,4 @@
+import { requireTelegramVerified } from '@/lib/showcase/gate.mjs';
 import { apiError, json, readBody, sessionUser } from '@/lib/automation/api';
 import { getDatabase } from '@/lib/automation/db.mjs';
 import { validJobId } from '@/lib/automation/images.mjs';
@@ -18,6 +19,7 @@ export const maxDuration = 60;
 export async function POST(request) {
   try {
     const user = await sessionUser(request, true);
+    await requireTelegramVerified(getDatabase(), user.id);
     const body = await readBody(request, 2_000);
     const allowed = new Set(['task', 'requestKey', 'consent', 'region', 'trendId', 'language']);
     if (Object.keys(body).some(key => !allowed.has(key)) || body.task !== 'trend_ideas' || body.consent !== true || !validJobId(body.requestKey) || !TREND_FINDER_REGION_CODES.includes(body.region) || typeof body.trendId !== 'string' || !/^[a-f0-9]{64}$/.test(body.trendId) || !['en', 'bn'].includes(body.language || 'en')) {

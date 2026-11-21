@@ -1,3 +1,4 @@
+import { requireTelegramVerified } from '@/lib/showcase/gate.mjs';
 import { apiError, json, readBody, sessionUser } from '@/lib/automation/api';
 import { getDatabase } from '@/lib/automation/db.mjs';
 import { addPin, listQueue, markPosted, removePin } from '@/lib/pin-queue/queue.mjs';
@@ -20,6 +21,7 @@ export async function POST(request) {
     const user = await sessionUser(request, true);
     const body = await readBody(request, 8000);
     const db = getDatabase();
+    if (['add', 'posted'].includes(body.action)) await requireTelegramVerified(db, user.id);
     if (body.action === 'add') return json(await addPin(db, user.id, body));
     if (body.action === 'posted') return json(await markPosted(db, user.id, body.id));
     if (body.action === 'remove') return json(await removePin(db, user.id, body.id));

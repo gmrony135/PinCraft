@@ -1,3 +1,4 @@
+import { requireTelegramVerified } from '@/lib/showcase/gate.mjs';
 import { apiError, json, readBody, sessionUser } from '@/lib/automation/api';
 import { authSettings, readSession, SESSION_COOKIE } from '@/lib/auth-server';
 import { getDatabase } from '@/lib/automation/db.mjs';
@@ -11,7 +12,8 @@ export async function GET(request) {
 export async function POST(request) {
   try {
     const user = await sessionUser(request, true), body = await readBody(request), db = getDatabase();
-    if (body.action === 'add_website') await addWebsite(db, user.id, body);
+    if (body.action === 'add_website') await requireTelegramVerified(db, user.id);
+  if (body.action === 'add_website') await addWebsite(db, user.id, body);
     else if (body.action === 'remove_website') await removeWebsite(db, user.id, body);
     else if (body.action === 'save_automation') await saveAutomation(db, user.id, body);
     else if (body.action === 'toggle_automation') await toggleAutomation(db, user.id, body, await infrastructureStatus(authSettings().configured));

@@ -277,6 +277,7 @@ assert.doesNotMatch(popup, /Verify in Telegram|Join channel|Verify subscription/
 assert.match(popup, /\/api\/showcase\/telegram\/link/);
 assert.match(popup, /\/api\/showcase\/telegram\/recheck/);
 assert.doesNotMatch(popup, /stays until|until both are verified|must/i);
+assert.match(popup, /Not now/); assert.match(popup, /aria-label="Close"/); assert.doesNotMatch(popup, /data-testid="channel-showcase-check"/, 'no sign-in cover');
 // Bot reply carries the inline Join button only while the user still needs to join.
 {
   const db = fakeDb();

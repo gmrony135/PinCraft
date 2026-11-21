@@ -1,3 +1,4 @@
+import { requireTelegramVerified } from '@/lib/showcase/gate.mjs';
 import { apiError,json,readBody,sessionUser } from '@/lib/automation/api';
 import { getDatabase } from '@/lib/automation/db.mjs';
 import { AutomationError } from '@/lib/automation/errors.mjs';
@@ -24,6 +25,7 @@ export async function GET(request,{params}){
 }
 export async function POST(request,{params}){
  try{const user=await sessionUser(request,true),{path}=await params,key=path.join('/'),body=await readBody(request,145000),db=getDatabase();
+  if(key!=='automation/pause')await requireTelegramVerified(db,user.id);
   if(key==='jobs')return json(await createPublishingJob(db,user.id,body),201);
   if(key==='automation')return json(await saveBlogAutomation(db,user.id,body));
   if(key==='automation/pause')return json(await pauseBlogAutomation(db,user.id,body));

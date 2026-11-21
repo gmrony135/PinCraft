@@ -346,7 +346,8 @@ check('verification: an unverified password user gets one English branded row fo
   assert.equal(row.template, 'verify');
   assert.ok(row.html.includes(LOGO_URL), 'branded logo');
   assert.ok(row.html.includes('Verify email'), 'English verify button');
-  assert.equal(row.html.split('%LINK%').length - 1, 3, 'stored html keeps the placeholders');
+  assert.equal(row.html.split('href="%LINK%"').length - 1, 2, 'stored html keeps the button and fallback link placeholders');
+  assert.ok(!row.html.includes('>%LINK%<'), 'the placeholder is never shown as visible text');
   assert.equal(auth.calls.links.length, 0, 'no link is generated at enqueue time');
 });
 

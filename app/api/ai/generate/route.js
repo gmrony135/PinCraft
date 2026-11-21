@@ -1,3 +1,4 @@
+import { requireTelegramVerified } from '@/lib/showcase/gate.mjs';
 import { apiError, json, readBody, sessionUser } from '@/lib/automation/api';
 import { getDatabase } from '@/lib/automation/db.mjs';
 import { aiInput } from '@/lib/ai/tasks.mjs';
@@ -10,6 +11,7 @@ export const maxDuration = 180;
 export async function POST(request) {
   try {
     const user = await sessionUser(request, true);
+    await requireTelegramVerified(getDatabase(), user.id);
     const input = aiInput(await readBody(request, 64000));
     const db = getDatabase();
     // Current trends are inspiration only for Pin and Article text. Failures are silent: no trend, no change.

@@ -3,12 +3,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { CheckCircle2 } from "lucide-react";
 import { useAuth } from "@/components/providers/AppProvider";
+import { installTelegramWatcher } from "@/lib/showcase/telegram-watch";
+import { TELEGRAM_REQUIRED_EVENT } from "@/lib/showcase/telegram-required.mjs";
 
 export const TELEGRAM_URL = "https://t.me/pincraft_ai";
 
 const TG_PATH = "M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z";
 
-// Plain messages for each failure. These are service errors, never "not joined yet".
 const ERRORS = {
   network: "PinCraft could not reach the Telegram check. Check your connection and try again.",
   sign_in_required: "Your sign-in has ended. Sign in again to continue.",
@@ -24,19 +25,18 @@ function errorText(code) {
   return ERRORS[code] || ERRORS.unknown;
 }
 
-// Hard gate for signed-in users: until Telegram membership is verified by the server, the whole site
-// is covered. There is no close button and no way past it. Service errors show a message and a retry.
+// Action-time Telegram prompt. It opens only when the server refuses an action because Telegram
+// verification is missing. It is never a sign-in gate: it can be closed at any time and browsing continues.
 export default function ChannelShowcase() {
   const { user } = useAuth() || {};
   const uid = user?.id || null;
-  const [status, setStatus] = useState(null); // null = not loaded yet
-  const [error, setError] = useState(null); // service error code, or null
+  const [open, setOpen] = useState(false);
+  const [status, setStatus] = useState(null);
+  const [error, setError] = useState(null);
   const [linked, setLinked] = useState(false);
   const [busy, setBusy] = useState(false);
   const [waiting, setWaiting] = useState(false);
   const [celebrate, setCelebrate] = useState(false);
-  const [slow, setSlow] = useState(false);
-  const gatedRef = useRef(false);
   const lastCheck = useRef(0);
   const joined = status?.telegramJoined === true;
 
@@ -83,27 +83,40 @@ export default function ChannelShowcase() {
     await loadStatus();
   }, [recheck, loadStatus]);
 
-  // Load on sign-in, and check again whenever the user returns to this tab.
+  // Start the watcher once. Any refused action opens the prompt.
+  useEffect(() => {
+    installTelegramWatcher();
+  }, []);
+
   useEffect(() => {
     if (!uid) {
+      setOpen(false);
       setStatus(null);
       setError(null);
       setLinked(false);
       setCelebrate(false);
-      gatedRef.current = false;
       return undefined;
     }
-    refresh();
-    // Returning to the tab re-checks at most once every 30 seconds.
-    const onFocus = () => { if (Date.now() - lastCheck.current > 30000) refresh(); };
+    const onRequired = () => {
+      setOpen(true);
+      setCelebrate(false);
+      setWaiting(false);
+      setError(null);
+      refresh();
+    };
+    window.addEventListener(TELEGRAM_REQUIRED_EVENT, onRequired);
+    // Returning to the tab re-checks at most once every 30 seconds, but only while the prompt is open.
+    const onFocus = () => { if (open && Date.now() - lastCheck.current > 30000) refresh(); };
     window.addEventListener("focus", onFocus);
-    return () => window.removeEventListener("focus", onFocus);
-  }, [uid, refresh]);
+    return () => {
+      window.removeEventListener(TELEGRAM_REQUIRED_EVENT, onRequired);
+      window.removeEventListener("focus", onFocus);
+    };
+  }, [uid, open, refresh]);
 
-  // While not verified: check every 4 seconds for three minutes, then every 30 seconds. START and the
-  // channel join both show up here without a button press.
+  // While open and not verified: check every 4 seconds for three minutes, then every 30 seconds.
   useEffect(() => {
-    if (!uid || status === null || joined) return undefined;
+    if (!uid || !open || joined) return undefined;
     let ticks = 0;
     const timer = setInterval(() => {
       ticks += 1;
@@ -111,36 +124,36 @@ export default function ChannelShowcase() {
       refresh();
     }, 4000);
     return () => clearInterval(timer);
-  }, [uid, status, joined, refresh]);
+  }, [uid, open, joined, refresh]);
 
-  // A plain "checking" cover only if the first check is slow. The dialog is never shown until the
-  // server has said the account is not verified (or the check itself failed).
+  // Verified while the prompt is open: show the confirmation once.
   useEffect(() => {
-    if (!uid || status !== null || error) { setSlow(false); return undefined; }
-    const timer = setTimeout(() => setSlow(true), 1200);
-    return () => clearTimeout(timer);
-  }, [uid, status, error]);
+    if (open && joined) setCelebrate(true);
+  }, [open, joined]);
 
-  // Show the "Verified" confirmation only for someone who was gated in this session.
+  // Stop the page behind the prompt from scrolling while it is open.
   useEffect(() => {
-    if (status === null) return;
-    if (!joined) gatedRef.current = true;
-    else if (gatedRef.current) setCelebrate(true);
-  }, [status, joined]);
-
-  // Dialog: the server says not verified, a service failure with no status, or the Verified step.
-  // Cover only: the first check is still running and has been slow.
-  const dialogOpen = Boolean(uid) && ((status !== null && !joined) || (status === null && Boolean(error)) || celebrate);
-  const coverOpen = Boolean(uid) && status === null && !error && slow;
-  const gated = dialogOpen || coverOpen;
-
-  // Stop the page behind the gate from scrolling.
-  useEffect(() => {
-    if (!gated) return undefined;
+    if (!open) return undefined;
     const previous = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => { document.body.style.overflow = previous; };
-  }, [gated]);
+  }, [open]);
+
+  // Close with Escape.
+  useEffect(() => {
+    if (!open) return undefined;
+    const onKey = (event) => { if (event.key === "Escape") closePrompt(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  function closePrompt() {
+    setOpen(false);
+    setCelebrate(false);
+    setWaiting(false);
+    setError(null);
+  }
 
   // Opens the bot deep link. The server creates a single-use, 10-minute token tied to this account.
   async function joinAndVerify() {
@@ -163,33 +176,27 @@ export default function ChannelShowcase() {
     }
   }
 
-  if (!gated) return null;
-  if (coverOpen && !dialogOpen) {
-    return (
-      <div className="fixed inset-0 z-[90] flex items-center justify-center bg-neutral-900/70" data-testid="channel-showcase-check">
-        <p role="status" className="rounded-xl bg-white px-4 py-3 text-[13px] font-semibold text-neutral-800 shadow-2xl">Checking your Telegram membership...</p>
-      </div>
-    );
-  }
+  if (!uid || !open) return null;
 
   const checking = status === null && !error;
   const botReady = status?.telegram?.configured === true;
 
   return (
-    <div className="fixed inset-0 z-[90] overflow-y-auto bg-neutral-900/70" data-testid="channel-showcase">
+    <div className="fixed inset-0 z-[90] overflow-y-auto bg-neutral-900/70" data-testid="channel-showcase" onClick={(event) => { if (event.target === event.currentTarget) closePrompt(); }}>
       <div className="flex min-h-full items-center justify-center p-3">
         <div role="dialog" aria-modal="true" aria-labelledby="channel-showcase-title" aria-describedby="channel-showcase-body" className="relative w-full max-w-[420px] rounded-2xl border border-neutral-200 bg-white p-4 shadow-2xl sm:p-5">
+          <button type="button" aria-label="Close" onClick={closePrompt} className="absolute right-2 top-2 inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl text-[18px] font-bold text-neutral-500 hover:bg-neutral-100 focus:outline-none focus-visible:ring-4 focus-visible:ring-brand-100">×</button>
           {celebrate ? (
             <>
               <span className="inline-flex min-h-11 items-center gap-1.5 text-[13px] font-extrabold text-emerald-700"><CheckCircle2 size={18} aria-hidden="true" />Verified</span>
               <h2 id="channel-showcase-title" className="mt-1 text-[18px] font-extrabold leading-tight text-neutral-900">Telegram membership verified</h2>
               <p id="channel-showcase-body" className="mt-2 text-[13px] leading-relaxed text-neutral-600">Thank you for joining @pincraft_ai. You can use PinCraft now.</p>
-              <button type="button" onClick={() => setCelebrate(false)} className="mt-4 inline-flex min-h-11 w-full items-center justify-center rounded-xl bg-neutral-900 px-4 text-[13px] font-bold text-white hover:bg-neutral-700 focus:outline-none focus-visible:ring-4 focus-visible:ring-brand-100">Continue</button>
+              <button type="button" onClick={closePrompt} className="mt-4 inline-flex min-h-11 w-full items-center justify-center rounded-xl bg-neutral-900 px-4 text-[13px] font-bold text-white hover:bg-neutral-700 focus:outline-none focus-visible:ring-4 focus-visible:ring-brand-100">Continue</button>
             </>
           ) : (
             <>
-              <p className="text-[10px] font-extrabold uppercase tracking-[0.13em] text-brand-700">Required to continue</p>
-              <h2 id="channel-showcase-title" className="mt-1 text-[18px] font-extrabold leading-tight tracking-[-0.02em] text-neutral-900">Join PinCraft on Telegram</h2>
+              <p className="text-[10px] font-extrabold uppercase tracking-[0.13em] text-brand-700">Needed for this action</p>
+              <h2 id="channel-showcase-title" className="mt-1 pr-10 text-[18px] font-extrabold leading-tight tracking-[-0.02em] text-neutral-900">Join PinCraft on Telegram</h2>
               <p id="channel-showcase-body" className="mt-2 text-[13px] leading-relaxed text-neutral-600">
                 Tap Join &amp; Verify. Telegram opens the PinCraft bot: tap START, then tap Join @pincraft_ai in the bot chat. This screen updates by itself once you have joined.
               </p>
@@ -225,6 +232,7 @@ export default function ChannelShowcase() {
                   Try again
                 </button>
               ) : null}
+              <button type="button" onClick={closePrompt} className="mt-2 inline-flex min-h-11 w-full items-center justify-center rounded-xl px-4 text-[13px] font-bold text-neutral-600 hover:bg-neutral-100 focus:outline-none focus-visible:ring-4 focus-visible:ring-brand-100">Not now</button>
               <p className="mt-3 text-center text-[11px] text-neutral-500">Verification is checked by PinCraft&apos;s server. It cannot be set from this screen.</p>
             </>
           )}

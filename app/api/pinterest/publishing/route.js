@@ -1,3 +1,4 @@
+import { requireTelegramVerified } from '@/lib/showcase/gate.mjs';
 import { apiError, json, readBody, sessionUser } from '@/lib/automation/api';
 import { getDatabase } from '@/lib/automation/db.mjs';
 import { AutomationError } from '@/lib/automation/errors.mjs';
@@ -34,6 +35,7 @@ export async function GET(request) {
 export async function POST(request) {
   try {
     const user = await sessionUser(request, true);
+    await requireTelegramVerified(getDatabase(), user.id);
     const body = await readBody(request, 1000000);
     if (!exactKeys(body, ['action', 'requestId', 'title', 'description', 'destinationURL', 'imageDataUrl', 'consent', 'rememberDestination', 'jobId', 'confirmedSaved', 'pinURL', 'confirmedPublic', 'defaultDestinationURL'])) {
       throw new AutomationError('invalid_pin_request', 'The Pinterest workflow request contains unsupported fields.');

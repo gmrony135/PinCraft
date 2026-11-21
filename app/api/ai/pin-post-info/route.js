@@ -1,3 +1,4 @@
+import { requireTelegramVerified } from '@/lib/showcase/gate.mjs';
 import { apiError, json, readBody, sessionUser } from '@/lib/automation/api';
 import { getDatabase } from '@/lib/automation/db.mjs';
 import { archiveDraft, draftInput } from '@/lib/automation/drafts.mjs';
@@ -11,6 +12,7 @@ export const maxDuration = 60;
 export async function POST(request) {
   try {
     const user = await sessionUser(request, true), body = await readBody(request, 64_000), db = getDatabase();
+    await requireTelegramVerified(db, user.id);
     const input = await resolveSavedPinPostInfoInput(db, user.id, body);
     const result = await generatePinPostInfo(db, user.id, input);
     let library = { saved: false };

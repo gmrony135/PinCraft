@@ -77,6 +77,12 @@ check('signup/verify screen shows the spam-folder notice only in the verify step
   assert.match(form, /Check your Spam or Promotions folder/);
 });
 
+check('fallback is a short clickable link: no long URL shown as visible text in the html', () => {
+  assert.match(html, /<a href="[^"]*oobCode[^"]*" style="color:#be123c;">Verify my email<\/a>/);
+  assert.ok(!/>\s*https?:\/\//.test(html), 'no visible URL text in html');
+  assert.ok(!html.includes('>' + LINK), 'long link is not the visible text');
+  assert.ok(!html.includes('>%LINK%<'), 'no placeholder as visible text');
+});
 check('expiry: both parts warn the link expires in 1 hour, and the button and fallback link are unchanged', () => {
   const line = 'This link expires in 1 hour \u2014 please click it soon.';
   assert.equal(html.split(line).length - 1, 1, 'html has the expiry line exactly once');

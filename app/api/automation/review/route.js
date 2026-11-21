@@ -1,3 +1,4 @@
+import { requireTelegramVerified } from '@/lib/showcase/gate.mjs';
 import { apiError,automationResponse,json,readBody,sessionUser } from '@/lib/automation/api';
 import { getDatabase } from '@/lib/automation/db.mjs';
 import { AutomationError } from '@/lib/automation/errors.mjs';
@@ -9,6 +10,7 @@ export const runtime='nodejs';export const dynamic='force-dynamic';export const 
 export async function POST(request){
   try{
     const user=await sessionUser(request,true),body=await readBody(request);
+    if(body.action!=='abandon')await requireTelegramVerified(getDatabase(),user.id);
     if(!validJobId(body.jobId))throw new AutomationError('invalid_job','Choose a valid job to review.');
     const db=getDatabase();const saved=await getJob(db,body.jobId,user.id);const job=saved&&['attention','failed'].includes(saved.state)?saved:null;
     if(!job)throw new AutomationError('job_not_found','This review job was not found.',{status:404});

@@ -99,9 +99,11 @@ const popup = readFileSync(new URL('../components/onboarding/ChannelShowcase.js'
 assert.doesNotMatch(popup, /I joined|I subscribed|pinterest/i);
 assert.doesNotMatch(popup, /stays until|until both are verified|must/i, 'no mandatory wording in the popup copy');
 assert.match(popup, /Join &amp;|Join & Verify/); assert.doesNotMatch(popup, /data-auth-url|telegram-widget/, 'Telegram uses the bot deep link, no redirect or Login Widget');
-// Hard gate: full cover, modal, no close, no skip, no YouTube anywhere in the popup.
-assert.match(popup, /fixed inset-0 z-\[90\]/); assert.match(popup, /aria-modal="true"/);
-assert.doesNotMatch(popup, /aria-label="Close"|Skip for now|onClick=\{\(\) => setOpen\(false\)\}/, 'no close or skip escape');
+// Action-time prompt (order E): opens only on a refused action, is closable, and never a sign-in gate.
+assert.match(popup, /TELEGRAM_REQUIRED_EVENT/); assert.match(popup, /aria-modal="true"/);
+assert.match(popup, /aria-label="Close"/); assert.match(popup, /Not now/); assert.match(popup, /Escape/, 'closable with Escape');
+assert.doesNotMatch(popup, /Skip for now/, 'no skip wording');
+assert.match(popup, /if \(!uid \|\| !open\) return null;/, 'renders nothing unless opened by a refused action');
 assert.doesNotMatch(popup, /youtube|YouTube|PinCraftOfficial|Subscribe|subscri/i, 'popup has no YouTube logic');
 assert.doesNotMatch(popup, /Joining is optional|Skip|optional/i, 'joining is required in the popup');
 assert.ok(existsSync(new URL('../app/api/showcase/telegram/verify/route.js', import.meta.url).pathname));
