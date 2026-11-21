@@ -318,7 +318,7 @@ export default function AdminApp() {
                   <td>{p.name}</td>
                   <td className="num">{typeof p.requests === 'number' ? fmt(p.requests) : NA}</td>
                   <td className="num">{data.keySlots?.recorded ? fmt(hits[p.id] ?? 0) : NA}</td>
-                  <td className="muted" style={{ whiteSpace: 'normal' }}>{p.note}</td>
+                  <td className="muted" style={{ whiteSpace: 'normal', minWidth: 260, maxWidth: 360 }}>{p.note}</td>
                 </tr>
               ))}
             </tbody>
