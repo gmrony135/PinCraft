@@ -7,7 +7,8 @@
     "dev": "next dev -p 3200 -H 0.0.0.0",
     "build": "next build",
     "start": "next start -p ${PORT:-3000} -H 0.0.0.0",
-    "test:key-slots": "node scripts/test-key-slots.mjs"
+    "test:key-slots": "node scripts/test-key-slots.mjs",
+    "test:clarity": "node scripts/test-admin-clarity.mjs"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

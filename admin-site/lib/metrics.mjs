@@ -5,6 +5,7 @@ import { auth, db } from './firebase.mjs';
 import { LIMITS, PROVIDERS } from './config.mjs';
 import { splitNewUsers } from './new-users.mjs';
 import { keySlotStatuses } from './key-slots.mjs';
+import { shapeLists, yesterdayTotals } from './shape.mjs';
 
 const DAY = 86400000;
 // Same day boundary as PinCraft's free plan: Asia/Dhaka (UTC+6), midnight reset.
@@ -50,6 +51,7 @@ async function userRow(user, ctx) {
 
   const days = usageSnap.docs.map(doc => ({ day: doc.id, pinPacks: num(doc.get('pin_packs')), text: num(doc.get('text')), image: num(doc.get('image')) }));
   const today = days.find(day => day.day === ctx.today) || { pinPacks: 0, text: 0, image: 0 };
+  const usageYesterday = days.find(day => day.day === ctx.yesterday) || { pinPacks: 0, text: 0, image: 0 };
   const total = days.reduce((sum, day) => ({ pinPacks: sum.pinPacks + day.pinPacks, text: sum.text + day.text, image: sum.image + day.image }), { pinPacks: 0, text: 0, image: 0 });
   const active = days.filter(day => day.pinPacks + day.text + day.image > 0).map(day => day.day).sort();
   const lastActiveDay = active.at(-1) || null;
@@ -64,6 +66,7 @@ async function userRow(user, ctx) {
     telegramVerified: join?.get('telegramJoined') === true,
     usageToday: today,
     usageTotal: total,
+    usageYesterday,
     lastActiveDay,
     activeIn7: active.some(day => day >= ctx.day7),
     activeIn30: active.some(day => day >= ctx.day30),
@@ -75,6 +78,7 @@ async function userRow(user, ctx) {
 export async function collectMetrics() {
   const now = Date.now();
   const today = dayKey(now);
+  const yesterday = dayKey(now - DAY);
   const day7 = dayKey(now - 6 * DAY);
   const day30 = dayKey(now - 29 * DAY);
   const database = db();
@@ -88,7 +92,7 @@ export async function collectMetrics() {
     joinRefs.length ? database.getAll(...joinRefs) : [],
   ]);
   const ctx = {
-    database, today, day7, day30,
+    database, today, yesterday, day7, day30,
     subs: new Map(subSnaps.map((snap, i) => [keys[i], snap])),
     joins: new Map(joinSnaps.map((snap, i) => [users[i].uid, snap])),
   };
@@ -97,7 +101,7 @@ export async function collectMetrics() {
   rows.sort((a, b) => (b.joined || '').localeCompare(a.joined || ''));
   // Each user is in exactly one list: New (under 24h since registration) or the regular users list.
   const { fresh, regular } = splitNewUsers(rows, now);
-  const strip = ({ usageToday, usageTotal, activeIn7, activeIn30, pinQueueItems, pinQueuePostedToday, ...row }) => row;
+  const lists = shapeLists(fresh, regular, rows);
 
   const sum = (fn) => rows.reduce((total, row) => total + fn(row), 0);
   const jobsSnap = await database.collection('pincraft_jobs').select('state').get();
@@ -125,10 +129,11 @@ export async function collectMetrics() {
       imageRequestsToday: sum(row => row.usageToday.image),
       pinQueueItems: sum(row => row.pinQueueItems),
       pinQueuePostedToday: sum(row => row.pinQueuePostedToday),
+      yesterday: yesterdayTotals(rows),
     },
-    newUsers: fresh.map(row => ({ ...strip(row), usageToday: row.usageToday, usageTotal: row.usageTotal, pinQueueItems: row.pinQueueItems, pinQueuePostedToday: row.pinQueuePostedToday })),
-    users: regular.map(strip),
-    usage: rows.map(row => ({ uid: row.uid, name: row.name, email: row.email, usageToday: row.usageToday, usageTotal: row.usageTotal, lastActiveDay: row.lastActiveDay, pinQueueItems: row.pinQueueItems, pinQueuePostedToday: row.pinQueuePostedToday })),
+    newUsers: lists.newUsers,
+    users: lists.users,
+    usage: lists.usage,
     keySlots: { day: today, recorded: Boolean(providerDay), providers: keySlotStatuses(providerDay) },
     providers: PROVIDERS.map(provider => {
       const counted = providerDay && Object.prototype.hasOwnProperty.call(providerDay, provider.id) ? Number(providerDay[provider.id]) : null;

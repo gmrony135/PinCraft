@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import BillingReview from './BillingReview';
 import { KEY_STATUS_LABEL } from '../lib/key-slots.mjs';
+import { attentionItems, ALL_CLEAR, KEY_FILTERS, keyCounts, keyRows, matchesQuery, providerLimitHits, usageBarPercent, usageLevel } from '../lib/clarity.mjs';
 
 const REFRESH_MS = 30000;
 const NA = <span className="na">Not recorded</span>;
@@ -12,6 +13,24 @@ const ago = iso => { if (!iso) return '—'; const mins = Math.max(0, Math.round
 const clock = ms => new Date(ms).toLocaleTimeString('en-GB', { timeZone: 'Asia/Dhaka' });
 
 const REFUSED = 'Sign-in was not allowed. Check the Gmail address and PIN, then try again.';
+
+// Plain-language lines in Bengali. Headings and numbers stay English.
+const BN = {
+  attention: 'এক নজরে দেখুন কোন বিষয়ে নজর দরকার। লিংকে ট্যাপ করলে সেই অংশে যাবে।',
+  summary: 'আজকের মূল সংখ্যা। ছোট লেখায় আগের দিনের তুলনা।',
+  activity: 'গত ৭ ও ৩০ দিনে কতজন ব্যবহার করেছে, পিন কিউ এবং অটোমেশন জবের অবস্থা।',
+  newUsers: 'গত ২৪ ঘণ্টায় নতুন নিবন্ধিত ব্যবহারকারী এবং তাদের আজকের ব্যবহার।',
+  users: 'সব নিয়মিত ব্যবহারকারী, আজকের ব্যবহার সহ। নাম বা ইমেইল দিয়ে খুঁজুন।',
+  usage: 'প্রতিজনের আজকের ও মোট ব্যবহার। বার হলুদ মানে ৮০% পার হয়েছে, লাল মানে দৈনিক সীমা শেষ।',
+  api: 'প্রতিটি AI সেবায় আজ কতবার অনুরোধ গেছে এবং কতবার সীমায় আটকেছে।',
+  keys: 'কোন চাবি (slot) কতবার চলেছে, কোনটা সীমায় শেষ বা সেট করা নেই। চাবির মান কখনো দেখানো হয় না।',
+  payments: 'অপেক্ষমাণ পেমেন্ট যাচাই করে অনুমোদন বা বাতিল করুন। অনুমোদনের আগে বিকাশ বা নগদে লেনদেন নিশ্চিত করুন।',
+  notes: 'এই তথ্যগুলো কীভাবে পড়া হয়, তার নোট।',
+};
+
+const SECTIONS = [
+  ['summary', 'Summary'], ['new', 'New users'], ['users', 'Users'], ['usage', 'Usage'], ['keys', 'AI keys'], ['payments', 'Payments'],
+];
 
 export default function AdminApp() {
   const [view, setView] = useState('checking'); // checking | login | dashboard
@@ -27,6 +46,8 @@ export default function AdminApp() {
   const [updated, setUpdated] = useState(null);
   const [email, setEmail] = useState('');
   const [pin, setPin] = useState('');
+  const [query, setQuery] = useState('');
+  const [keyFilter, setKeyFilter] = useState('all');
   const mounted = useRef(true);
 
   const load = useCallback(async () => {
@@ -131,6 +152,15 @@ export default function AdminApp() {
 
   const s = data.summary;
   const L = data.limits;
+  const y = s.yesterday || { activeUsers: 0, pinPacks: 0, aiRequests: 0 };
+  const items = attentionItems({ data, billing, billingError });
+  const counts = keyCounts(data.keySlots?.providers || []);
+  const keys = keyRows(data.keySlots?.providers || [], keyFilter);
+  const hits = providerLimitHits(data.keySlots?.providers || []);
+  const newUsers = data.newUsers.filter(u => matchesQuery(u, query));
+  const users = data.users.filter(u => matchesQuery(u, query));
+  const usageRows = data.usage.filter(u => matchesQuery(u, query));
+
   return (
     <main className="wrap">
       <header className="top">
@@ -138,37 +168,62 @@ export default function AdminApp() {
           <h1>PinCraft Admin</h1>
           <div className="sub">Owner only · not indexed · Today (Asia/Dhaka): {data.today}</div>
         </div>
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+        <div className="head-actions">
           <span className="live"><span className="dot" />Live · auto-refresh 30s</span>
           <span className="sub">Last read {updated ? clock(updated) : '—'}</span>
-          <button className="btn" onClick={load} disabled={busy}>Refresh now</button>
-          <button className="btn" onClick={signOutAll} disabled={busy}>Sign out</button>
+          <button className="btn big" onClick={load} disabled={busy}>Refresh now</button>
+          <button className="btn big" onClick={signOutAll} disabled={busy}>Sign out</button>
         </div>
       </header>
 
+      <nav className="jump" aria-label="Sections">
+        {SECTIONS.map(([id, label]) => <a key={id} href={`#${id}`}>{label}</a>)}
+      </nav>
+
       {error && <div className="banner error" role="alert">{error}</div>}
 
-      <section className="grid" aria-label="Summary">
-        <Stat label="Total users" value={fmt(s.totalUsers)} hint="Registered accounts" />
-        <Stat label="Active users today" value={fmt(s.activeUsersToday)} hint="Any AI usage today" />
-        <Stat label="Pins generated today" value={fmt(s.pinPacksToday)} hint="Pin idea packs today" />
-        <Stat label="API requests today" value={fmt(s.aiRequestsToday)} hint="Text + image requests" />
+      <section className="attn" id="attention" aria-labelledby="attn-h">
+        <h2 id="attn-h">Attention needed</h2>
+        <p className="bn" lang="bn">{BN.attention}</p>
+        {items.length === 0 ? (
+          <p className="allclear">{ALL_CLEAR}</p>
+        ) : (
+          <ul className="attn-list">
+            {items.map(item => <li key={item.id} className={`attn-item ${item.tone}`}><a href={`#${item.target}`}>{item.text} <span aria-hidden="true">→</span></a></li>)}
+          </ul>
+        )}
       </section>
 
-      <section className="grid" aria-label="Activity">
+      <section id="summary" className="grid" aria-label="Summary">
+        <Stat label="Total users" value={fmt(s.totalUsers)} hint="Registered accounts" />
+        <Stat label="Active users today" value={fmt(s.activeUsersToday)} hint={`of ${fmt(s.totalUsers)} total · yesterday ${fmt(y.activeUsers)}`} />
+        <Stat label="Pins generated today" value={fmt(s.pinPacksToday)} hint={`Pin idea packs · yesterday ${fmt(y.pinPacks)}`} />
+        <Stat label="API requests today" value={fmt(s.aiRequestsToday)} hint={`Text + image · yesterday ${fmt(y.aiRequests)}`} />
+      </section>
+      <p className="bn section-line" lang="bn">{BN.summary}</p>
+
+      <section id="activity" className="grid" aria-label="Activity">
         <Stat label="Active 7 days" value={fmt(s.activeUsers7d)} hint="Users with AI usage" />
         <Stat label="Active 30 days" value={fmt(s.activeUsers30d)} hint="Users with AI usage" />
         <Stat label="Pin Queue items" value={fmt(s.pinQueueItems)} hint={`${fmt(s.pinQueuePostedToday)} posted today`} />
         <Stat label="Automation jobs" value={fmt(data.jobs.total)} hint={Object.entries(data.jobs.byState).map(([k, v]) => `${k}: ${v}`).join(' · ') || 'None'} />
       </section>
+      <p className="bn section-line" lang="bn">{BN.activity}</p>
 
-      <section className="card" aria-labelledby="new-h">
-        <h2 id="new-h">New users <span className="tag">registered in the last 24 hours · {fmt(data.newUsers.length)} · newest first · after 24 hours they move to Users below</span></h2>
+      <div className="search-row">
+        <label htmlFor="user-search" className="sr-only">Search users by name or email</label>
+        <input id="user-search" type="search" placeholder="Search name or email" value={query} onChange={e => setQuery(e.target.value)} autoComplete="off" spellCheck={false} />
+        {query && <span className="sub">Showing matches for “{query}” in the user tables</span>}
+      </div>
+
+      <section id="new" className="card" aria-labelledby="new-h">
+        <h2 id="new-h">New users <span className="tag">registered in the last 24 hours · {fmt(newUsers.length)}{query ? ` of ${fmt(data.newUsers.length)}` : ''} · newest first · after 24 hours they move to Users below</span></h2>
+        <p className="bn section-line" lang="bn">{BN.newUsers}</p>
         <div className="table-scroll">
-          <table>
+          <table className="freeze">
             <thead><tr><th>Name</th><th>Email</th><th>Registered</th><th>Last sign-in</th><th>Plan</th><th>Telegram verified</th><th className="num">Usage today (pin packs · text · image)</th><th className="num">Usage total (pin packs · text · image)</th></tr></thead>
             <tbody>
-              {data.newUsers.map(u => (
+              {newUsers.map(u => (
                 <tr key={u.uid}>
                   <td><span className="new-badge">NEW</span> {u.name}</td>
                   <td>{u.email || '—'}</td>
@@ -180,19 +235,20 @@ export default function AdminApp() {
                   <td className="num">{fmt(u.usageTotal.pinPacks)} · {fmt(u.usageTotal.text)} · {fmt(u.usageTotal.image)}</td>
                 </tr>
               ))}
-              {data.newUsers.length === 0 && <tr><td colSpan={8} className="muted">No new users in the last 24 hours.</td></tr>}
+              {newUsers.length === 0 && <tr><td colSpan={8} className="muted">{query ? 'No new user matches this search.' : 'No new users in the last 24 hours.'}</td></tr>}
             </tbody>
           </table>
         </div>
       </section>
 
-      <section className="card" aria-labelledby="users-h">
-        <h2 id="users-h">Users <span className="tag">{fmt(data.users.length)} regular · {fmt(data.summary.newUsers)} new shown above · plan = Free unless a paid plan is recorded</span></h2>
+      <section id="users" className="card" aria-labelledby="users-h">
+        <h2 id="users-h">Users <span className="tag">{fmt(users.length)}{query ? ` of ${fmt(data.users.length)}` : ''} regular · {fmt(data.summary.newUsers)} new shown above · plan = Free unless a paid plan is recorded</span></h2>
+        <p className="bn section-line" lang="bn">{BN.users}</p>
         <div className="table-scroll">
-          <table>
-            <thead><tr><th>Name</th><th>Email</th><th>Joined</th><th>Last sign-in</th><th>Plan</th><th>Telegram verified</th></tr></thead>
+          <table className="freeze">
+            <thead><tr><th>Name</th><th>Email</th><th>Joined</th><th>Last sign-in</th><th>Plan</th><th>Telegram verified</th><th className="num">Pin packs today</th><th className="num">Text today</th><th className="num">Image today</th></tr></thead>
             <tbody>
-              {data.users.map(u => (
+              {users.map(u => (
                 <tr key={u.uid}>
                   <td>{u.name}</td>
                   <td>{u.email || '—'}</td>
@@ -200,19 +256,23 @@ export default function AdminApp() {
                   <td>{when(u.lastSignIn)}</td>
                   <td>{u.plan}</td>
                   <td><span className={`pill ${u.telegramVerified ? 'yes' : 'no'}`}>{u.telegramVerified ? 'Yes' : 'No'}</span></td>
+                  <UsageCell value={u.usageToday?.pinPacks} limit={L.pinPacks} />
+                  <UsageCell value={u.usageToday?.text} limit={L.text} />
+                  <UsageCell value={u.usageToday?.image} limit={L.image} />
                 </tr>
               ))}
-              {data.users.length === 0 && <tr><td colSpan={6} className="muted">{data.summary.newUsers > 0 ? 'All registered users are shown in New users above.' : 'No users yet.'}</td></tr>}
+              {users.length === 0 && <tr><td colSpan={9} className="muted">{query ? 'No user matches this search.' : data.summary.newUsers > 0 ? 'All registered users are shown in New users above.' : 'No users yet.'}</td></tr>}
             </tbody>
           </table>
         </div>
       </section>
 
-      <section className="card" aria-labelledby="usage-h">
+      <section id="usage" className="card" aria-labelledby="usage-h">
         <h2 id="usage-h">Per-user usage <span className="tag">today against daily limits · totals since sign-up records</span></h2>
+        <p className="bn section-line" lang="bn">{BN.usage}</p>
         <p className="sub" style={{ margin: '4px 0 8px' }}>Limits per user per day: {L.pinPacks} pin packs · {L.text} text requests · {L.image} image requests. Articles are counted within text requests.</p>
         <div className="table-scroll">
-          <table>
+          <table className="freeze">
             <thead>
               <tr>
                 <th>User</th>
@@ -227,12 +287,12 @@ export default function AdminApp() {
               </tr>
             </thead>
             <tbody>
-              {data.usage.map(u => (
+              {usageRows.map(u => (
                 <tr key={u.uid}>
                   <td>{u.name}<div className="sub">{u.email || ''}</div></td>
-                  <td className="num">{over(u.usageToday.pinPacks, L.pinPacks)}</td>
-                  <td className="num">{over(u.usageToday.text, L.text)}</td>
-                  <td className="num">{over(u.usageToday.image, L.image)}</td>
+                  <UsageCell value={u.usageToday.pinPacks} limit={L.pinPacks} />
+                  <UsageCell value={u.usageToday.text} limit={L.text} />
+                  <UsageCell value={u.usageToday.image} limit={L.image} />
                   <td className="num">{fmt(u.usageTotal.pinPacks)}</td>
                   <td className="num">{fmt(u.usageTotal.text)}</td>
                   <td className="num">{fmt(u.usageTotal.image)}</td>
@@ -240,69 +300,87 @@ export default function AdminApp() {
                   <td>{u.lastActiveDay || '—'}</td>
                 </tr>
               ))}
-              {data.usage.length === 0 && <tr><td colSpan={9} className="muted">No usage yet.</td></tr>}
+              {usageRows.length === 0 && <tr><td colSpan={9} className="muted">{query ? 'No user matches this search.' : 'No usage yet.'}</td></tr>}
             </tbody>
           </table>
         </div>
       </section>
 
-      <section className="card" aria-labelledby="api-h">
+      <section id="api" className="card" aria-labelledby="api-h">
         <h2 id="api-h">AI provider usage</h2>
+        <p className="bn section-line" lang="bn">{BN.api}</p>
         <div className="table-scroll">
           <table>
-            <thead><tr><th>Provider</th><th className="num">Requests</th><th className="num">Cost</th><th>Note</th></tr></thead>
+            <thead><tr><th>Provider</th><th className="num">Requests today</th><th className="num">Limit hits today</th><th>Note</th></tr></thead>
             <tbody>
               {data.providers.map(p => (
                 <tr key={p.id}>
                   <td>{p.name}</td>
                   <td className="num">{typeof p.requests === 'number' ? fmt(p.requests) : NA}</td>
-                  <td className="num">{NA}</td>
+                  <td className="num">{data.keySlots?.recorded ? fmt(hits[p.id] ?? 0) : NA}</td>
                   <td className="muted" style={{ whiteSpace: 'normal' }}>{p.note}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-        <p className="sub" style={{ marginTop: 8 }}>Shown instead: PinCraft’s own AI requests today are <strong>{fmt(s.aiRequestsToday)}</strong> (text {fmt(s.textRequestsToday)} + image {fmt(s.imageRequestsToday)}). Cost needs the provider billing dashboards.</p>
+        <p className="sub" style={{ marginTop: 8 }}>PinCraft’s own AI requests today: <strong>{fmt(s.aiRequestsToday)}</strong> (text {fmt(s.textRequestsToday)} + image {fmt(s.imageRequestsToday)}).</p>
       </section>
 
-      <section className="card" aria-labelledby="keys-h">
+      <section id="keys" className="card" aria-labelledby="keys-h">
         <h2 id="keys-h">Per-key AI usage today</h2>
+        <p className="bn section-line" lang="bn">{BN.keys}</p>
+        <p className="key-summary" role="status">{counts.inUse} keys in use · {counts.atLimit} at limit · {counts.notSet} not set</p>
+        <div className="chips" role="group" aria-label="Filter keys">
+          {KEY_FILTERS.map(f => (
+            <button key={f.id} type="button" className="chip" aria-pressed={keyFilter === f.id} onClick={() => setKeyFilter(f.id)}>{f.label}</button>
+          ))}
+        </div>
         <p className="sub">Every text key slot per provider (1–10). Slot numbers only: key values, tokens and account IDs are never shown. Counts start at this release. Resets at midnight Bangladesh time{data.keySlots?.day ? ` (today ${data.keySlots.day})` : ''}.</p>
         {data.keySlots && !data.keySlots.recorded && <p className="sub">No key activity is recorded yet today, so every configured slot shows UNUSED.</p>}
         <div className="table-scroll">
-          <table>
+          <table className="freeze">
             <thead><tr><th>Provider</th><th className="num">Slot</th><th>Status</th><th className="num">Calls today</th><th className="num">Limit hits today</th><th>Last limit hit (Dhaka)</th></tr></thead>
             <tbody>
-              {(data.keySlots?.providers || []).flatMap(provider => provider.slots.map(slot => (
-                <tr key={`${provider.id}-${slot.slot}`}>
-                  <td>{provider.name}</td>
-                  <td className="num">{slot.slot}</td>
-                  <td><strong>{KEY_STATUS_LABEL[slot.status] || slot.status}</strong></td>
-                  <td className="num">{fmt(slot.calls)}</td>
-                  <td className="num">{fmt(slot.limitHits)}</td>
-                  <td>{slot.lastLimitedAt ? new Date(slot.lastLimitedAt).toLocaleString('en-GB', { timeZone: 'Asia/Dhaka' }) : NA}</td>
+              {keys.map(row => (
+                <tr key={`${row.provider}-${row.slot}`} className={row.status === 'LIMIT_FINISHED' ? 'row-limit' : undefined}>
+                  <td>{row.provider}</td>
+                  <td className="num">{row.slot}</td>
+                  <td><span className={`pill ${row.status === 'LIMIT_FINISHED' ? 'bad' : row.status === 'USED' ? 'ok' : 'no'}`}>{KEY_STATUS_LABEL[row.status] || row.status}</span></td>
+                  <td className="num">{fmt(row.calls)}</td>
+                  <td className="num">{fmt(row.limitHits)}</td>
+                  <td>{row.lastLimitedAt ? new Date(row.lastLimitedAt).toLocaleString('en-GB', { timeZone: 'Asia/Dhaka' }) : NA}</td>
                 </tr>
-              )))}
+              ))}
+              {keys.length === 0 && <tr><td colSpan={6} className="muted">No key matches this filter.</td></tr>}
             </tbody>
           </table>
         </div>
       </section>
 
+      <div id="payments">
+        <BillingReview billing={billing} error={billingError} notice={billingNotice} onUpdate={applyBilling} onError={setBillingError} />
+      </div>
 
-      <BillingReview billing={billing} error={billingError} notice={billingNotice} onUpdate={applyBilling} onError={setBillingError} />
-
-      <section className="card">
+      <section id="notes" className="card">
         <h2>Notes</h2>
+        <p className="bn section-line" lang="bn">{BN.notes}</p>
         <ul className="notes">{data.notes.map(n => <li key={n}>{n}</li>)}</ul>
       </section>
     </main>
   );
 }
 
-function over(value, limit) {
-  const text = `${fmt(value)} / ${limit}`;
-  return <span style={value >= limit ? { color: '#991b1b', fontWeight: 700 } : undefined}>{text}</span>;
+// One usage cell: exact "x / limit" plus a bar. Amber from 80%, red at the limit.
+function UsageCell({ value, limit }) {
+  const level = usageLevel(value, limit);
+  const pct = usageBarPercent(value, limit);
+  return (
+    <td className="num usage">
+      <div className={level === 'limit' ? 'usage-text limit' : level === 'warn' ? 'usage-text warn' : 'usage-text'}>{fmt(value)} / {limit}</div>
+      <div className={`bar ${level}`} role="img" aria-label={`${pct}% of the daily limit`}><span style={{ width: `${pct}%` }} /></div>
+    </td>
+  );
 }
 
 function Stat({ label, value, hint }) {

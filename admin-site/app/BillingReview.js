@@ -8,8 +8,9 @@ const noteOk = note => note.trim().length >= 5 && note.length <= 300 && !/[\u000
 
 export default function BillingReview({ billing, error, notice, onUpdate, onError }) {
   return (
-    <section className="card" aria-labelledby="billing-h">
+    <section className="card" aria-labelledby="billing-h" id="payments-section">
       <h2 id="billing-h">Payment reviews</h2>
+      <p className="bn section-line" lang="bn">অপেক্ষমাণ পেমেন্ট যাচাই করে অনুমোদন বা বাতিল করুন। অনুমোদনের আগে বিকাশ বা নগদে লেনদেন নিশ্চিত করুন।</p>
       <p className="sub">Approve only after checking the exact transaction and amount in your bKash or Nagad receiving account. Approve activates the subscription; reject closes the request. Every decision is recorded.</p>
       {error && <p className="banner error" role="alert">{error}</p>}
       {notice && <p className="banner info" role="status">{notice}</p>}
