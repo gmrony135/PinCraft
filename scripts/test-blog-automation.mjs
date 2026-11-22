@@ -304,6 +304,54 @@ check('A non-SEO gate failure beside an SEO failure is never repaired and skips 
  assert.equal(f.ai.calls.filter(c=>c.task==='article').length,1,'no repair request when a hard gate also fails');
  assert.equal((await cfg(f.uid)).lastOutcome.error.code,'automation_quality_gate');
 });
+// Editorial review fixtures: score and the status of the "Responsible advice" check.
+const editorialReview=(score,status='review')=>({...automaticQuality(),score,checks:automaticQuality().checks.map(c=>c.label==='Responsible advice'?{...c,status,detail:'Explicit synthetic check flagged for a caveat.'}:c)});
+// Advance the synthetic clock one step at a time until the slot leaves the active flow.
+async function driveSlot(f){for(let step=0;step<8;step++){const result=await f.process();if(['queued','skipped','blocked','retry'].includes(result.state))return result.state;f.advance(1100);await clearCooldown(f.uid);}return 'unfinished';}
+check('An editorial review at 82+ whose only issue is a review check repairs the article once, re-reviews and proceeds to a queued job',async()=>{
+ const reviews=[editorialReview(85),automaticQuality()];
+ const f=await fixture({quality:()=>reviews.shift()});
+ assert.equal(await driveSlot(f),'queued',JSON.stringify((await cfg(f.uid)).lastOutcome));
+ const articleCalls=f.ai.calls.filter(c=>c.task==='article');
+ assert.equal(articleCalls.length,2,'one normal draft plus exactly one editorial repair');
+ assert.equal(articleCalls[0].input.editorialRepair,undefined,'the first draft is the normal request');
+ assert.ok(articleCalls[1].input.editorialRepair.failures.some(x=>/Responsible advice|caveat/i.test(`${x.label} ${x.detail}`)),'the flagged check is fed back');
+ assert.equal(f.ai.calls.filter(c=>c.task==='quality').length,2,'the repaired article gets a fresh full review');
+ const slot=(await slots(f.uid))[0];
+ assert.equal(slot.editorialReviewBefore.score,85);assert.equal(slot.editorialReview.passed,true);assert.equal(slot.editorialRepairDone,true);
+ assert.equal((await listPublishingJobs(db,f.uid)).jobs.length,1);
+});
+check('If the repaired article still fails the editorial review, the slot is skipped and nothing is published',async()=>{
+ const reviews=[editorialReview(85),editorialReview(84,'improve')];
+ const f=await fixture({quality:()=>reviews.shift()});
+ assert.equal(await driveSlot(f),'skipped');
+ assert.equal(f.ai.calls.filter(c=>c.task==='article').length,2);
+ assert.equal(f.ai.calls.filter(c=>c.task==='quality').length,2);
+ assert.equal((await cfg(f.uid)).lastOutcome.error.code,'automation_quality_gate');
+ assert.equal((await listPublishingJobs(db,f.uid)).jobs.length,0,'no Blogger job was authorized');
+});
+check('A review below 82/100 is never repaired and skips on the first review without any repair request',async()=>{
+ const f=await fixture({quality:()=>editorialReview(76)});
+ assert.equal(await driveSlot(f),'skipped');
+ assert.equal(f.ai.calls.filter(c=>c.task==='article').length,1,'no repair request');
+ assert.equal(f.ai.calls.filter(c=>c.task==='quality').length,1);
+ const slot=(await slots(f.uid))[0];assert.equal(slot.editorialRepairRequestKey??null,null);
+ assert.equal((await cfg(f.uid)).lastOutcome.error.code,'automation_quality_gate');
+});
+check('A score of 82+ with a non-review check (improve) is a hard reject and is never repaired',async()=>{
+ const f=await fixture({quality:()=>editorialReview(88,'improve')});
+ assert.equal(await driveSlot(f),'skipped');
+ assert.equal(f.ai.calls.filter(c=>c.task==='article').length,1,'no repair request for a hard failure');
+ assert.equal((await cfg(f.uid)).lastOutcome.error.code,'automation_quality_gate','reached the editorial gate, not an invalid-output error');
+});
+check('The editorial repair runs at most once per slot even if the repaired review flags a review check again',async()=>{
+ const reviews=[editorialReview(85),editorialReview(85),editorialReview(90)];
+ const f=await fixture({quality:()=>reviews.shift()});
+ assert.equal(await driveSlot(f),'skipped');
+ assert.equal(f.ai.calls.filter(c=>c.task==='article').length,2,'exactly one repair, never a loop');
+ assert.equal(f.ai.calls.filter(c=>c.task==='quality').length,2,'the third review is never requested');
+ assert.equal(reviews.length,1);
+});
 check('A sponsored headline in the live feed is never selected and its rejection is kept in the owner config with the exact reason',async()=>{
  const f=await fixture({feedOptions:{sponsored:true}});
  const first=await f.process();
