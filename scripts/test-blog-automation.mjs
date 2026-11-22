@@ -13,7 +13,7 @@ import {generateForUser} from '../lib/ai/service.mjs';
 import {aiInput,textTask} from '../lib/ai/tasks.mjs';
 import {aiLimits} from '../lib/ai/config.mjs';
 import {freeUsageDay} from '../lib/free-plan.mjs';
-import {aiUsage} from '../lib/ai/usage.mjs';
+import {aiUsage,reserveAIRequest} from '../lib/ai/usage.mjs';
 import {blogAutomationSettings,nextBlogSlot,automationSlotId,exceedsRollingBlogLimit} from '../lib/publishing/blog-automation-policy.mjs';
 import {blogAutomationRef,blogSlotsRef,blogSlotRef} from '../lib/publishing/automation-contract.mjs';
 import {newsXML,trendXML,automaticAI,automaticQuality,automaticArticle} from './blog-automation-fixtures.mjs';
@@ -228,6 +228,32 @@ check('A failed editorial topic is remembered rather than regenerated into anoth
 
 check('Expired seven-day topic history cannot suppress an otherwise fresh current signal forever',async()=>{
  const f=await fixture(),e=await selectCategoryTrend(f.settings,[],{send:f.feedSend,now:f.now()});await blogAutomationRef(db,f.uid).update({recentTopics:[{key:e.topicKey,tokens:e.topicTokens,title:e.topic,at:new Date(f.now()-7*86400000-1)}]});assert.equal((await f.process()).state,'article_generated');assert.deepEqual(f.ai.calls.map(call=>call.task),['article','image','image','image']);assert.equal((await cfg(f.uid)).recentTopics.length,1);
+});
+check('An expired or unconfirmable article receipt starts one deliberate new request instead of skipping',async()=>{
+ const f=await fixture();let injected=false;const requests=[];
+ const generate=async(db,uid,input,deps)=>{requests.push({task:input.task,key:input.requestKey});if(input.task==='article'&&!injected){injected=true;throw new AutomationError('ai_request_finished','This request has finished, its private result expired or its result could not be confirmed. A deliberate new request is required; retries never silently repeat provider calls.',{status:409});}return generateForUser(db,uid,input,deps);};
+ const result=await f.process({generate});
+ assert.equal(result.state,'article_generated');
+ const articleKeys=requests.filter(r=>r.task==='article').map(r=>r.key);
+ assert.equal(articleKeys.length,2,'expected exactly one fresh article request after the stale receipt');
+ assert.notEqual(articleKeys[0],articleKeys[1]);
+ const slot=(await slots(f.uid))[0],current=await cfg(f.uid);
+ assert.equal(slot.articleRequestKey,articleKeys[1]);
+ assert.equal(f.ai.calls.filter(call=>call.task==='article').length,1,'the provider was called once, for the fresh request');
+ assert.notEqual(current.lastOutcome?.state,'skipped');
+});
+check('A confirmed article result proceeds with one request and no second request',async()=>{
+ const f=await fixture();const requests=[];
+ const generate=async(db,uid,input,deps)=>{requests.push({task:input.task,key:input.requestKey});return generateForUser(db,uid,input,deps);};
+ const result=await f.process({generate});
+ assert.equal(result.state,'article_generated');
+ assert.equal(requests.filter(r=>r.task==='article').length,1);
+});
+check('A text request lease outlives the 300-second tick function, so a live result is never treated as expired',async()=>{
+ const f=await fixture(),key=randomUUID();
+ await reserveAIRequest(db,f.uid,{requestKey:key,task:'article',fingerprint:'a'.repeat(64),kind:'text'},{now:f.now()});
+ const receipt=data(await accountRef(db,f.uid).collection('aiRequests').doc(key).get());
+ assert.ok(ms(receipt.lease_until)-f.now()>=300000,'text lease must cover maxDuration=300s');
 });
 check('The transactional publisher also rejects a seventh slot preceding six future reservations',async()=>{
  const f=await fixture();await f.process();const current=await cfg(f.uid),at=ms(current.nextSlotUTC),publicationReservations=Array.from({length:6},(_,i)=>({jobId:randomUUID(),at:new Date(at+(i+1)*2*3600000)}));await blogAutomationRef(db,f.uid).update({publicationReservations});f.advance(1100);await clearCooldown(f.uid);assert.equal((await f.process()).state,'skipped');assert.equal((await slots(f.uid))[0].error.code,'automation_daily_limit');assert.equal((await listPublishingJobs(db,f.uid)).jobs.length,0);
