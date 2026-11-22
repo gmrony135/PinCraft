@@ -330,13 +330,41 @@ check('If the repaired article still fails the editorial review, the slot is ski
  assert.equal((await cfg(f.uid)).lastOutcome.error.code,'automation_quality_gate');
  assert.equal((await listPublishingJobs(db,f.uid)).jobs.length,0,'no Blogger job was authorized');
 });
-check('A review below 82/100 is never repaired and skips on the first review without any repair request',async()=>{
- const f=await fixture({quality:()=>editorialReview(76)});
+check('A review below 70/100 is never repaired and skips on the first review without any repair request',async()=>{
+ const f=await fixture({quality:()=>editorialReview(69)});
  assert.equal(await driveSlot(f),'skipped');
  assert.equal(f.ai.calls.filter(c=>c.task==='article').length,1,'no repair request');
  assert.equal(f.ai.calls.filter(c=>c.task==='quality').length,1);
  const slot=(await slots(f.uid))[0];assert.equal(slot.editorialRepairRequestKey??null,null);
  assert.equal((await cfg(f.uid)).lastOutcome.error.code,'automation_quality_gate');
+});
+check('A 78/100 review whose only issue is a review check repairs once, re-reviews and proceeds to a queued job',async()=>{
+ const reviews=[editorialReview(78),automaticQuality()];
+ const f=await fixture({quality:()=>reviews.shift()});
+ assert.equal(await driveSlot(f),'queued',JSON.stringify((await cfg(f.uid)).lastOutcome));
+ const articleCalls=f.ai.calls.filter(c=>c.task==='article');
+ assert.equal(articleCalls.length,2,'one normal draft plus exactly one editorial repair');
+ assert.equal(articleCalls[0].input.editorialRepair,undefined,'the first draft is the normal request');
+ assert.ok(articleCalls[1].input.editorialRepair.failures.some(x=>/Responsible advice|caveat/i.test(`${x.label} ${x.detail}`)),'the flagged check is fed back');
+ assert.equal(f.ai.calls.filter(c=>c.task==='quality').length,2,'the repaired article gets a fresh full review');
+ const slot=(await slots(f.uid))[0];
+ assert.equal(slot.editorialReviewBefore.score,78);assert.equal(slot.editorialReview.passed,true);assert.equal(slot.editorialRepairDone,true);
+ assert.equal((await listPublishingJobs(db,f.uid)).jobs.length,1);
+});
+check('If a repaired 78/100 article still fails the editorial review, the slot is skipped and nothing is published',async()=>{
+ const reviews=[editorialReview(78),editorialReview(79)];
+ const f=await fixture({quality:()=>reviews.shift()});
+ assert.equal(await driveSlot(f),'skipped');
+ assert.equal(f.ai.calls.filter(c=>c.task==='article').length,2);
+ assert.equal(f.ai.calls.filter(c=>c.task==='quality').length,2);
+ assert.equal((await cfg(f.uid)).lastOutcome.error.code,'automation_quality_gate');
+ assert.equal((await listPublishingJobs(db,f.uid)).jobs.length,0,'no Blogger job was authorized');
+});
+check('A 78/100 review with a non-review check (improve) is a hard reject and is never repaired',async()=>{
+ const f=await fixture({quality:()=>editorialReview(78,'improve')});
+ assert.equal(await driveSlot(f),'skipped');
+ assert.equal(f.ai.calls.filter(c=>c.task==='article').length,1,'no repair request for a hard failure');
+ assert.equal((await cfg(f.uid)).lastOutcome.error.code,'automation_quality_gate','reached the editorial gate, not an invalid-output error');
 });
 check('A score of 82+ with a non-review check (improve) is a hard reject and is never repaired',async()=>{
  const f=await fixture({quality:()=>editorialReview(88,'improve')});
