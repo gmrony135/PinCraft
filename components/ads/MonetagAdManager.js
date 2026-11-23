@@ -14,7 +14,7 @@ const AD_CONSENT_KEY = 'pincraft.monetag-consent.v1';
 const CONSENT_VERSION = 2;
 const CONSENT_TTL_MS = 180 * 24 * 60 * 60 * 1000;
 const PREFS_EVENT = 'pincraft:manage-monetag-preferences';
-const ROUTE_PROFILES = new Map([['/', 'home'], ['/about', 'about']]);
+const ROUTE_PROFILES = new Map([['/', 'home'], ['/about', 'about'], ['/how-to-work', 'how-to-work'], ['/subscription', 'subscription']);
 
 function normalizePathname(pathname = '/') {
   const normalized = String(pathname).split(/[?#]/, 1)[0].replace(/\/+$/, '');
