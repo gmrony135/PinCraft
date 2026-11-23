@@ -76,15 +76,18 @@ let pngPromise;
 const testPNG=()=>pngPromise||=(async()=>sharp({create:{width:640,height:480,channels:3,background:{r:78,g:124,b:83}}}).png().toBuffer())();
 // Test-only article variants. 'repairable': SEO fields are wrong on the first draft only (the repair pass fixes them).
 // 'always': SEO stays wrong. 'repairable-with-placeholder': SEO wrong plus a non-SEO placeholder (never repaired).
-function articleVariant(input,mode){
+function articleVariant(input,mode,repairMode){
  const article=automaticArticle(input.title);
+ // Editorial-repair variants: only the repair call (input.editorialRepair) changes headings.
+ if(input.editorialRepair&&repairMode==='changed-headings')return {...article,sections:article.sections.map((section,index)=>index===0?{...section,heading:'Choose plants and containers that fit your space'}:section)};
+ if(input.editorialRepair&&repairMode==='trivial-heading-change')return {...article,sections:article.sections.map((section,index)=>index===0?{...section,heading:`${section.heading.toUpperCase()}  `}:section)};
  const seoBroken={...article,secondaryKeywords:['vertical herb wall','drip tray','patio shade cloth','railing planter','window box']};
  if(mode==='always')return seoBroken;
  if(mode==='repairable'&&!input.seoRepair)return seoBroken;
  if(mode==='repairable-with-placeholder'&&!input.seoRepair)return {...seoBroken,intro:article.intro+' TODO'};
  return article;
 }
-export function automaticAI({quality=automaticQuality,hold=null,failImageAt=null,articleSeo=null}={}){
+export function automaticAI({quality=automaticQuality,hold=null,failImageAt=null,articleSeo=null,articleRepair=null}={}){
  const calls=[];let imageCalls=0;
  const send=async(url,init={})=>{
   isolatedFirebase();const endpoint=String(url);
@@ -94,7 +97,7 @@ export function automaticAI({quality=automaticQuality,hold=null,failImageAt=null
   if(endpoint!=='https://api.groq.com/openai/v1/chat/completions')throw new Error('Unexpected synthetic AI endpoint');
   const prompt=JSON.parse(init.body).messages[0].content,input=JSON.parse(prompt.split('Task data: ')[1]),task=prompt.includes('Create an original, practical, publish-ready blog article')?'article':'quality';calls.push({task,input});
   if(hold)await hold(task);
-  const result=task==='article'?articleVariant(input,articleSeo):quality();
+  const result=task==='article'?articleVariant(input,articleSeo,articleRepair):quality();
   return {choices:[{finish_reason:'stop',message:{content:JSON.stringify(result)}}]};
  };
  const config={accountId:'a'.repeat(32),token:'isolated-cloudflare-token-fixture',models:['@cf/black-forest-labs/flux-1-schnell']};
