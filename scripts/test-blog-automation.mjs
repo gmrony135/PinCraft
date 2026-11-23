@@ -366,7 +366,6 @@ check('A 78/100 review with a non-review check (improve) is a hard reject and is
  assert.equal(f.ai.calls.filter(c=>c.task==='article').length,1,'no repair request for a hard failure');
  assert.equal((await cfg(f.uid)).lastOutcome.error.code,'automation_quality_gate','reached the editorial gate, not an invalid-output error');
 });
-
 check('A repair that rewords a section heading skips on the layout gate and publishes nothing',async()=>{
   const reviews=[editorialReview(78),automaticQuality()];
  const f=await fixture({quality:()=>reviews.shift(),aiOptions:{articleRepair:'changed-headings'}});
