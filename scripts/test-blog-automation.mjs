@@ -366,7 +366,22 @@ check('A 78/100 review with a non-review check (improve) is a hard reject and is
  assert.equal(f.ai.calls.filter(c=>c.task==='article').length,1,'no repair request for a hard failure');
  assert.equal((await cfg(f.uid)).lastOutcome.error.code,'automation_quality_gate','reached the editorial gate, not an invalid-output error');
 });
-check('A score of 82+ with a non-review check (improve) is a hard reject and is never repaired',async()=>{
+
+check('A repair that rewords a section heading skips on the layout gate and publishes nothing',async()=>{
+  const reviews=[editorialReview(78),automaticQuality()];
+ const f=await fixture({quality:()=>reviews.shift(),aiOptions:{articleRepair:'changed-headings'}});
+ assert.equal(await driveSlot(f),'skipped');
+ assert.equal((await cfg(f.uid)).lastOutcome.error.code,'automation_quality_gate');
+ assert.match((await cfg(f.uid)).lastOutcome.error.message,/section layout/);
+ assert.equal((await listPublishingJobs(db,f.uid)).jobs.length,0,'no Blogger job was authorized');
+});
+check('A repair that only changes a heading’ case and spacing still proceeds to a queued job',async()=>{ 
+const reviews=[editorialReview(78),automaticQuality()];
+ const f=await fixture({quality:()=>reviews.shift(),aiOptions:{articleRepair:'trivial-heading-change'}});
+ assert.equal(await driveSlot(f),'queued',JSON.stringify((await cfg(f.uid)).lastOutcome));
+ assert.equal((await listPublishingJobs(db,f.uid)).jobs.length,1);
+});
+ check('A score of 82+ with a non-review check (improve) is a hard reject and is never repaired',async()=>{
  const f=await fixture({quality:()=>editorialReview(88,'improve')});
  assert.equal(await driveSlot(f),'skipped');
  assert.equal(f.ai.calls.filter(c=>c.task==='article').length,1,'no repair request for a hard failure');
