@@ -19,7 +19,7 @@ const ROUTE_PROFILES = new Map([['/', 'home'], ['/about', 'about'], ['/how-to-wo
 function normalizePathname(pathname = '/') {
   const normalized = String(pathname).split(/[?#]/, 1)[0].replace(/\/+$/, '');
   return normalized || '/';
-}
+]}
 
 function routeProfile(pathname) {
   return ROUTE_PROFILES.get(normalizePathname(pathname)) || 'excluded';
