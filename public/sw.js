@@ -1,6 +1,5 @@
-self.options = {
-    "domain": "3nbf4.com",
-    "zoneId": 12290352
-}
-self.lary = ""
-importScripts('https://3nbf4.com/act/files/service-worker.min.js?r=sw')
+// PinCraft no longer uses a push-notification service worker (previous ad
+// provider removed 2026-11-25). Any previously installed worker updates to
+// this file and unregisters itself, so old push subscriptions stop cleanly.
+self.addEventListener('install', () => self.skipWaiting());
+self.addEventListener('activate', () => self.registration.unregister());
