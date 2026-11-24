@@ -12,7 +12,6 @@ async function open(width, state = {}, path = '/') {
   const context = await browser.newContext({ viewport: { width, height: 800 } });
   const calls = { link: 0, recheck: 0 };
   await context.route('**/api/auth/session', r => r.fulfill({ json: { user } }));
-  await context.route(/https:\/\/(nap5k\.com|5gvci\.com|n6wxm\.com)\//, r => r.fulfill({ contentType: 'application/javascript', body: '/* vendor stub */' }));
   await context.route('**/api/showcase', r => {
     if (s.statusFails) return r.fulfill({ status: 500, json: { ok: false, code: 'server_error' } });
     const body = { telegramJoined: s.joined, youtubeSubscribed: false, telegram: { configured: s.configured, botUsername: 'pincraft_bot' } };
