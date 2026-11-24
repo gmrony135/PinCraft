@@ -1,7 +1,5 @@
 import "./globals.css";
 import AppProvider from "@/components/providers/AppProvider";
-import RegisteredMonetagPush from "@/components/ads/RegisteredMonetagPush";
-import MonetagAdManager from "@/components/ads/MonetagAdManager";
 import ChannelShowcase from "@/components/onboarding/ChannelShowcase";
 
 export const metadata = {
@@ -18,9 +16,6 @@ export const metadata = {
     "SEO article writer",
     "Manual Pinterest scheduling",
   ],
-  other: {
-    monetag: "6ee3743bd403adb975405089ff32f9fe",
-  },
   applicationName: "PinCraft",
   openGraph: {
     title: "PinCraft — Blogger Publishing & Manual Pin Packs",
@@ -65,7 +60,7 @@ export const viewport = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
-      <body><AppProvider><MonetagAdManager /><RegisteredMonetagPush />{children}<ChannelShowcase /></AppProvider></body>
+      <body><AppProvider>{children}<ChannelShowcase /></AppProvider></body>
     </html>
   );
 }
