@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import ArticleWriter from "@/components/article-writer/ArticleWriter";
+import GeneratorBanner from "@/components/ads/GeneratorBanner";
 
 export const metadata = {
   title: "Auto Article Writer",
@@ -16,6 +17,7 @@ export default function ArticleWriterPage() {
     <>
       <Navbar />
       <main>
+        <GeneratorBanner />
         <Suspense
           fallback={
             <div className="container-x py-24 text-center text-[14px] font-semibold text-neutral-400">
