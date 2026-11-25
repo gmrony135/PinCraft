@@ -3,6 +3,7 @@ import { pageOpenGraph, webPageJsonLd } from '@/lib/seo.mjs';
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import PinGenerator from "@/components/pin-generator/PinGenerator";
+import GeneratorBanner from "@/components/ads/GeneratorBanner";
 
 const pageSeo = { title: "Viral Pin Generator", description: "Explore ten product categories, create Pin titles and descriptions, or generate download-only 1000 \u00d7 1500 artwork without creating Pin copy first.", path: "/pin-generator" };
 
@@ -18,6 +19,7 @@ export default function PinGeneratorPage() {
     <>
       <Navbar />
       <main><JsonLd data={webPageJsonLd(pageSeo)} />
+        <GeneratorBanner />
         <PinGenerator />
       </main>
       <Footer />
