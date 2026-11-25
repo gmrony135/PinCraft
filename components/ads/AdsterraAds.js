@@ -4,9 +4,11 @@ import { useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 
 // Adsterra ads (2026-11-25, replaces the previous ad provider). Social Bar + Native Banner +
-// two display Banners, shown only on public marketing pages. Generator,
-// workspace, auth, checkout, publishing and policy pages never load ad code.
+// two display Banners on the public marketing pages, and the Social Bar on
+// tool pages, where it floats at the bottom of the screen. Auth, checkout,
+// publishing and policy pages never load ad code.
 const MARKETING_ROUTES = new Set(['/', '/about', '/how-to-work', '/subscription']);
+const TOOL_ROUTES = new Set(['/pin-generator', '/article-writer', '/ai-studio', '/content-studio', '/trend-finder', '/dashboard', '/automation', '/library', '/publish']);
 const SOCIAL_BAR_SRC = 'https://bauval.org/14/a54607ccdd372fccae96e4f16760f4a2';
 const NATIVE_SRC = 'https://bauval.org/21/e250928250d9b84951ea0e5ccdfb7142';
 const NATIVE_CONTAINER_ID = 'container-e250928250d9b84951ea0e5ccdfb7142';
@@ -17,7 +19,9 @@ const BANNERS = [
 
 // Module state survives Footer remounts inside one document, so a
 // client-side move between marketing pages is detected and reloaded fresh:
-// the ad scripts must run against the freshly rendered slots.
+// the ad scripts must run against the freshly rendered slots. A move
+// between tool pages needs no reload: the Social Bar is already in this
+// document and tool pages render no footer banner slots.
 let injectedPathname = null;
 
 function normalizePathname(pathname = '/') {
@@ -26,7 +30,10 @@ function normalizePathname(pathname = '/') {
 }
 
 function routeProfile(pathname) {
-  return MARKETING_ROUTES.has(normalizePathname(pathname)) ? 'marketing' : 'excluded';
+  const normalized = normalizePathname(pathname);
+  if (MARKETING_ROUTES.has(normalized)) return 'marketing';
+  if (TOOL_ROUTES.has(normalized)) return 'tool';
+  return 'excluded';
 }
 
 function appendScript(parent, { src, text, async, fetchPriority, dataset = {} }) {
@@ -64,9 +71,9 @@ async function injectBanner(banner) {
 export default function AdsterraAds() {
   const pathname = normalizePathname(usePathname() || '/');
 
-  // Full navigation when crossing between marketing pages and the rest of the
-  // site, so ad code never follows a client-side navigation into a workspace,
-  // generator, auth or account page (same guard the previous provider used).
+  // Full navigation when crossing between marketing, tool and excluded
+  // routes, so the per-document ad scripts are never carried across a
+  // client-side navigation into a page with a different ad setup.
   useEffect(() => {
     const onBoundaryLink = (event) => {
       if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
@@ -85,16 +92,28 @@ export default function AdsterraAds() {
   }, []);
 
   useEffect(() => {
-    if (routeProfile(pathname) !== 'marketing') return;
-    if (injectedPathname && injectedPathname !== pathname) {
-      window.location.replace(window.location.href);
+    const profile = routeProfile(pathname);
+    if (profile === 'excluded') return;
+    if (injectedPathname) {
+      // Crossing profiles is forced to a full navigation by the click guard
+      // above; reload here too if one ever slips through client-side.
+      if (routeProfile(injectedPathname) !== profile) {
+        window.location.replace(window.location.href);
+        return;
+      }
+      if (profile === 'marketing' && injectedPathname !== pathname) {
+        window.location.replace(window.location.href);
+        return;
+      }
+      // Same page, or another tool page: the Social Bar is already in this
+      // document and tool pages render no footer banner slots.
       return;
     }
-    if (injectedPathname === pathname) return;
     injectedPathname = pathname;
     if (!document.querySelector(`script[src="${SOCIAL_BAR_SRC}"]`)) {
       appendScript(document.body, { src: SOCIAL_BAR_SRC, dataset: { cfasync: 'false' } });
     }
+    if (profile !== 'marketing') return;
     if (!document.querySelector(`script[src="${NATIVE_SRC}"]`)) {
       appendScript(document.body, { src: NATIVE_SRC, async: true, fetchPriority: 'high', dataset: { cfasync: 'false' } });
     }
